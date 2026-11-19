@@ -1,0 +1,499 @@
+<div class="pi-page">
+
+  <!-- Page Header -->
+  <div class="pi-header">
+    <div class="pi-header-left">
+      <div class="pi-header-icon" style="--accent:var(--psc-primary)">
+        <lucide-icon name="brain-circuit" [size]="20"></lucide-icon>
+      </div>
+      <div>
+        <div class="pi-header-title">Context &amp; Product Memory</div>
+        <div class="pi-header-sub">AI-powered knowledge base — decisions, meeting summaries and project context</div>
+      </div>
+    </div>
+    <div class="pi-header-actions">
+      <button class="pi-btn pi-btn-ghost" (click)="openConnectSourceModal()">
+        <lucide-icon name="plug" [size]="13"></lucide-icon>Connect Source
+      </button>
+      <button class="pi-btn pi-btn-ghost" (click)="openAddModal()">
+        <lucide-icon name="plus" [size]="13"></lucide-icon>Add Memory
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="pi-kpis">
+    <div class="pi-kpi">
+      <div class="pi-kpi-val">{{ entries.length }}</div>
+      <div class="pi-kpi-label">Memory Entries</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val">{{ meetings.length }}</div>
+      <div class="pi-kpi-label">Meeting Summaries</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val">{{ decisionCount }}</div>
+      <div class="pi-kpi-label">Decisions Logged</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val" style="color:var(--psc-primary-text)">{{ connectedSourceCount }}</div>
+      <div class="pi-kpi-label">Context Sources</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val">{{ totalDocsIngested }}</div>
+      <div class="pi-kpi-label">Docs Ingested</div>
+    </div>
+  </div>
+
+  <!-- Semantic Search Bar -->
+  <div class="pi-search-bar">
+    <lucide-icon name="search" [size]="16" class="pi-search-icon"></lucide-icon>
+    <input class="pi-search-input" [(ngModel)]="searchQuery" placeholder="Search product memory… e.g. 'why did we choose Stripe?'" (keyup.enter)="runSearch()" />
+    <button class="pi-btn pi-btn-primary pi-btn-sm" (click)="runSearch()" [disabled]="!searchQuery.trim()">
+      <lucide-icon name="sparkles" [size]="13"></lucide-icon>AI Search
+    </button>
+    <button class="pi-btn pi-btn-ghost pi-btn-sm" *ngIf="hasSearched" (click)="clearSearch()">Clear</button>
+  </div>
+
+  <!-- Search Results -->
+  <div class="pi-search-results" *ngIf="isSearching || hasSearched">
+    <div class="pi-search-loading" *ngIf="isSearching">
+      <lucide-icon name="loader" [size]="16" class="pi-spin"></lucide-icon>
+      Searching product memory…
+    </div>
+    <ng-container *ngIf="!isSearching && hasSearched">
+      <div class="pi-search-result-header">
+        <lucide-icon name="sparkles" [size]="13"></lucide-icon>
+        {{ searchResults.length }} result{{ searchResults.length !== 1 ? 's' : '' }} for "{{ searchQuery }}"
+      </div>
+      <div class="pi-entry-card" *ngFor="let e of searchResults" [attr.data-mem-id]="e.id">
+        <div class="pi-entry-type-dot" [style.background]="typeColor(e.type)"></div>
+        <div class="pi-entry-body">
+          <div class="pi-entry-top">
+            <span class="pi-entry-title">{{ e.title }}</span>
+            <span class="pi-entry-badge" [style.background]="typeColor(e.type) + '18'" [style.color]="typeColor(e.type)">{{ typeLabel(e.type) }}</span>
+          </div>
+          <div class="pi-entry-summary">{{ e.summary }}</div>
+          <div class="pi-entry-meta">
+            <span class="pi-proj-chip" [style.background]="e.projectColor + '18'" [style.color]="e.projectColor">{{ e.project }}</span>
+            <span class="pi-meta-item">{{ daysAgo(e.createdAt) }}</span>
+            <button type="button" class="mem-chat-btn" (click)="useInChat(e.id, e.projectId)" title="Start a chat on Home grounded in this"><lucide-icon name="message-square-plus" [size]="12"></lucide-icon>Use in chat</button>
+          </div>
+        </div>
+      </div>
+      <div class="pi-empty" *ngIf="searchResults.length === 0">
+        <lucide-icon name="search-x" [size]="28"></lucide-icon>
+        <span>No memory entries match "{{ searchQuery }}"</span>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- Tabs -->
+  <div class="pi-tabs" *ngIf="!hasSearched">
+    <button class="pi-tab" [class.active]="activeTab === 'knowledge'" (click)="activeTab = 'knowledge'">
+      <lucide-icon name="book-open" [size]="14"></lucide-icon>Knowledge Base
+    </button>
+    <button class="pi-tab" [class.active]="activeTab === 'meetings'" (click)="activeTab = 'meetings'">
+      <lucide-icon name="users" [size]="14"></lucide-icon>Meeting Summaries
+    </button>
+    <button class="pi-tab" [class.active]="activeTab === 'context'" (click)="activeTab = 'context'">
+      <lucide-icon name="layers" [size]="14"></lucide-icon>Project Context
+    </button>
+    <button class="pi-tab" [class.active]="activeTab === 'sources'" (click)="activeTab = 'sources'">
+      <lucide-icon name="plug" [size]="14"></lucide-icon>Context Sources
+      <span class="pi-tab-badge" style="background:var(--psc-primary)">{{ connectedSourceCount }}</span>
+    </button>
+  </div>
+
+  <!-- Knowledge Base Tab -->
+  <ng-container *ngIf="activeTab === 'knowledge' && !hasSearched">
+    <div class="pi-tab-content">
+      <!-- Filters -->
+      <div class="pi-filters">
+        <input class="pi-filter-input" [(ngModel)]="search" placeholder="Filter entries…" />
+        <select class="pi-filter-select" [(ngModel)]="filterType">
+          <option value="">All Types</option>
+          <option value="decision">Decision</option>
+          <option value="meeting">Meeting</option>
+          <option value="context">Context</option>
+          <option value="insight">Insight</option>
+        </select>
+        <select class="pi-filter-select" [(ngModel)]="filterProject">
+          <option value="">All Projects</option>
+          <option *ngFor="let p of projects" [value]="p">{{ p }}</option>
+        </select>
+      </div>
+
+      <!-- Pinned -->
+      <ng-container *ngIf="pinned.length">
+        <div class="pi-section-label">
+          <lucide-icon name="pin" [size]="12"></lucide-icon>Pinned
+        </div>
+        <div class="pi-entries-grid">
+          <div class="pi-entry-card pi-entry-card--pinned" *ngFor="let e of pinned" [attr.data-mem-id]="e.id" [class.mem-focus]="e.id === focusId">
+            <div class="pi-entry-type-dot" [style.background]="typeColor(e.type)"></div>
+            <div class="pi-entry-body">
+              <div class="pi-entry-top">
+                <span class="pi-entry-title">{{ e.title }}</span>
+                <span class="pi-entry-badge" [style.background]="typeColor(e.type) + '18'" [style.color]="typeColor(e.type)">{{ typeLabel(e.type) }}</span>
+              </div>
+              <div class="pi-entry-summary">{{ e.summary }}</div>
+              <div class="pi-entry-tags">
+                <span class="pi-tag" *ngFor="let t of e.tags">#{{ t }}</span>
+              </div>
+              <div class="pi-entry-meta">
+                <span class="pi-proj-chip" [style.background]="e.projectColor + '18'" [style.color]="e.projectColor">{{ e.project }}</span>
+                <div class="pi-avatar-sm">{{ e.authorInitials }}</div>
+                <span class="pi-meta-item">{{ daysAgo(e.createdAt) }}</span>
+                <button type="button" class="mem-pin-btn on" (click)="togglePin(e)" title="Unpin" aria-label="Unpin"><lucide-icon name="pin-off" [size]="12"></lucide-icon></button>
+                <button type="button" class="mem-chat-btn" (click)="useInChat(e.id, e.projectId)" title="Start a chat on Home grounded in this"><lucide-icon name="message-square-plus" [size]="12"></lucide-icon>Use in chat</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- All entries -->
+      <div class="pi-section-label">
+        <lucide-icon name="database" [size]="12"></lucide-icon>All Entries ({{ unpinned.length }})
+      </div>
+      <div class="pi-entries-list">
+        <div class="pi-entry-row" *ngFor="let e of unpinned" [attr.data-mem-id]="e.id" [class.mem-focus]="e.id === focusId">
+          <div class="pi-entry-type-icon" [style.background]="typeColor(e.type) + '15'" [style.color]="typeColor(e.type)">
+            <lucide-icon [name]="typeIcon(e.type)" [size]="14"></lucide-icon>
+          </div>
+          <div class="pi-entry-row-body">
+            <div class="pi-entry-row-title">{{ e.title }}</div>
+            <div class="pi-entry-row-summary">{{ e.summary }}</div>
+            <div class="pi-entry-row-meta">
+              <span class="pi-proj-chip" [style.background]="e.projectColor + '18'" [style.color]="e.projectColor">{{ e.project }}</span>
+              <span class="pi-tag" *ngFor="let t of e.tags.slice(0,3)">#{{ t }}</span>
+              <span class="pi-meta-item">{{ daysAgo(e.createdAt) }}</span>
+            </div>
+          </div>
+          <div class="mem-row-actions">
+            <button type="button" class="mem-pin-btn" (click)="togglePin(e)" title="Pin" aria-label="Pin"><lucide-icon name="pin" [size]="12"></lucide-icon></button>
+            <button type="button" class="mem-chat-btn" (click)="useInChat(e.id, e.projectId)" title="Start a chat on Home grounded in this"><lucide-icon name="message-square-plus" [size]="12"></lucide-icon>Use in chat</button>
+          </div>
+          <div class="pi-avatar-sm">{{ e.authorInitials }}</div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Meeting Summaries Tab -->
+  <ng-container *ngIf="activeTab === 'meetings' && !hasSearched">
+    <div class="pi-tab-content">
+      <div class="pi-meetings-list">
+        <div class="pi-meeting-card" *ngFor="let m of meetings" [attr.data-mem-id]="m.id" [class.mem-focus]="m.id === focusId">
+          <div class="pi-meeting-header">
+            <div class="pi-meeting-title-row">
+              <lucide-icon name="video" [size]="14"></lucide-icon>
+              <span class="pi-meeting-title">{{ m.title }}</span>
+              <span class="pi-proj-chip" [style.background]="m.projectColor + '18'" [style.color]="m.projectColor">{{ m.project }}</span>
+              <button type="button" class="mem-chat-btn" (click)="useInChat(m.id, m.projectId)" title="Start a chat on Home grounded in this"><lucide-icon name="message-square-plus" [size]="12"></lucide-icon>Use in chat</button>
+            </div>
+            <div class="pi-meeting-meta">
+              <span>{{ m.date }}</span>
+              <span>·</span>
+              <span>{{ m.duration }}</span>
+              <span>·</span>
+              <span>{{ m.attendees.length }} attendees</span>
+            </div>
+            <div class="pi-meeting-attendees">
+              <div class="pi-avatar-sm" *ngFor="let a of m.attendees.slice(0,4)" [title]="a">
+                {{ initials(a) }}
+              </div>
+              <span class="pi-avatar-more" *ngIf="m.attendees.length > 4">+{{ m.attendees.length - 4 }}</span>
+            </div>
+          </div>
+          <div class="pi-meeting-body">
+            <div class="pi-meeting-section">
+              <div class="pi-meeting-section-label">
+                <lucide-icon name="check-circle" [size]="12"></lucide-icon>Key Decisions
+              </div>
+              <ul class="pi-meeting-list">
+                <li *ngFor="let d of m.keyDecisions">{{ d }}</li>
+              </ul>
+            </div>
+            <div class="pi-meeting-section">
+              <div class="pi-meeting-section-label">
+                <lucide-icon name="clipboard-list" [size]="12"></lucide-icon>Action Items
+              </div>
+              <div class="pi-action-item" *ngFor="let a of m.actionItems">
+                <div class="pi-avatar-sm">{{ initials(a.owner) }}</div>
+                <span class="pi-action-task">{{ a.task }}</span>
+                <span class="pi-action-due">Due {{ a.due }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Project Context Tab -->
+  <ng-container *ngIf="activeTab === 'context' && !hasSearched">
+    <div class="pi-tab-content">
+      <div class="pi-entries-list">
+        <div class="pi-entry-row" *ngFor="let e of contextEntries" [attr.data-mem-id]="e.id">
+          <div class="pi-entry-type-icon" [style.background]="typeColor(e.type) + '15'" [style.color]="typeColor(e.type)">
+            <lucide-icon [name]="typeIcon(e.type)" [size]="14"></lucide-icon>
+          </div>
+          <div class="pi-entry-row-body">
+            <div class="pi-entry-row-title">{{ e.title }}</div>
+            <div class="pi-entry-row-summary">{{ e.summary }}</div>
+            <div class="pi-entry-row-meta">
+              <span class="pi-proj-chip" [style.background]="e.projectColor + '18'" [style.color]="e.projectColor">{{ e.project }}</span>
+              <span class="pi-tag" *ngFor="let t of e.tags.slice(0,3)">#{{ t }}</span>
+            </div>
+          </div>
+          <div class="mem-row-actions"><button type="button" class="mem-chat-btn" (click)="useInChat(e.id, e.projectId)" title="Start a chat on Home grounded in this"><lucide-icon name="message-square-plus" [size]="12"></lucide-icon>Use in chat</button></div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Context Sources Tab -->
+  <ng-container *ngIf="activeTab === 'sources' && !hasSearched">
+    <div class="pi-tab-content">
+    <!-- How it works banner -->
+    <div class="mem-sources-banner">
+      <div class="mem-sources-banner-icon">
+        <lucide-icon name="sparkles" [size]="18"></lucide-icon>
+      </div>
+      <div class="mem-sources-banner-body">
+        <div class="mem-sources-banner-title">How context sources enrich Product Memory</div>
+        <div class="mem-sources-banner-desc">
+          Connected sources are automatically scanned and ingested into the Knowledge Base.
+          <strong>Confluence</strong> pages become Context entries &amp; PRDs.
+          <strong>GitHub</strong> ADRs and closed issues become Decisions &amp; Insights.
+          <strong>SharePoint</strong> documents become Context entries.
+          All ingested content is searchable via AI Search.
+        </div>
+      </div>
+      <button class="pi-btn pi-btn-primary pi-btn-sm" (click)="openConnectSourceModal()">
+        <lucide-icon name="plus" [size]="12"></lucide-icon>Connect Source
+      </button>
+    </div>
+
+    <!-- Source type legend -->
+    <div class="mem-source-types-row">
+      <div class="mem-source-type-pill" *ngFor="let st of sourceTypes" [style.--st-color]="st.color">
+        <div class="mem-source-type-icon" [style.background]="st.color + '18'" [style.color]="st.color">
+          <lucide-icon [name]="st.icon" [size]="13"></lucide-icon>
+        </div>
+        <div>
+          <div class="mem-source-type-name">{{ st.label }}</div>
+          <div class="mem-source-type-hint">{{ st.hint }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connected sources list -->
+    <div class="pi-section-label">
+      <lucide-icon name="database" [size]="12"></lucide-icon>Connected Sources ({{ sources.length }})
+    </div>
+
+    <div class="mem-sources-list" *ngIf="sources.length > 0">
+      <div class="mem-source-card" *ngFor="let s of sources" [class.mem-source-card--error]="s.status === 'error'" [attr.data-mem-id]="s.id" [class.mem-focus]="s.id === focusId">
+        <div class="mem-source-card-left">
+          <div class="mem-source-icon"
+            [style.background]="'color-mix(in srgb, ' + (sourceTypeInfo(s.type)?.color ?? 'var(--psc-primary)') + ' 9%, transparent)'"
+            [style.color]="sourceTypeInfo(s.type)?.color ?? 'var(--psc-primary-text)'">
+            <lucide-icon [name]="sourceTypeInfo(s.type)?.icon ?? 'link'" [size]="20"></lucide-icon>
+          </div>
+          <div class="mem-source-info">
+            <div class="mem-source-name">{{ s.name }}</div>
+            <div class="mem-source-url">{{ s.url }}</div>
+            <div class="mem-source-meta">
+              <span class="pi-status-badge" [class]="'pi-status-badge--' + (s.status === 'connected' ? 'connected' : s.status === 'error' ? 'error' : 'disconnected')">
+                <lucide-icon [name]="s.status === 'connected' ? 'check-circle' : s.status === 'error' ? 'x-circle' : 'clock'" [size]="10"></lucide-icon>
+                {{ sourceStatusLabel(s) }}
+              </span>
+              <span class="pi-proj-chip pi-proj-chip--brand">{{ s.project }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="mem-source-stats">
+          <div class="mem-source-stat">
+            <div class="mem-source-stat-val">{{ s.docsIngested }}</div>
+            <div class="mem-source-stat-label">Docs ingested</div>
+          </div>
+          <div class="mem-source-stat">
+            <div class="mem-source-stat-val" style="color:var(--psc-primary-text)">{{ s.entriesCreated }}</div>
+            <div class="mem-source-stat-label">Entries created</div>
+          </div>
+        </div>
+        <div class="mem-source-actions">
+          <button type="button" class="pi-btn pi-btn-ghost pi-btn-sm" *ngIf="s.status === 'connected'" (click)="useInChat(s.id, s.projectId)" title="Start a chat on Home grounded in this source">
+            <lucide-icon name="message-square-plus" [size]="12"></lucide-icon>Use in chat
+          </button>
+          <button class="pi-btn pi-btn-ghost pi-btn-sm"
+            (click)="syncSource(s.id)"
+            [disabled]="syncingSourceId === s.id">
+            <lucide-icon [name]="syncingSourceId === s.id ? 'loader' : 'refresh-cw'" [size]="12" [class.pi-spin]="syncingSourceId === s.id"></lucide-icon>
+            {{ syncingSourceId === s.id ? 'Syncing…' : s.status === 'error' ? 'Reconnect' : 'Sync Now' }}
+          </button>
+          <button class="pi-btn pi-btn-ghost pi-btn-sm mem-source-remove" (click)="removeSource(s.id)">
+            <lucide-icon name="trash-2" [size]="12"></lucide-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pi-empty" *ngIf="sources.length === 0">
+      <lucide-icon name="plug" [size]="28"></lucide-icon>
+      <span>No context sources connected yet</span>
+      <button class="pi-btn pi-btn-primary pi-btn-sm" (click)="openConnectSourceModal()">
+        <lucide-icon name="plus" [size]="12"></lucide-icon>Connect your first source
+      </button>
+    </div>
+
+    </div>
+  </ng-container>
+
+</div>
+
+<!-- Add Memory Modal -->
+<ng-container *ngIf="showAddModal">
+  <div class="mem-overlay" (click)="closeAddModal()"></div>
+  <div class="mem-modal" role="dialog" aria-modal="true">
+    <div class="mem-modal-header">
+      <div class="mem-modal-title">
+        <lucide-icon name="brain-circuit" [size]="16"></lucide-icon>
+        Add Memory Entry
+      </div>
+      <button class="mem-modal-close" (click)="closeAddModal()">
+        <lucide-icon name="x" [size]="16"></lucide-icon>
+      </button>
+    </div>
+
+    <div class="mem-modal-body">
+      <div class="mem-field">
+        <label class="mem-label">Type</label>
+        <div class="mem-type-grid">
+          <button class="mem-type-btn" *ngFor="let t of typeOptions"
+            [class.active]="form.type === t.v" (click)="form.type = t.v">
+            <lucide-icon [name]="t.i" [size]="14"></lucide-icon>{{ t.l }}
+          </button>
+        </div>
+      </div>
+
+      <div class="mem-field">
+        <label class="mem-label">Title <span class="mem-required">*</span></label>
+        <input class="mem-input" [(ngModel)]="form.title" placeholder="e.g. Adopted Stripe as payment processor" maxlength="120" />
+      </div>
+
+      <div class="mem-field">
+        <label class="mem-label">Summary <span class="mem-required">*</span></label>
+        <textarea class="mem-textarea" [(ngModel)]="form.summary" placeholder="Describe the decision, insight or context in 1–3 sentences…" rows="3" maxlength="500"></textarea>
+      </div>
+
+      <div class="mem-field">
+        <label class="mem-label">Project</label>
+        <select class="mem-select" [(ngModel)]="form.project">
+          <option value="">— General (no project) —</option>
+          <option *ngFor="let p of projectOptions" [value]="p.id">{{ p.name }}</option>
+        </select>
+      </div>
+
+      <div class="mem-field">
+        <label class="mem-label">Tags <span class="mem-hint">(comma-separated)</span></label>
+        <input class="mem-input" [(ngModel)]="form.tags" placeholder="e.g. architecture, vendor, Q2" />
+      </div>
+
+      <div class="mem-field mem-field--inline">
+        <label class="mem-toggle-label">
+          <div class="mem-toggle" [class.on]="form.pinned" (click)="form.pinned = !form.pinned">
+            <div class="mem-toggle-thumb"></div>
+          </div>
+          Pin to top of Knowledge Base
+        </label>
+      </div>
+    </div>
+
+    <div class="mem-modal-footer">
+      <button class="pi-btn pi-btn-ghost" (click)="closeAddModal()">Cancel</button>
+      <button class="pi-btn pi-btn-primary" (click)="saveMemory()" [disabled]="!form.title.trim() || !form.summary.trim() || saving">
+        <lucide-icon [name]="saving ? 'loader' : 'save'" [size]="13" [class.pi-spin]="saving"></lucide-icon>
+        {{ saving ? 'Saving…' : 'Save Memory' }}
+      </button>
+    </div>
+  </div>
+</ng-container>
+
+<!-- Connect Source Modal -->
+<ng-container *ngIf="showConnectSourceModal">
+  <div class="mem-overlay" (click)="closeConnectSourceModal()"></div>
+  <div class="mem-modal" role="dialog" aria-modal="true">
+    <div class="mem-modal-header">
+      <div class="mem-modal-title">
+        <lucide-icon name="plug" [size]="16"></lucide-icon>
+        Connect Context Source
+      </div>
+      <button class="mem-modal-close" (click)="closeConnectSourceModal()">
+        <lucide-icon name="x" [size]="16"></lucide-icon>
+      </button>
+    </div>
+    <div class="mem-modal-body">
+
+      <div class="mem-field">
+        <label class="mem-label">Source Type <span class="mem-required">*</span></label>
+        <div class="mem-source-type-picker">
+          <button
+            *ngFor="let st of sourceTypes"
+            class="mem-source-type-pick-btn"
+            [class.active]="connectSourceForm.type === st.value"
+            [style.--st-color]="st.color"
+            (click)="selectSourceType(st.value)">
+            <div class="mem-source-type-pick-icon" [style.background]="st.color + '18'" [style.color]="st.color">
+              <lucide-icon [name]="st.icon" [size]="18"></lucide-icon>
+            </div>
+            <div class="mem-source-type-pick-body">
+              <div class="mem-source-type-pick-name">{{ st.label }}</div>
+              <div class="mem-source-type-pick-hint">{{ st.hint }}</div>
+            </div>
+            <lucide-icon *ngIf="connectSourceForm.type === st.value" name="check-circle" [size]="14" [style.color]="st.color"></lucide-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="mem-field">
+        <label class="mem-label">Display Name <span class="mem-required">*</span></label>
+        <input class="mem-input" [(ngModel)]="connectSourceForm.name" placeholder="e.g. Confluence — Aava Commerce" />
+      </div>
+
+      <div class="mem-field">
+        <label class="mem-label">Instance URL <span class="mem-required">*</span></label>
+        <input class="mem-input" [(ngModel)]="connectSourceForm.url"
+          [placeholder]="connectSourceForm.type === 'confluence' ? 'https://yourorg.atlassian.net/wiki' : connectSourceForm.type === 'github' ? 'https://github.com/org/repo' : 'https://yourorg.sharepoint.com/sites/...'" />
+      </div>
+
+      <div class="mem-field">
+        <label class="mem-label">
+          {{ connectSourceForm.type === 'github' ? 'Personal Access Token' : 'API Token' }}
+          <span class="mem-required">*</span>
+        </label>
+        <input class="mem-input" type="password" [(ngModel)]="connectSourceForm.token" placeholder="Paste your token here" />
+        <span class="mem-label mem-hint">Token is stored securely and never shared.</span>
+      </div>
+
+      <div class="mem-field">
+        <label class="mem-label">Link to Project</label>
+        <select class="mem-select" [(ngModel)]="connectSourceForm.project">
+          <option value="">— All projects —</option>
+          <option *ngFor="let p of projectOptions" [value]="p.id">{{ p.name }}</option>
+        </select>
+      </div>
+
+    </div>
+    <div class="mem-modal-footer">
+      <button class="pi-btn pi-btn-ghost" (click)="closeConnectSourceModal()">Cancel</button>
+      <button class="pi-btn pi-btn-primary" (click)="saveConnectSource()" [disabled]="!connectSourceFormValid || connectingSource">
+        <lucide-icon [name]="connectingSource ? 'loader' : 'plug'" [size]="13" [class.pi-spin]="connectingSource"></lucide-icon>
+        {{ connectingSource ? 'Connecting…' : 'Connect Source' }}
+      </button>
+    </div>
+  </div>
+</ng-container>

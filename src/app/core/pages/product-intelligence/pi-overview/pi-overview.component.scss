@@ -1,0 +1,191 @@
+@use '../pi-shared' as *;
+
+@keyframes mvp-reveal {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.mvp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: mvp-reveal .3s $ease-smooth both;
+}
+
+.mvp-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mvp-section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mvp-section-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: $radius-md;
+  background: linear-gradient(135deg, rgb(var(--psc-primary-rgb) / .12), rgb(var(--psc-secondary-rgb) / .12));
+  color: var(--psc-primary-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(var(--psc-primary-rgb) / .2);
+  flex-shrink: 0;
+}
+
+.mvp-section-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: $text-1;
+  font-family: $font;
+}
+
+.mvp-section-sub {
+  font-size: 11px;
+  color: $text-muted;
+  font-weight: 500;
+  margin-top: 2px;
+  font-family: $font;
+}
+
+.mvp-section-badge {
+  padding: 3px 10px;
+  border-radius: $radius-full;
+  background: linear-gradient(135deg, $primary, $blue);
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  font-family: $font;
+  flex-shrink: 0;
+}
+
+// ── MVP Cards Grid ─────────────────────────────────────────────────────────
+
+.mvp-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+
+  @media (max-width: 1280px) { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 900px)  { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 560px)  { grid-template-columns: 1fr; }
+}
+
+.mvp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 16px 16px;
+  border-radius: $radius-lg;
+  border: 1.5px solid $border;
+  background: $surface;
+  box-shadow: $shadow-card;
+  cursor: pointer;
+  text-align: left;
+  font-family: $font;
+  position: relative;
+  overflow: hidden;
+  transition: all .22s $ease-smooth;
+  opacity: 0;
+  animation: mvp-reveal .35s $ease-smooth both;
+
+  // Accent top bar
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--mvp-accent, #{$primary});
+    border-radius: $radius-lg $radius-lg 0 0;
+    opacity: 0;
+    transition: opacity .2s;
+  }
+
+  &:hover {
+    border-color: var(--mvp-accent, #{$primary});
+    box-shadow: 0 4px 20px color-mix(in srgb, var(--mvp-accent, #{$primary}) 18%, transparent);
+    transform: translateY(-3px);
+
+    &::before { opacity: 1; }
+
+    .mvp-card-icon { transform: scale(1.1); }
+    .mvp-card-arrow { opacity: 1; transform: translateX(0); }
+  }
+
+  &:active { transform: translateY(-1px); }
+}
+
+.mvp-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: $radius-md;
+  background: color-mix(in srgb, var(--mvp-accent, #{$primary}) 10%, transparent);
+  color: var(--mvp-accent, #{$primary});
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--mvp-accent, #{$primary}) 20%, transparent);
+  transition: transform .2s $ease-out;
+}
+
+.mvp-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mvp-card-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: $text-1;
+  line-height: 1.25;
+}
+
+.mvp-card-desc {
+  font-size: 11.5px;
+  color: $text-3;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.mvp-card-arrow {
+  align-self: flex-end;
+  color: var(--mvp-accent, #{$primary});
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all .2s $ease-smooth;
+  flex-shrink: 0;
+}
+
+// Cards are links: reset anchor styles, always show the arrow on touch devices.
+a.mvp-card { color: inherit; text-decoration: none; }
+a.mvp-card:focus-visible { outline: 2px solid var(--mvp-accent); outline-offset: 2px; }
+.mvp-section-name { margin: 0; }
+@media (hover: none) { .mvp-card-arrow { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .mvp-card { animation: none; opacity: 1; } }
+
+// ── Illustrated cards ──
+.mvp-card { padding: 0; gap: 0; }
+.mvp-card-art {
+  height: 110px;
+  padding: 14px 18px 6px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--mvp-accent) 7%, var(--psc-surface)), color-mix(in srgb, var(--mvp-accent) 14%, var(--psc-surface)));
+  transition: transform .25s ease;
+}
+.mvp-card:hover .mvp-card-art { transform: scale(1.04); }
+.mvp-card .mvp-card-body { padding: 12px 14px 4px; gap: 4px; }
+.mvp-card .mvp-card-title { display: flex; align-items: center; gap: 7px; font-size: 13.5px; }
+.mvp-card .mvp-card-icon { width: 24px; height: 24px; border-radius: 7px; border: 0; }
+.mvp-card .mvp-card-desc { font-size: 12px; }
+.mvp-card .mvp-card-arrow { padding: 0 14px 12px; }

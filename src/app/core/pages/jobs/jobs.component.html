@@ -1,0 +1,68 @@
+<div class="psc-jobs psc-animate-in">
+  <div class="psc-page-header">
+    <div>
+      <h1>Background Jobs</h1>
+      <p>Monitor, pause, resume, and retry AI-powered background tasks</p>
+    </div>
+    <div class="psc-jobs-summary">
+      <span class="psc-badge psc-badge-running">{{runningCount}} Running</span>
+      <span class="psc-badge psc-badge-paused">{{pausedCount}} Paused</span>
+      <span class="psc-badge psc-badge-failed">{{failedCount}} Failed</span>
+    </div>
+  </div>
+
+  <div class="psc-jobs-list">
+    <div class="psc-job-card psc-card" *ngFor="let j of jobs" [ngClass]="'status-' + j.status">
+      <div class="psc-job-card-header">
+        <div class="psc-job-status-icon" [ngClass]="j.status">
+          <svg *ngIf="j.status === 'running'" class="psc-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+          <svg *ngIf="j.status === 'paused'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          <svg *ngIf="j.status === 'completed'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg *ngIf="j.status === 'failed'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <svg *ngIf="j.status === 'queued'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="psc-job-title-area">
+          <div class="psc-job-title">{{j.name}}</div>
+          <div class="psc-job-meta">
+            <span class="psc-badge" [ngClass]="'psc-badge-' + j.status">{{j.status}}</span>
+            <span class="psc-job-agent">🤖 {{j.agentName}}</span>
+            <span class="psc-job-type">{{j.type}}</span>
+            <span class="psc-job-time">Started {{j.startedAt | date:'h:mm a'}}</span>
+          </div>
+        </div>
+        <div class="psc-job-controls">
+          <button class="psc-btn psc-btn-ghost psc-btn-sm" *ngIf="j.canPause" (click)="pauseJob(j)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            Pause
+          </button>
+          <button class="psc-btn psc-btn-primary psc-btn-sm" *ngIf="j.status === 'paused'" (click)="resumeJob(j)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Resume
+          </button>
+          <button class="psc-btn psc-btn-ghost psc-btn-sm" *ngIf="j.canRetry" (click)="retryJob(j)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            Retry
+          </button>
+        </div>
+      </div>
+
+      <div class="psc-job-progress-area">
+        <div class="psc-progress-bar">
+          <div class="psc-progress-fill" [style.width]="j.progress + '%'" [class.psc-shimmer]="j.status === 'running'"></div>
+        </div>
+        <span class="psc-job-pct">{{j.progress}}%</span>
+        <span class="psc-job-eta" *ngIf="j.estimatedCompletion && j.status === 'running'">ETA {{j.estimatedCompletion | date:'h:mm a'}}</span>
+      </div>
+
+      <div class="psc-job-logs" *ngIf="expandedJob === j.id">
+        <div class="psc-log-line" *ngFor="let log of j.logs">
+          <span class="psc-log-bullet">›</span> {{log}}
+        </div>
+      </div>
+
+      <button class="psc-job-expand" (click)="toggleLogs(j.id)">
+        {{expandedJob === j.id ? '▲ Hide logs' : '▼ Show logs'}}
+      </button>
+    </div>
+  </div>
+</div>

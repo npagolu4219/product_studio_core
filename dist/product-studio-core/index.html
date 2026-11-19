@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" data-beasties-container>
+<head>
+  <meta charset="utf-8">
+  <title>Product Studio Core</title>
+  <base href="/product-studio-core/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta name="theme-color" content="#F8F7FF">
+  <script>
+    // Apply the saved theme (or the OS preference) before Angular boots to avoid a flash.
+    (function () {
+      var mode = 'system';
+      try { mode = localStorage.getItem('psc.theme') || 'system'; } catch (e) {}
+      var dark = mode === 'dark' || (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      var theme = dark ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.style.colorScheme = theme;
+      // Custom brand colours (pre-computed per theme by ThemeService).
+      try {
+        var vars = JSON.parse(localStorage.getItem('psc.theme.vars') || 'null');
+        var set = vars && vars[theme];
+        if (set) for (var k in set) document.documentElement.style.setProperty(k, set[k]);
+      } catch (e) {}
+    })();
+  </script>
+<style>:root{--psc-primary:#7C3AED;--psc-primary-rgb:124 58 237;--psc-primary-light:#8B5CF6;--psc-primary-dark:#6D28D9;--psc-primary-strong:#6D28D9;--psc-secondary:#2563EB;--psc-secondary-rgb:37 99 235;--psc-secondary-light:#3B82F6;--psc-accent:#E25292;--psc-success:#059669;--psc-warning:#D97706;--psc-error:#DC2626;--psc-info:#0284C7;--psc-bg:#F8F7FF;--psc-bg-card:rgba(255, 255, 255, .85);--psc-bg-glass:rgba(255, 255, 255, .6);--psc-bg-sidebar:#FFFFFF;--psc-bg-dark:#1E1B4B;--psc-text-primary:#1E1B4B;--psc-text-secondary:#4B5563;--psc-text-muted:#7D8396;--psc-text-inverse:#FFFFFF;--psc-border:rgb(var(--psc-primary-rgb) / .12);--psc-border-strong:rgb(var(--psc-primary-rgb) / .25);--psc-shadow-sm:0 1px 3px rgb(var(--psc-primary-rgb) / .08), 0 1px 2px rgba(0,0,0,.06);--psc-shadow-md:0 4px 16px rgb(var(--psc-primary-rgb) / .12), 0 2px 8px rgba(0,0,0,.08);--psc-shadow-lg:0 8px 32px rgb(var(--psc-primary-rgb) / .16), 0 4px 16px rgba(0,0,0,.1);--psc-shadow-glow:0 0 24px rgb(var(--psc-primary-rgb) / .2);--psc-gradient-brand:linear-gradient(135deg, var(--psc-primary) 0%, var(--psc-secondary) 100%);--psc-gradient-accent:linear-gradient(135deg, var(--psc-primary) 0%, #E25292 100%);--psc-gradient-bg:linear-gradient(270deg, rgba(233, 239, 253, .6) 0%, rgba(214, 194, 249, .4) 100%);--psc-gradient-card:linear-gradient(135deg, rgba(255,255,255,.9) 0%, rgba(248,247,255,.9) 100%);--psc-radius-sm:6px;--psc-radius-md:10px;--psc-radius-lg:16px;--psc-radius-xl:24px;--psc-radius-full:9999px;--psc-nav-width:64px;--psc-sidebar-width:280px;--psc-header-height:56px;--psc-transition:all .2s cubic-bezier(.4, 0, .2, 1);--psc-transition-slow:all .4s cubic-bezier(.4, 0, .2, 1);color-scheme:light;--psc-surface:#FFFFFF;--psc-surface-2:#FAFAFA;--psc-surface-3:#F5F3FF;--psc-surface-raised:rgba(255, 255, 255, .92);--psc-surface-glass:rgba(255, 255, 255, .7);--psc-page-gradient:radial-gradient(ellipse at 50% 0%, rgb(var(--psc-primary-rgb) / .09), transparent 55%), linear-gradient(145deg, #fbfaff, #f3f5ff 58%, #f8f6ff);--psc-text-strong:#111827;--psc-text-body:#374151;--psc-text-subtle:#6B7280;--psc-text-faint:#7D8396;--psc-line:#E9E7F5;--psc-line-strong:#D1CDF0;--psc-line-soft:#F1F5F9;--psc-tint-violet:#EDE9FE;--psc-on-tint-violet:#5B21B6;--psc-tint-blue:#DBEAFE;--psc-on-tint-blue:#1D4ED8;--psc-tint-green:#D1FAE5;--psc-on-tint-green:#047857;--psc-tint-amber:#FEF3C7;--psc-on-tint-amber:#B45309;--psc-tint-red:#FEE2E2;--psc-on-tint-red:#B91C1C;--psc-tint-gray:#F3F4F6;--psc-on-tint-gray:#4B5563;--psc-scrim:rgba(17, 12, 46, .32);--psc-primary-text:var(--psc-primary);--psc-shadow-card:0 1px 4px rgba(0,0,0,.06), 0 2px 12px rgb(var(--psc-primary-rgb) / .06)}*,*:before,*:after{box-sizing:border-box;margin:0;padding:0}html,body{height:100%;font-family:Mulish,sans-serif;font-size:14px;background:var(--psc-bg);color:var(--psc-text-primary);overflow:hidden}*{scrollbar-width:thin;scrollbar-color:rgb(var(--psc-primary-rgb)/.25) transparent}</style><link rel="stylesheet" href="/product-studio-core/styles.26937aec612d82e4.css" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="/product-studio-core/styles.26937aec612d82e4.css"></noscript></head>
+<body>
+  <app-root></app-root>
+<script src="/product-studio-core/runtime.0c1051df23da2b55.js" type="module"></script><script src="/product-studio-core/polyfills.ef080be6703fbc96.js" type="module"></script><script src="/product-studio-core/main.728bf3cd880ba288.js" type="module"></script></body>
+</html>

@@ -1,0 +1,473 @@
+<div class="psc-projects psc-animate-in">
+
+  <!-- ── Page Header ── -->
+  <div class="proj-page-hdr">
+    <div class="proj-page-hdr-left">
+      <div class="proj-page-icon"><lucide-icon name="folder-open" [size]="20" color="white"></lucide-icon></div>
+      <div>
+        <h1 class="proj-page-title">Projects</h1>
+        <p class="proj-page-sub">{{ projects.length }} AI-powered product engineering projects</p>
+      </div>
+    </div>
+    <button type="button" class="proj-new-btn" (click)="openModal()">
+      <lucide-icon name="plus" [size]="14"></lucide-icon>
+      New Project
+    </button>
+  </div>
+
+  <!-- ── Filters ── -->
+  <div class="proj-toolbar">
+    <div class="proj-search-wrap">
+      <lucide-icon name="search" [size]="14" class="proj-search-icon"></lucide-icon>
+      <input class="proj-search-input" [(ngModel)]="search" placeholder="Search projects...">
+    </div>
+    <div class="proj-filter-group">
+      <button type="button" class="proj-filter-btn" [class.active]="filter===''"          (click)="filter=''">All <span class="proj-filter-count">{{projects.length}}</span></button>
+      <button type="button" class="proj-filter-btn" [class.active]="filter==='active'"    (click)="filter='active'">Active</button>
+      <button type="button" class="proj-filter-btn" [class.active]="filter==='paused'"    (click)="filter='paused'">Paused</button>
+      <button type="button" class="proj-filter-btn" [class.active]="filter==='completed'" (click)="filter='completed'">Completed</button>
+      <button type="button" class="proj-filter-btn" [class.active]="filter==='draft'"     (click)="filter='draft'">Draft</button>
+    </div>
+  </div>
+
+  <!-- ── Project Grid ── -->
+  <div class="proj-grid">
+    <div class="proj-card" *ngFor="let p of filtered; let i = index" (click)="openProject(p)" tabindex="0" role="link" (keydown.enter)="openProject(p)" [attr.aria-label]="'Open ' + p.name">
+
+      <!-- Accent bar -->
+      <div class="proj-card-accent" [style.background]="getGradient(p.id, i)"></div>
+
+      <!-- Card Header -->
+      <div class="proj-card-hdr">
+        <div class="proj-card-avatar" [style.background]="getGradient(p.id, i)">
+          {{ initials(p.name) }}
+        </div>
+        <div class="proj-card-hdr-body">
+          <div class="proj-card-name">{{ p.name }}</div>
+          <div class="proj-card-owner">
+            <lucide-icon name="user" [size]="10"></lucide-icon>
+            {{ p.owner }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <p class="proj-desc">{{ p.description }}</p>
+
+      <!-- Lifecycle: current phase + progress through the PDLC -->
+      <div class="proj-pdlc" *ngIf="lifecycleOf(p.id) as lc" [title]="'Lifecycle: ' + phaseLabel(lc.current) + ' — gate: ' + phaseGate(lc.current)">
+        <span class="proj-pdlc-phase"><lucide-icon [name]="phaseIcon(lc.current)" [size]="11"></lucide-icon>{{ phaseLabel(lc.current) }}</span>
+        <span class="proj-pdlc-track" aria-hidden="true">
+          <i *ngFor="let id of lc.phases" [class.done]="lc.completed.includes(id)" [class.current]="id === lc.current"></i>
+        </span>
+        <span class="proj-pdlc-count">{{ lc.phases.indexOf(lc.current) + 1 }}/{{ lc.phases.length }} · {{ lc.evaluation.metrics.length }} metrics</span>
+      </div>
+
+      <!-- Footer -->
+      <div class="proj-card-footer">
+        <div class="proj-team-stack">
+          <div class="proj-av" *ngFor="let m of p.team.slice(0,4)" [title]="m">{{ initials(m) }}</div>
+          <span class="proj-more" *ngIf="p.team.length > 4">+{{ p.team.length - 4 }}</span>
+        </div>
+        <div class="proj-footer-right">
+          <div class="proj-int-chips">
+            <span class="proj-int-chip" *ngFor="let int of p.integrations.slice(0,3)" [title]="int">{{ int }}</span>
+          </div>
+          <button type="button" class="proj-open-btn" (click)="$event.stopPropagation(); openProject(p)"
+            [attr.aria-label]="(chatCounts[p.id] ? 'Open ' + chatCounts[p.id] + ' chats in ' : 'Start a chat in ') + p.name">
+            <lucide-icon name="message-square" [size]="12"></lucide-icon>
+            {{ chatCounts[p.id] ? chatCounts[p.id] + (chatCounts[p.id] === 1 ? ' chat' : ' chats') : 'Chat' }}
+            <lucide-icon name="arrow-right" [size]="12"></lucide-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="proj-updated">
+        <lucide-icon name="clock" [size]="10"></lucide-icon>
+        Updated {{ p.updatedAt | date:'MMM d, y' }}
+      </div>
+    </div>
+
+    <!-- Empty state -->
+    <div class="proj-empty" *ngIf="filtered.length === 0">
+      <div class="proj-empty-icon"><lucide-icon name="folder-open" [size]="32"></lucide-icon></div>
+      <h3>No projects found</h3>
+      <p>Try adjusting your filters or create a new project</p>
+      <button type="button" class="proj-new-btn" (click)="openModal()">
+        <lucide-icon name="plus" [size]="14"></lucide-icon>
+        Create New Project
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     NEW PROJECT MODAL
+══════════════════════════════════════════════════════ -->
+<div class="modal-backdrop" *ngIf="showModal" (click)="onBackdropClick($event)">
+  <div class="modal-container" role="dialog" aria-modal="true" aria-labelledby="new-project-title" (click)="$event.stopPropagation()">
+
+    <!-- Modal Header -->
+    <div class="modal-header">
+      <div class="modal-header-left">
+        <div class="modal-icon">
+          <lucide-icon name="zap" [size]="20" color="white"></lucide-icon>
+        </div>
+        <div>
+          <h2 id="new-project-title">New Project</h2>
+          <p>Set up a new AI-native product project</p>
+        </div>
+      </div>
+      <button type="button" class="modal-close-btn" (click)="closeModal()">
+        <lucide-icon name="x" [size]="16"></lucide-icon>
+      </button>
+    </div>
+
+    <!-- Step Indicator -->
+    <div class="modal-steps">
+      <div class="modal-step" *ngFor="let s of steps; let i = index"
+           [class.active]="currentStep === i"
+           [class.done]="currentStep > i"
+           (click)="currentStep > i && goToStep(i)">
+        <div class="step-circle">
+          <lucide-icon *ngIf="currentStep > i" name="check" [size]="11"></lucide-icon>
+          <span *ngIf="currentStep <= i">{{ i + 1 }}</span>
+        </div>
+        <span class="step-label">{{ s }}</span>
+        <div class="step-connector" *ngIf="i < steps.length - 1"></div>
+      </div>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="modal-body">
+
+      <!-- ── Step 1: Details (name, description, team) ── -->
+      <div class="step-content" *ngIf="currentStep === 0">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label for="np-name">Project Name <span class="req">*</span></label>
+            <input id="np-name" class="psc-input" [(ngModel)]="form.name" placeholder="e.g. Aava Commerce Platform v3" maxlength="80">
+            <span class="char-count">{{ form.name.length }}/80</span>
+          </div>
+          <div class="form-group full">
+            <label for="np-desc">Description <span class="req">*</span></label>
+            <textarea id="np-desc" class="psc-input form-textarea" [(ngModel)]="form.description"
+              placeholder="Describe what this project is about and its key goals..." rows="3" maxlength="300"></textarea>
+            <span class="char-count">{{ form.description.length }}/300</span>
+          </div>
+
+          <div class="form-group full">
+            <label for="np-team-search">Team <span class="label-hint">{{ form.team.length ? form.team.length + ' selected' : 'optional' }}</span></label>
+            <div class="team-search-wrap">
+              <lucide-icon name="search" [size]="13" class="team-search-icon"></lucide-icon>
+              <input id="np-team-search" class="psc-input" style="padding-left:34px" [(ngModel)]="teamSearch" placeholder="Search members...">
+            </div>
+            <div class="team-list team-list--compact">
+              <div class="team-row" *ngFor="let m of filteredTeamMembers" role="checkbox" tabindex="0"
+                   [attr.aria-checked]="isTeamSelected(m.name)" [class.selected]="isTeamSelected(m.name)"
+                   (click)="toggleTeam(m.name)" (keydown.enter)="toggleTeam(m.name)" (keydown.space)="$event.preventDefault(); toggleTeam(m.name)">
+                <div class="team-av">{{ initials(m.name) }}</div>
+                <div class="team-info">
+                  <div class="team-name-row">
+                    <span class="team-nm">{{ m.name }}</span>
+                    <span class="team-role-badge">{{ m.role }}</span>
+                  </div>
+                </div>
+                <div class="team-check" [class.checked]="isTeamSelected(m.name)">
+                  <lucide-icon *ngIf="isTeamSelected(m.name)" name="check" [size]="11"></lucide-icon>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Step 2: Integrations ── -->
+      <div class="step-content" *ngIf="currentStep === 1">
+        <div class="step-intro">
+          <lucide-icon name="git-merge" [size]="16"></lucide-icon>
+          <span>Connect tools to enable AI-powered sync, import their backlog and docs as context, and publish automatically</span>
+        </div>
+        <div class="int-grid-modal">
+          <div class="int-card-modal" *ngFor="let i of availableIntegrations" role="checkbox" tabindex="0"
+               [attr.aria-checked]="isIntSelected(i.type)" [class.selected]="isIntSelected(i.type)"
+               (click)="toggleInt(i.type)" (keydown.enter)="toggleInt(i.type)" (keydown.space)="$event.preventDefault(); toggleInt(i.type)">
+            <div class="int-logo-modal" [ngClass]="'logo-' + i.type">
+              <lucide-icon [name]="i.icon" [size]="20"></lucide-icon>
+            </div>
+            <div class="int-info-modal">
+              <div class="int-name-modal">{{ i.name }}</div>
+              <div class="int-desc-modal">{{ i.desc }}</div>
+            </div>
+            <div class="int-check" [class.checked]="isIntSelected(i.type)">
+              <lucide-icon *ngIf="isIntSelected(i.type)" name="check" [size]="11"></lucide-icon>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Step 3: Context ── -->
+      <div class="step-content" *ngIf="currentStep === 2">
+        <div class="step-intro">
+          <lucide-icon name="layers" [size]="16"></lucide-icon>
+          <span>Give the AI the context it needs — every chat in this project starts grounded in it. You can add more later from the chat.</span>
+        </div>
+
+        <div class="ctx-block">
+          <label class="ctx-label" for="np-brief"><lucide-icon name="file-text" [size]="14"></lucide-icon>Product brief <span class="label-hint">optional</span></label>
+          <textarea id="np-brief" class="psc-input form-textarea" rows="3" maxlength="1200" [(ngModel)]="form.brief"
+            placeholder="Who it’s for, the problem it solves, goals, constraints, terminology… (saved to Product Memory)"></textarea>
+        </div>
+
+        <div class="ctx-block">
+          <label class="ctx-label" for="np-module"><lucide-icon name="boxes" [size]="14"></lucide-icon>Modules &amp; features <span class="label-hint">{{ form.modules.length || 'optional' }}</span></label>
+          <div class="ctx-tags" (click)="moduleInput.focus()">
+            <span class="ctx-tag" *ngFor="let m of form.modules">{{ m }}
+              <button type="button" (click)="removeModule(m); $event.stopPropagation()" [attr.aria-label]="'Remove ' + m"><lucide-icon name="x" [size]="11"></lucide-icon></button>
+            </span>
+            <input #moduleInput id="np-module" [(ngModel)]="moduleDraft" (keydown)="onModuleKey($event)" (blur)="addModule()"
+              [placeholder]="form.modules.length ? 'Add another…' : 'Type a module and press Enter, e.g. Checkout'" />
+          </div>
+          <div class="ctx-suggest">
+            <span>Suggestions:</span>
+            <ng-container *ngFor="let sug of moduleSuggestions">
+              <button type="button" *ngIf="!form.modules.includes(sug)" (click)="addModule(sug)"><lucide-icon name="plus" [size]="11"></lucide-icon>{{ sug }}</button>
+            </ng-container>
+          </div>
+        </div>
+
+        <div class="ctx-block">
+          <span class="ctx-label"><lucide-icon name="link" [size]="14"></lucide-icon>Linked sources <span class="label-hint">{{ form.links.length || 'optional' }}</span></span>
+          <div class="ctx-link-form">
+            <select class="psc-input ctx-link-type" [(ngModel)]="linkType" aria-label="Source type">
+              <option *ngFor="let t of orderedLinkTypes" [ngValue]="t.id">{{ t.label }}{{ form.integrations.includes(t.id) ? ' ✓' : '' }}</option>
+            </select>
+            <input class="psc-input" [(ngModel)]="linkDraft" (keydown.enter)="addLink()" [placeholder]="linkMeta(linkType).placeholder" aria-label="Source" />
+            <button type="button" class="psc-btn psc-btn-ghost ctx-add" (click)="addLink()" [disabled]="!linkDraft.trim()"><lucide-icon name="plus" [size]="13"></lucide-icon>Add</button>
+          </div>
+          <div class="ctx-list" *ngIf="form.links.length">
+            <div class="ctx-item" *ngFor="let l of form.links">
+              <span class="ctx-item-icon"><lucide-icon [name]="linkMeta(l.type).icon" [size]="14"></lucide-icon></span>
+              <span class="ctx-item-text"><strong>{{ l.value }}</strong><small>{{ linkMeta(l.type).label }} · {{ linkMeta(l.type).hint }}</small></span>
+              <button type="button" (click)="removeLink(l.id)" [attr.aria-label]="'Remove ' + l.value"><lucide-icon name="x" [size]="13"></lucide-icon></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="ctx-block">
+          <span class="ctx-label"><lucide-icon name="paperclip" [size]="14"></lucide-icon>Files <span class="label-hint">{{ form.files.length || 'optional' }}</span></span>
+          <label class="ctx-drop" [class.over]="dragOver" (dragover)="$event.preventDefault(); dragOver = true" (dragleave)="dragOver = false" (drop)="onDrop($event)">
+            <lucide-icon name="upload" [size]="18"></lucide-icon>
+            <span><strong>Drop files here</strong> or click to browse — PDF, Word, Markdown, CSV, slides</span>
+            <input type="file" multiple hidden accept=".pdf,.doc,.docx,.md,.txt,.csv,.xlsx,.pptx,.json,.png,.jpg" (change)="onFiles($event)" />
+          </label>
+          <div class="ctx-list" *ngIf="form.files.length">
+            <div class="ctx-item" *ngFor="let f of form.files">
+              <span class="ctx-item-icon"><lucide-icon name="file-text" [size]="14"></lucide-icon></span>
+              <span class="ctx-item-text"><strong>{{ f.title }}</strong><small>{{ f.detail }}</small></span>
+              <button type="button" (click)="removeFile(f.id)" [attr.aria-label]="'Remove ' + f.title"><lucide-icon name="x" [size]="13"></lucide-icon></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Step 4: Lifecycle — end-to-end PDLC coverage + how the project is evaluated ── -->
+      <div class="step-content" *ngIf="currentStep === 3">
+        <div class="step-intro">
+          <lucide-icon name="route" [size]="16"></lucide-icon>
+          <span>Plan the product lifecycle end to end. The project tracks its phase and exit gates, suggests the next deliverable, and every chat is grounded in the evaluation plan.</span>
+        </div>
+
+        <div class="ctx-block">
+          <span class="ctx-label"><lucide-icon name="route" [size]="14"></lucide-icon>Phases <span class="label-hint">{{ lifecycleSummary }}</span></span>
+          <ol class="pdlc-list">
+            <li class="pdlc-row" *ngFor="let ph of pdlcPhases; let i = index" [attr.data-state]="phaseState(ph.id)">
+              <button type="button" class="pdlc-check" role="checkbox" [attr.aria-checked]="inScope(ph.id)" [disabled]="ph.id === 'evaluate'"
+                (click)="togglePhase(ph.id)" [attr.aria-label]="(inScope(ph.id) ? 'Remove ' : 'Include ') + ph.label + ' phase'"
+                [title]="ph.id === 'evaluate' ? 'Every project is evaluated' : (inScope(ph.id) ? 'In scope' : 'Out of scope')">
+                <lucide-icon *ngIf="inScope(ph.id)" name="check" [size]="11"></lucide-icon>
+              </button>
+              <span class="pdlc-icon"><lucide-icon [name]="ph.icon" [size]="15"></lucide-icon></span>
+              <span class="pdlc-body">
+                <span class="pdlc-name">{{ i + 1 }}. {{ ph.label }}
+                  <em *ngIf="ph.id === 'evaluate'">Always on</em>
+                </span>
+                <small>{{ ph.summary }} · <b>Gate:</b> {{ ph.gate }}</small>
+                <span class="pdlc-deliverables">
+                  <span *ngFor="let d of ph.deliverables" [class.ai]="d.artifactId" [title]="d.artifactId ? 'Drafted with AI in the project chat' : 'Tracked in your tools'">{{ d.label }}</span>
+                </span>
+              </span>
+              <span class="pdlc-side" *ngIf="inScope(ph.id)">
+                <input type="date" class="psc-input pdlc-date" [(ngModel)]="form.lifecycle.targets[ph.id]" [attr.aria-label]="ph.label + ' target date'" title="Target date">
+                <button type="button" class="pdlc-now" [class.on]="form.lifecycle.current === ph.id" (click)="setCurrentPhase(ph.id)"
+                  [attr.aria-pressed]="form.lifecycle.current === ph.id" [title]="'Start the project in ' + ph.label">
+                  {{ form.lifecycle.current === ph.id ? 'Starts here' : 'Start here' }}
+                </button>
+              </span>
+            </li>
+          </ol>
+        </div>
+
+        <div class="ctx-block">
+          <span class="ctx-label"><lucide-icon name="chart-line" [size]="14"></lucide-icon>Evaluation — success metrics <span class="label-hint">{{ form.lifecycle.metrics.length || 'add at least one' }}</span></span>
+          <div class="metric-list" *ngIf="form.lifecycle.metrics.length">
+            <div class="metric-row" *ngFor="let m of form.lifecycle.metrics">
+              <span class="metric-name">{{ m.name }}</span>
+              <span class="metric-values"><span *ngIf="m.baseline">{{ m.baseline }}</span><lucide-icon *ngIf="m.baseline" name="arrow-right" [size]="11"></lucide-icon><strong>{{ m.target }}</strong></span>
+              <button type="button" (click)="removeMetric(m.id)" [attr.aria-label]="'Remove ' + m.name"><lucide-icon name="x" [size]="13"></lucide-icon></button>
+            </div>
+          </div>
+          <div class="metric-form">
+            <input class="psc-input" [(ngModel)]="metricDraft.name" (keydown.enter)="addMetric()" placeholder="Metric, e.g. Checkout conversion" aria-label="Metric name">
+            <input class="psc-input" [(ngModel)]="metricDraft.baseline" (keydown.enter)="addMetric()" placeholder="Baseline" aria-label="Baseline">
+            <input class="psc-input" [(ngModel)]="metricDraft.target" (keydown.enter)="addMetric()" placeholder="Target" aria-label="Target">
+            <button type="button" class="psc-btn psc-btn-ghost ctx-add" (click)="addMetric()" [disabled]="!metricDraft.name.trim() || !metricDraft.target.trim()"><lucide-icon name="plus" [size]="13"></lucide-icon>Add</button>
+          </div>
+          <div class="ctx-suggest" *ngIf="metricSuggestions.length">
+            <span>Suggestions:</span>
+            <button type="button" *ngFor="let sug of metricSuggestions.slice(0, 6)" (click)="addMetric(sug)"><lucide-icon name="plus" [size]="11"></lucide-icon>{{ sug.name }}</button>
+          </div>
+          <p class="metric-warn" *ngIf="!form.lifecycle.metrics.length"><lucide-icon name="alert-triangle" [size]="13"></lucide-icon>Without a success metric the Evaluate phase has nothing to measure.</p>
+        </div>
+
+        <div class="ctx-block eval-grid">
+          <label class="eval-field">
+            <span class="ctx-label"><lucide-icon name="calendar" [size]="14"></lucide-icon>Review cadence</span>
+            <select class="psc-input" [(ngModel)]="form.lifecycle.cadence">
+              <option *ngFor="let c of cadences" [ngValue]="c.id">{{ c.label }}</option>
+            </select>
+          </label>
+          <label class="eval-field">
+            <span class="ctx-label"><lucide-icon name="flag" [size]="14"></lucide-icon>Post-launch review</span>
+            <select class="psc-input" [(ngModel)]="form.lifecycle.reviewAfterDays">
+              <option *ngFor="let d of reviewWindows" [ngValue]="d">{{ d }} days after launch</option>
+            </select>
+          </label>
+          <label class="eval-field eval-field--wide">
+            <span class="ctx-label"><lucide-icon name="target" [size]="14"></lucide-icon>Definition of success <span class="label-hint">optional</span></span>
+            <textarea class="psc-input form-textarea" rows="2" maxlength="400" [(ngModel)]="form.lifecycle.criteria"
+              placeholder="When do we scale, iterate or stop? e.g. Roll out to everyone if conversion lifts ≥ 0.5 pts with no rise in failures."></textarea>
+          </label>
+        </div>
+      </div>
+
+      <!-- ── Step 5: Review & Create ── -->
+      <div class="step-content" *ngIf="currentStep === 4">
+        <div class="review-grid">
+          <div class="review-section">
+            <div class="review-section-hdr">
+              <lucide-icon name="folder-open" [size]="13"></lucide-icon>
+              Project Details
+            </div>
+            <div class="review-row"><span class="review-key">Name</span><span class="review-val">{{ form.name || '—' }}</span></div>
+            <div class="review-row" *ngIf="form.description">
+              <span class="review-key">Desc</span>
+              <span class="review-val review-desc">{{ form.description }}</span>
+            </div>
+          </div>
+          <div class="review-section">
+            <div class="review-section-hdr">
+              <lucide-icon name="users" [size]="13"></lucide-icon>
+              Team ({{ form.team.length }})
+            </div>
+            <div class="review-team">
+              <div class="review-member" *ngFor="let m of form.team">
+                <div class="proj-av">{{ initials(m) }}</div>
+                <span>{{ m }}</span>
+              </div>
+              <span class="review-empty" *ngIf="!form.team.length">Just you for now</span>
+            </div>
+          </div>
+          <div class="review-section review-section--wide">
+            <div class="review-section-hdr">
+              <lucide-icon name="git-merge" [size]="13"></lucide-icon>
+              Integrations ({{ form.integrations.length }})
+            </div>
+            <div class="review-ints">
+              <span class="proj-int-chip" *ngFor="let i of form.integrations">{{ i }}</span>
+              <span class="review-empty" *ngIf="!form.integrations.length">None selected</span>
+            </div>
+          </div>
+          <div class="review-section review-section--wide">
+            <div class="review-section-hdr">
+              <lucide-icon name="layers" [size]="13"></lucide-icon>
+              Context ({{ contextCount }})
+            </div>
+            <div class="review-ints">
+              <span class="proj-int-chip" *ngIf="form.brief.trim()">Product brief</span>
+              <span class="proj-int-chip" *ngFor="let m of form.modules">{{ m }}</span>
+              <span class="proj-int-chip" *ngFor="let l of form.links">{{ linkMeta(l.type).label.split(' ')[0] }} · {{ l.value }}</span>
+              <span class="proj-int-chip" *ngFor="let f of form.files">{{ f.title }}</span>
+              <span class="review-empty" *ngIf="!contextCount">None — add it later from the chat</span>
+            </div>
+          </div>
+          <div class="review-section review-section--wide">
+            <div class="review-section-hdr">
+              <lucide-icon name="route" [size]="13"></lucide-icon>
+              Lifecycle ({{ lifecycleSummary }})
+            </div>
+            <div class="review-pdlc">
+              <span class="review-phase" *ngFor="let id of form.lifecycle.phases" [attr.data-state]="phaseState(id)">
+                <lucide-icon *ngIf="phaseState(id) === 'done'" name="check" [size]="11"></lucide-icon>{{ phaseLabel(id) }}<small *ngIf="form.lifecycle.targets[id]">{{ form.lifecycle.targets[id] | date:'MMM d' }}</small>
+              </span>
+            </div>
+          </div>
+          <div class="review-section review-section--wide">
+            <div class="review-section-hdr">
+              <lucide-icon name="chart-line" [size]="13"></lucide-icon>
+              Evaluation ({{ form.lifecycle.metrics.length }} metrics · {{ cadenceLabel.toLowerCase() }} · {{ form.lifecycle.reviewAfterDays }}-day review)
+            </div>
+            <div class="review-ints">
+              <span class="proj-int-chip" *ngFor="let m of form.lifecycle.metrics">{{ m.name }} → {{ m.target }}</span>
+              <span class="review-empty" *ngIf="!form.lifecycle.metrics.length">No success metrics yet</span>
+            </div>
+            <p class="review-criteria" *ngIf="form.lifecycle.criteria.trim()">{{ form.lifecycle.criteria }}</p>
+          </div>
+        </div>
+        <div class="review-ai-note">
+          <div class="review-ai-note-icon"><lucide-icon name="sparkles" [size]="14"></lucide-icon></div>
+          <span>After creation we’ll open a chat to draft {{ firstDeliverable.label }}, the first deliverable of the {{ phaseLabel(form.lifecycle.current) }} phase.</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="modal-footer">
+      <div class="modal-footer-left">
+        <button type="button" class="psc-btn psc-btn-ghost" *ngIf="currentStep > 0" (click)="prevStep()">
+          <lucide-icon name="chevron-left" [size]="13"></lucide-icon>
+          Back
+        </button>
+        <button type="button" class="psc-btn psc-btn-ghost" (click)="closeModal()">Cancel</button>
+      </div>
+      <div class="modal-footer-right">
+        <div class="step-dots">
+          <div class="step-dot" *ngFor="let s of steps; let i = index" [class.active]="currentStep === i"></div>
+        </div>
+        <button type="button" class="psc-btn psc-btn-ghost" *ngIf="currentStep > 0 && currentStep < steps.length - 1" (click)="nextStep()">Skip</button>
+        <button type="button" class="psc-btn psc-btn-primary" *ngIf="currentStep < steps.length - 1"
+                [disabled]="!canProceed()" (click)="nextStep()">
+          Next
+          <lucide-icon name="chevron-right" [size]="13"></lucide-icon>
+        </button>
+        <button type="button" class="psc-btn psc-btn-primary create-btn" *ngIf="currentStep === steps.length - 1"
+                [disabled]="creating" (click)="createProject()">
+          <lucide-icon *ngIf="!creating" name="rocket" [size]="13"></lucide-icon>
+          <lucide-icon *ngIf="creating" name="loader" [size]="13" class="psc-spin"></lucide-icon>
+          {{ creating ? 'Creating...' : 'Create Project' }}
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Success Toast -->
+<div class="success-toast" [class.show]="showSuccess">
+  <div class="toast-icon"><lucide-icon name="check-circle" [size]="18"></lucide-icon></div>
+  <div>
+    <div class="toast-title">Project Created!</div>
+    <div class="toast-msg">{{ form.name }} is ready. Opening your first chat…</div>
+  </div>
+</div>

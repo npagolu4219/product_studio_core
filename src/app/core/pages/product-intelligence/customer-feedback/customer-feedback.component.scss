@@ -1,0 +1,290 @@
+@use '../pi-shared' as *;
+
+.fb-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+
+  @media (max-width: 1100px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 700px)  { grid-template-columns: 1fr; }
+}
+
+.fb-insight-card {
+  background: var(--psc-surface);
+  border: 1px solid var(--psc-line);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06), 0 2px 12px rgb(var(--psc-primary-rgb) / .06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 3px solid var(--ins-color, var(--psc-primary));
+  transition: box-shadow .2s;
+
+  &:hover { box-shadow: 0 4px 14px rgb(var(--psc-primary-rgb) / .09); }
+}
+
+.fb-insight-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fb-insight-theme {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--psc-text-strong);
+}
+
+.fb-insight-count {
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.fb-insight-bar-wrap {
+  height: 5px;
+  background: var(--psc-line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.fb-insight-bar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width .5s cubic-bezier(.4,0,.2,1);
+}
+
+.fb-insight-top-request {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--psc-text-body);
+  line-height: 1.45;
+  font-style: italic;
+}
+
+.fb-insight-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fb-sentiment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.fb-trend {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 700;
+
+  &--up   { color: var(--psc-on-tint-red); }
+  &--down { color: var(--psc-on-tint-green); }
+}
+
+.fb-linked-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.fb-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fb-source-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fb-customer-info { flex: 1; min-width: 0; }
+
+.fb-customer-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--psc-text-strong);
+}
+
+.fb-company {
+  font-size: 11px;
+  color: var(--psc-text-faint);
+  font-weight: 500;
+}
+
+.fb-summary {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--psc-text-body);
+}
+
+.fb-verbatim {
+  font-size: 12px;
+  color: var(--psc-text-subtle);
+  line-height: 1.5;
+  font-style: italic;
+  padding: 8px 12px;
+  background: var(--psc-surface-2);
+  border-left: 3px solid var(--psc-line);
+  border-radius: 0 6px 6px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.fb-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fb-votes {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--psc-text-faint);
+}
+
+.dep-item-pill {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+
+  &--from { background: var(--psc-surface-3); color: var(--psc-on-tint-violet); border: 1px solid color-mix(in srgb, var(--psc-on-tint-violet) 35%, transparent); }
+  &--to   { background: var(--psc-tint-blue); color: var(--psc-on-tint-blue); border: 1px solid color-mix(in srgb, var(--psc-on-tint-blue) 35%, transparent); }
+}
+
+.fb-sources-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.fb-sources-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--psc-text-faint);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  flex-shrink: 0;
+}
+
+.fb-sources-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fb-source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 6px;
+  border-radius: 999px;
+  border: 1.5px solid var(--psc-line);
+  background: var(--psc-surface);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--psc-text-body);
+  cursor: default;
+
+  &--add {
+    cursor: pointer;
+    border-style: dashed;
+    color: var(--psc-on-tint-violet);
+    border-color: color-mix(in srgb, var(--psc-on-tint-violet) 35%, transparent);
+    background: var(--psc-surface-3);
+    padding: 4px 10px;
+    transition: background .15s, border-color .15s;
+    &:hover { background: var(--psc-tint-violet); border-color: var(--psc-primary); }
+  }
+}
+
+.fb-source-chip-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fb-source-chip-count {
+  background: var(--psc-line);
+  color: var(--psc-text-subtle);
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 999px;
+}
+
+.fb-source-chip-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--psc-text-faint);
+  cursor: pointer;
+  padding: 0;
+  transition: color .15s, background .15s;
+  &:hover { color: var(--psc-on-tint-red); background: var(--psc-tint-red); }
+}
+
+.fb-source-type-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.fb-source-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 6px;
+  border: 1.5px solid var(--psc-line);
+  border-radius: 10px;
+  background: var(--psc-surface-2);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--psc-text-body);
+  cursor: pointer;
+  font-family: 'Mulish', 'Inter', system-ui, sans-serif;
+  transition: all .15s;
+
+  &:hover { border-color: #D97706; color: var(--psc-on-tint-amber); background: var(--psc-tint-amber); }
+
+  &.active {
+    border-color: #D97706;
+    background: var(--psc-tint-amber);
+    color: var(--psc-on-tint-amber);
+  }
+}

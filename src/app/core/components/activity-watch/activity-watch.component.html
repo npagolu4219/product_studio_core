@@ -1,0 +1,32 @@
+<div class="watch" [class.expanded]="canvas.layout().watchExpanded" [class.has-activity]="busy()">
+  <button type="button" class="watch-bar" (click)="canvas.toggleWatch()" [attr.aria-expanded]="canvas.layout().watchExpanded">
+    <div class="watch-bar-left">
+      <div class="watch-indicator" [class.active]="busy()"></div>
+      <span class="watch-label">Activity</span>
+      <ng-container *ngIf="!canvas.layout().watchExpanded">
+        <span class="watch-summary" *ngFor="let item of watchItems().slice(0, 2)">
+          <lucide-icon [name]="item.status === 'complete' ? 'check' : item.status === 'error' ? 'x' : 'loader'" [size]="10" [class.spin]="item.status === 'running' || item.status === 'syncing'"></lucide-icon>
+          {{ item.label }}<span *ngIf="item.detail"> · {{ item.detail }}</span>
+        </span>
+      </ng-container>
+    </div>
+    <lucide-icon [name]="canvas.layout().watchExpanded ? 'chevron-down' : 'chevron-up'" [size]="13" class="watch-toggle-icon"></lucide-icon>
+  </button>
+
+  <div class="watch-items" *ngIf="canvas.layout().watchExpanded">
+    <div class="watch-empty" *ngIf="!watchItems().length">
+      <lucide-icon name="activity" [size]="13"></lucide-icon>
+      <span>No active tasks</span>
+    </div>
+    <div class="watch-item" *ngFor="let item of watchItems()" [attr.data-status]="item.status">
+      <div class="watch-item-icon">
+        <lucide-icon *ngIf="item.status === 'running'" name="loader" [size]="12" class="spin"></lucide-icon>
+        <lucide-icon *ngIf="item.status === 'complete'" name="check-circle" [size]="12"></lucide-icon>
+        <lucide-icon *ngIf="item.status === 'error'" name="x-circle" [size]="12"></lucide-icon>
+        <lucide-icon *ngIf="item.status === 'syncing'" name="refresh-cw" [size]="12" class="spin"></lucide-icon>
+      </div>
+      <span class="watch-item-label">{{ item.label }}</span>
+      <span class="watch-item-detail" *ngIf="item.detail">{{ item.detail }}</span>
+    </div>
+  </div>
+</div>

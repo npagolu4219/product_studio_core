@@ -1,0 +1,88 @@
+<div class="tb" *ngIf="canvas.artifact() as artifact" role="toolbar" aria-label="Artifact actions">
+  <button type="button" class="tb-icon" (click)="canvas.toggleChatCollapsed()"
+    [title]="canvas.layout().chatCollapsed ? 'Show conversation' : 'Hide conversation (focus mode)'"
+    [attr.aria-label]="canvas.layout().chatCollapsed ? 'Show conversation' : 'Hide conversation'">
+    <lucide-icon [name]="canvas.layout().chatCollapsed ? 'panel-left-open' : 'panel-left-close'" [size]="16"></lucide-icon>
+  </button>
+
+  <!-- Document switcher -->
+  <div class="tb-anchor">
+    <button type="button" class="tb-doc" (click)="toggleMenu('doc', $event)" aria-haspopup="menu" [attr.aria-expanded]="menu() === 'doc'"
+      [title]="artifact.title + ' — switch document'">
+      <span class="tb-doc-icon"><lucide-icon [name]="iconName()" [size]="13"></lucide-icon></span>
+      <span class="tb-doc-title">{{ artifact.title }}</span>
+      <span class="tb-doc-ver">v{{ artifact.version }}</span>
+      <lucide-icon class="tb-chev" name="chevron-down" [size]="13"></lucide-icon>
+    </button>
+    <div class="tb-menu tb-menu--doc" *ngIf="menu() === 'doc'" role="menu" aria-label="Documents in this chat" (click)="$event.stopPropagation()" (keydown)="onMenuKeydown($event)">
+      <div class="tb-menu-title">In this chat</div>
+      <button type="button" role="menuitemradio" class="tb-menu-item" *ngFor="let a of canvas.conversationArtifacts()"
+        [attr.aria-checked]="a.type === artifact.type" [class.selected]="a.type === artifact.type" (click)="switchTo(a)">
+        <span class="tb-menu-icon"><lucide-icon [name]="getIcon(a.type)" [size]="14"></lucide-icon></span>
+        <span class="tb-menu-label">{{ a.title }}<small>{{ getShort(a.type) }} · v{{ a.version }} · {{ canvas.statusLabel(a.status) }}</small></span>
+        <lucide-icon *ngIf="a.type === artifact.type" class="tb-menu-check" name="check" [size]="14"></lucide-icon>
+      </button>
+      <div class="tb-menu-hint">Pick another artifact in the prompt bar to add one.</div>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="tb-anchor tb-status-wrap">
+    <button type="button" class="tb-status" [attr.data-status]="artifact.status" (click)="toggleMenu('status', $event)"
+      aria-haspopup="menu" [attr.aria-expanded]="menu() === 'status'" [attr.aria-label]="'Status: ' + canvas.statusLabel(artifact.status) + '. Change status'">
+      <span class="tb-status-dot"></span>{{ canvas.statusLabel(artifact.status) }}
+      <lucide-icon name="chevron-down" [size]="12"></lucide-icon>
+    </button>
+    <div class="tb-menu tb-menu--status" *ngIf="menu() === 'status'" role="menu" aria-label="Status" (click)="$event.stopPropagation()" (keydown)="onMenuKeydown($event)">
+      <button type="button" role="menuitemradio" class="tb-menu-item" *ngFor="let s of statusOptions" [attr.data-status]="s.id"
+        [attr.aria-checked]="artifact.status === s.id" [class.selected]="artifact.status === s.id" (click)="setStatus(s.id)">
+        <span class="tb-status-dot"></span>
+        <span class="tb-menu-label">{{ s.label }}<small>{{ s.hint }}</small></span>
+        <lucide-icon *ngIf="artifact.status === s.id" class="tb-menu-check" name="check" [size]="14"></lucide-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Primary tabs -->
+  <div class="tb-tabs" role="tablist" aria-label="Canvas view">
+    <button type="button" class="tb-tab" *ngFor="let t of tabs" role="tab" [attr.aria-selected]="canvas.mode() === t.id"
+      [class.active]="canvas.mode() === t.id" (click)="setMode(t.id)" [title]="t.label + (t.shortcut ? ' (' + t.shortcut + ')' : '')">
+      <lucide-icon [name]="t.icon" [size]="14"></lucide-icon><span class="tb-label">{{ t.label }}</span>
+      <span class="tb-count" *ngIf="t.id === 'history' && canvas.versions().length > 1">{{ canvas.versions().length }}</span>
+    </button>
+  </div>
+
+  <span class="tb-spacer"></span>
+
+  <button type="button" class="tb-btn" [class.active]="canvas.mode() === 'share'" (click)="setMode('share')" title="Share">
+    <lucide-icon name="share-2" [size]="14"></lucide-icon><span class="tb-label">Share</span>
+  </button>
+  <button type="button" class="tb-btn tb-btn--primary" [class.done]="artifact.status === 'published'" (click)="setMode('publish')"
+    [title]="artifact.status === 'published' ? 'Published — manage' : 'Publish to your team'">
+    <lucide-icon [name]="artifact.status === 'published' ? 'badge-check' : 'send'" [size]="14"></lucide-icon>
+    <span class="tb-label">{{ artifact.status === 'published' ? 'Published' : 'Publish' }}</span>
+  </button>
+
+  <div class="tb-anchor">
+    <button type="button" class="tb-icon" (click)="toggleMenu('more', $event)" aria-haspopup="menu" [attr.aria-expanded]="menu() === 'more'" aria-label="More actions" title="More actions">
+      <lucide-icon name="ellipsis" [size]="16"></lucide-icon>
+    </button>
+    <div class="tb-menu tb-menu--more" *ngIf="menu() === 'more'" role="menu" aria-label="More actions" (click)="$event.stopPropagation()" (keydown)="onMenuKeydown($event)">
+      <ng-container *ngFor="let m of more">
+        <div class="tb-menu-sep" *ngIf="m.divider"></div>
+        <button type="button" role="menuitem" class="tb-menu-item" [class.tb-narrow-only]="m.narrowOnly" (click)="runMore(m.id)" [disabled]="m.id === 'refine' && canvas.generating()">
+          <span class="tb-menu-icon"><lucide-icon [name]="m.icon" [size]="14"></lucide-icon></span>
+          <span class="tb-menu-label">{{ m.id === 'chat' ? (canvas.layout().chatCollapsed ? 'Show conversation' : 'Hide conversation') : m.label }}<small *ngIf="m.hint">{{ m.hint }}</small></span>
+        </button>
+      </ng-container>
+    </div>
+  </div>
+
+  <button type="button" class="tb-icon" (click)="close()" title="Close (Esc)" aria-label="Close artifact">
+    <lucide-icon name="x" [size]="16"></lucide-icon>
+  </button>
+
+  <div class="tb-progress" *ngIf="canvas.generating()" role="progressbar" aria-label="AI is updating this chat" [attr.aria-valuenow]="canvas.generationProgress()">
+    <div class="tb-progress-bar" [style.width]="canvas.generationProgress() + '%'"></div>
+  </div>
+</div>

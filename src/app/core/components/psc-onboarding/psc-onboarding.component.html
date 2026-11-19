@@ -1,0 +1,157 @@
+<div class="psc-landing" role="dialog" aria-modal="false" aria-labelledby="onboarding-title">
+
+  <div class="land-welcome" *ngIf="setupStep === 0">
+    <div class="land-orb land-orb--1"></div>
+    <div class="land-orb land-orb--2"></div>
+    <div class="land-orb land-orb--3"></div>
+    <div class="land-welcome-inner">
+      <div class="land-logo-mark">
+        <div class="land-logo-icon"><lucide-icon name="zap" [size]="28" color="white"></lucide-icon></div>
+        <div class="land-logo-ring land-logo-ring--1"></div>
+        <div class="land-logo-ring land-logo-ring--2"></div>
+      </div>
+      <div class="land-headline">
+        <h1 id="onboarding-title">Welcome to <span class="land-brand">Product Studio</span></h1>
+        <p class="land-sub">Your AI-powered product development workspace. Generate PRDs, epics, user stories and competitive analyses — in seconds, not days.</p>
+      </div>
+      <div class="land-caps-grid">
+        <div class="land-cap-card" *ngFor="let c of capabilities; let i = index" [style.animation-delay]="(i * 0.07) + 's'">
+          <div class="land-cap-icon"><lucide-icon [name]="c.icon" [size]="18"></lucide-icon></div>
+          <div class="land-cap-body">
+            <div class="land-cap-title">{{ c.title }}</div>
+            <div class="land-cap-desc">{{ c.desc }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="land-cta-row">
+        <button type="button" class="land-btn-primary" (click)="startSetup()">
+          <lucide-icon name="chevron-right" [size]="16"></lucide-icon>
+          Get Started
+        </button>
+        <button type="button" class="land-btn-ghost" (click)="skipSetup()">Skip setup — take me to the prompt</button>
+      </div>
+      <div class="land-proof">
+        <div class="land-proof-stat"><span class="land-proof-val">340h</span><span class="land-proof-label">avg hours saved / project</span></div>
+        <div class="land-proof-divider"></div>
+        <div class="land-proof-stat"><span class="land-proof-val">98%</span><span class="land-proof-label">artifact accuracy rate</span></div>
+        <div class="land-proof-divider"></div>
+        <div class="land-proof-stat"><span class="land-proof-val">6</span><span class="land-proof-label">specialised AI agents</span></div>
+        <div class="land-proof-divider"></div>
+        <div class="land-proof-stat"><span class="land-proof-val">7+</span><span class="land-proof-label">tool integrations</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="land-setup" *ngIf="setupStep > 0">
+    <div class="land-orb land-orb--1"></div>
+    <div class="land-orb land-orb--2"></div>
+    <div class="land-setup-inner">
+      <div class="land-progress-wrap">
+        <div class="land-progress-track">
+          <div class="land-progress-fill" [style.width]="((setupStep - 1) / setupSteps.length * 100) + '%'"></div>
+        </div>
+        <span class="land-progress-label">Step {{ setupStep }} of {{ setupSteps.length }}</span>
+      </div>
+      <div class="land-step-dots">
+        <div class="land-step-dot" *ngFor="let s of setupSteps; let i = index"
+             [class.active]="setupStep === i + 1" [class.done]="setupStep > i + 1">
+          <lucide-icon *ngIf="setupStep > i + 1" name="check" [size]="10" color="white"></lucide-icon>
+          <span *ngIf="setupStep <= i + 1">{{ i + 1 }}</span>
+        </div>
+      </div>
+      <div class="land-step-card" *ngFor="let s of setupSteps; let i = index" [class.visible]="setupStep === i + 1">
+        <ng-container *ngIf="setupStep === i + 1">
+          <div class="land-step-icon"><lucide-icon [name]="s.icon" [size]="28"></lucide-icon></div>
+          <h2 class="land-step-title">{{ s.title }}</h2>
+          <p class="land-step-desc">{{ s.desc }}</p>
+          <div class="land-step-preview" *ngIf="i === 0">
+            <div class="land-proj-preview">
+              <div class="land-proj-preview-bar" style="background:linear-gradient(135deg,#7C3AED,#2563EB)"></div>
+              <div class="land-proj-preview-body">
+                <div class="land-proj-preview-name">My First Project</div>
+                <div class="land-proj-preview-meta">AI-powered · 0 artifacts · 0% complete</div>
+              </div>
+              <div class="land-proj-preview-badge">Draft</div>
+            </div>
+            <p class="land-step-hint">Create and manage projects from the <strong>Projects</strong> section in the left nav.</p>
+          </div>
+          <div class="land-step-preview" *ngIf="i === 1">
+            <div class="land-agents-row">
+              <div class="land-agent-pill" *ngFor="let a of agents.slice(0,4)">
+                <div class="land-agent-pill-avatar">{{ a.avatar }}</div>
+                <div class="land-agent-pill-info">
+                  <span class="land-agent-pill-name">{{ a.name }}</span>
+                  <span class="land-agent-pill-role">{{ a.role }}</span>
+                </div>
+                <span class="land-agent-pill-status" [attr.data-status]="a.status">{{ a.status }}</span>
+              </div>
+            </div>
+            <p class="land-step-hint">Agents are pre-configured. Each agent picks up prompts that match its skills.</p>
+          </div>
+          <div class="land-step-preview" *ngIf="i === 2">
+            <div class="land-int-grid">
+              <div class="land-int-chip"><lucide-icon name="trello" [size]="14"></lucide-icon><span>Jira</span><span class="land-int-status connected">Connected</span></div>
+              <div class="land-int-chip"><lucide-icon name="git-merge" [size]="14"></lucide-icon><span>Azure DevOps</span><span class="land-int-status connected">Connected</span></div>
+              <div class="land-int-chip"><lucide-icon name="github" [size]="14"></lucide-icon><span>GitHub</span><span class="land-int-status connected">Connected</span></div>
+              <div class="land-int-chip"><lucide-icon name="figma" [size]="14"></lucide-icon><span>Figma</span><span class="land-int-status disconnected">Not connected</span></div>
+            </div>
+            <p class="land-step-hint">Manage integrations and field mappings from the <strong>Integrations</strong> page.</p>
+          </div>
+          <div class="land-step-preview" *ngIf="i === 3">
+            <div class="land-workspace-tour">
+              <div class="land-tour-item">
+                <div class="land-tour-icon"><lucide-icon name="message-square" [size]="16"></lucide-icon></div>
+                <div class="land-tour-text">
+                  <span class="land-tour-label">Chat with agents</span>
+                  <span class="land-tour-hint">Type a prompt and an agent picks it up instantly.</span>
+                </div>
+              </div>
+              <div class="land-tour-item">
+                <div class="land-tour-icon"><lucide-icon name="timer" [size]="16"></lucide-icon></div>
+                <div class="land-tour-text">
+                  <span class="land-tour-label">Background jobs</span>
+                  <span class="land-tour-hint">Long-running tasks run in the background — no waiting.</span>
+                </div>
+              </div>
+              <div class="land-tour-item">
+                <div class="land-tour-icon"><lucide-icon name="layers" [size]="16"></lucide-icon></div>
+                <div class="land-tour-text">
+                  <span class="land-tour-label">Artifact panel</span>
+                  <span class="land-tour-hint">All outputs appear here — editable, versioned and exportable.</span>
+                </div>
+              </div>
+            </div>
+            <p class="land-step-hint">Every prompt you send becomes a saved chat in the <strong>Chats</strong> panel.</p>
+          </div>
+          <div class="land-step-preview" *ngIf="i === 4">
+            <div class="land-template-grid">
+              <div class="land-template-chip"><lucide-icon name="clipboard-list" [size]="14"></lucide-icon><span>PRD</span></div>
+              <div class="land-template-chip"><lucide-icon name="layers" [size]="14"></lucide-icon><span>Epic</span></div>
+              <div class="land-template-chip"><lucide-icon name="sparkles" [size]="14"></lucide-icon><span>User Story</span></div>
+              <div class="land-template-chip"><lucide-icon name="search" [size]="14"></lucide-icon><span>Market Research</span></div>
+              <div class="land-template-chip"><lucide-icon name="target" [size]="14"></lucide-icon><span>OKR Planner</span></div>
+              <div class="land-template-chip"><lucide-icon name="swords" [size]="14"></lucide-icon><span>Competitive Analysis</span></div>
+            </div>
+            <p class="land-step-hint">Pick an artifact in the <strong>Create</strong> menu of the prompt bar, or use <strong>Quick Launch</strong>.</p>
+          </div>
+          <div class="land-step-preview" *ngIf="i === 5">
+            <div class="land-export-row">
+              <div class="land-export-chip"><lucide-icon name="trello" [size]="14"></lucide-icon><span>Push to Jira</span></div>
+              <div class="land-export-chip"><lucide-icon name="git-merge" [size]="14"></lucide-icon><span>Sync to ADO</span></div>
+              <div class="land-export-chip"><lucide-icon name="file-text" [size]="14"></lucide-icon><span>Export Markdown</span></div>
+              <div class="land-export-chip"><lucide-icon name="download" [size]="14"></lucide-icon><span>Download PDF</span></div>
+            </div>
+            <p class="land-step-hint">Open any draft to view, edit, compare versions, then <strong>Share</strong>, <strong>Publish</strong> or <strong>Export</strong> it.</p>
+          </div>
+          <div class="land-step-actions">
+            <button type="button" class="land-btn-ghost land-btn-sm" (click)="skipSetup()">Skip all</button>
+            <button type="button" class="land-btn-primary" (click)="nextStep()">
+              {{ setupStep < setupSteps.length ? 'Next' : 'Start creating' }}
+              <lucide-icon name="chevron-right" [size]="14"></lucide-icon>
+            </button>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+</div>

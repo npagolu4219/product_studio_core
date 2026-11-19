@@ -1,0 +1,95 @@
+<div class="psc-analytics psc-animate-in">
+  <div class="psc-page-header">
+    <div>
+      <h1>Analytics & Portfolio</h1>
+      <p>How your teams use Product Studio</p>
+    </div>
+    <div class="psc-analytics-period">
+      <button class="psc-filter-chip" [class.active]="period === '7d'" (click)="period = '7d'">7 Days</button>
+      <button class="psc-filter-chip" [class.active]="period === '30d'" (click)="period = '30d'">30 Days</button>
+      <button class="psc-filter-chip" [class.active]="period === '90d'" (click)="period = '90d'">90 Days</button>
+    </div>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="psc-analytics-kpis">
+    <div class="psc-analytics-kpi psc-card" *ngFor="let k of kpis" [style.--kpi]="k.color">
+      <div class="psc-akpi-icon"><lucide-icon [name]="k.icon" [size]="20"></lucide-icon></div>
+      <div class="psc-akpi-body">
+        <div class="psc-akpi-value">{{ k.value }}</div>
+        <div class="psc-akpi-label">{{ k.label }}</div>
+      </div>
+      <span class="psc-akpi-trend" [class.up]="k.trend > 0" [attr.aria-label]="(k.trend > 0 ? 'up ' : 'down ') + k.trend + '% vs last period'">
+        <lucide-icon [name]="k.trend > 0 ? 'trending-up' : 'trending-down'" [size]="12"></lucide-icon>{{ k.trend > 0 ? '+' : '' }}{{ k.trend }}%
+      </span>
+    </div>
+  </div>
+
+  <div class="psc-analytics-body">
+    <!-- Trend Chart (CSS-based) -->
+    <div class="psc-chart-card psc-card">
+      <div class="psc-chart-header">
+        <span class="psc-chart-title">AI Interactions Trend</span>
+        <span class="psc-badge psc-badge-active">Live</span>
+      </div>
+      <div class="psc-bar-chart">
+        <div class="psc-bar-group" *ngFor="let v of weeklyTrend; let i = index">
+          <div class="psc-bar" [style.height]="(v / maxTrend * 100) + '%'" [style.background]="'var(--psc-gradient-brand)'">
+            <span class="psc-bar-val">{{v}}</span>
+          </div>
+          <span class="psc-bar-label">{{days[i]}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Artifacts by type: donut -->
+    <div class="psc-chart-card psc-card">
+      <div class="psc-chart-header">
+        <span class="psc-chart-title">Artifacts by type</span>
+      </div>
+      <div class="psc-donut-wrap">
+        <svg class="psc-donut" viewBox="0 0 100 100" role="img" [attr.aria-label]="totalArtifacts + ' artifacts by type'">
+          <circle class="psc-donut-track" cx="50" cy="50" r="40" />
+          <circle *ngFor="let seg of donut" class="psc-donut-seg" cx="50" cy="50" r="40"
+            [attr.stroke]="seg.color" [attr.stroke-dasharray]="seg.dash" [attr.stroke-dashoffset]="seg.offset">
+            <title>{{ seg.name }}: {{ seg.count }}</title>
+          </circle>
+          <text class="psc-donut-total" x="50" y="50" text-anchor="middle">{{ totalArtifacts }}</text>
+          <text class="psc-donut-caption" x="50" y="61" text-anchor="middle">artifacts</text>
+        </svg>
+        <ul class="psc-donut-legend">
+          <li *ngFor="let seg of donut">
+            <span class="psc-legend-dot" [style.background]="seg.color"></span>
+            <span class="psc-legend-name">{{ seg.name }}</span>
+            <span class="psc-legend-val">{{ seg.count }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Project Portfolio -->
+    <div class="psc-portfolio-card psc-card">
+      <div class="psc-chart-header">
+        <span class="psc-chart-title">Project Portfolio</span>
+      </div>
+      <div class="psc-portfolio-grid">
+        <div class="psc-portfolio-tile" *ngFor="let p of projects" [style.--proj]="getColor(p.id)">
+          <svg class="psc-ring" viewBox="0 0 36 36" role="img" [attr.aria-label]="p.progress + '% complete'">
+            <circle class="psc-ring-track" cx="18" cy="18" r="15" />
+            <circle class="psc-ring-fill" cx="18" cy="18" r="15" [attr.stroke-dasharray]="ring(p.progress)" />
+            <text x="18" y="21.5" text-anchor="middle">{{ p.progress }}%</text>
+          </svg>
+          <div class="psc-portfolio-info">
+            <div class="psc-portfolio-name" [title]="p.name">{{ p.name }}</div>
+            <span class="psc-portfolio-status" [attr.data-status]="p.status"><span class="psc-int-dot"></span>{{ p.status }}</span>
+            <div class="psc-portfolio-stats">
+              <span class="psc-portfolio-owner" [title]="p.owner">{{ initials(p.owner) }}</span>
+              <span title="Artifacts"><lucide-icon name="file-text" [size]="12"></lucide-icon>{{ p.artifacts }}</span>
+              <span title="AI agents"><lucide-icon name="bot" [size]="12"></lucide-icon>{{ p.aiAgents }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

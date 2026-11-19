@@ -1,0 +1,28 @@
+<div class="pi-page">
+  <section class="mvp-section" aria-labelledby="pi-overview-title">
+    <div class="mvp-section-header">
+      <div class="mvp-section-title">
+        <div class="mvp-section-icon"><lucide-icon name="brain-circuit" [size]="18"></lucide-icon></div>
+        <div>
+          <h1 class="mvp-section-name" id="pi-overview-title">Product Intelligence</h1>
+          <div class="mvp-section-sub">Context, delivery and customer evidence — connected</div>
+        </div>
+      </div>
+      <span class="mvp-section-badge">MVP</span>
+    </div>
+
+    <div class="mvp-cards-grid">
+      <a class="mvp-card" *ngFor="let f of features; let i = index" [routerLink]="['/psc/intelligence', f.route]"
+        [style.--mvp-accent]="f.accentColor" [style.animation-delay]="(i * 0.06) + 's'" [title]="f.description">
+        <app-psc-illustration class="mvp-card-art" [name]="f.route" [style.--ill-a]="f.accentColor"></app-psc-illustration>
+        <div class="mvp-card-body">
+          <div class="mvp-card-title">
+            <span class="mvp-card-icon"><lucide-icon [name]="f.icon" [size]="15"></lucide-icon></span>{{ f.tab }}
+          </div>
+          <div class="mvp-card-desc">{{ f.tagline }}</div>
+        </div>
+        <div class="mvp-card-arrow"><lucide-icon name="arrow-right" [size]="14"></lucide-icon></div>
+      </a>
+    </div>
+  </section>
+</div>

@@ -1,0 +1,92 @@
+// Scroll box model: the host fills .psc-main (a flex column), .psc-integrations is the single scroll container,
+// and its sections keep their natural height instead of shrinking to fit.
+:host { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.psc-integrations > * { flex-shrink: 0; }
+.psc-integrations { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 24px 28px; display: flex; flex-direction: column; gap: 24px; }
+.psc-page-header { display: flex; align-items: flex-start; justify-content: space-between;
+  h1 { font-size: 22px; font-weight: 800; color: var(--psc-text-primary); margin-bottom: 4px; }
+  p { font-size: 13px; color: var(--psc-text-secondary); }
+}
+.psc-int-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.psc-int-card { padding: 16px; display: flex; flex-direction: column; gap: 12px;
+  &.connected { border-color: rgba(5,150,105,0.2); }
+}
+.psc-int-card-header { display: flex; align-items: center; gap: 12px; }
+.psc-int-logo {
+  width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;
+  &.logo-jira { background: rgb(var(--psc-secondary-rgb) / 0.1); }
+  &.logo-ado { background: rgb(var(--psc-primary-rgb) / 0.1); }
+  &.logo-github { background: rgba(30,30,30,0.08); }
+  &.logo-confluence { background: rgb(var(--psc-secondary-rgb) / 0.1); }
+  &.logo-figma { background: rgba(226,82,146,0.1); }
+  &.logo-slack { background: rgba(74,21,75,0.1); }
+  &.logo-teams { background: rgb(var(--psc-primary-rgb) / 0.1); }
+}
+.psc-int-info { flex: 1; }
+.psc-int-name { font-size: 14px; font-weight: 700; color: var(--psc-text-primary); }
+.psc-int-projects { font-size: 11px; color: var(--psc-text-muted); }
+.psc-int-sync { font-size: 11px; color: var(--psc-text-muted); }
+.psc-int-actions { display: flex; gap: 8px; }
+
+/* Field Mapping */
+.psc-field-mapping { background: var(--psc-surface); border: 1px solid var(--psc-border); border-radius: var(--psc-radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.psc-fm-header { display: flex; align-items: center; justify-content: space-between; h2 { font-size: 16px; font-weight: 700; } }
+.psc-fm-table { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--psc-border); border-radius: var(--psc-radius-md); overflow: hidden; }
+.psc-fm-row {
+  display: grid; grid-template-columns: 1fr 24px 1fr 120px; gap: 12px; padding: 10px 16px; align-items: center;
+  border-bottom: 1px solid var(--psc-border); font-size: 13px;
+  &:last-child { border-bottom: none; }
+  &.psc-fm-head { background: rgba(248,247,255,0.8); font-size: 11px; font-weight: 700; color: var(--psc-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+}
+.psc-fm-source { font-weight: 600; color: var(--psc-primary-text); }
+.psc-fm-arrow { color: var(--psc-text-muted); text-align: center; }
+.psc-fm-target { font-weight: 600; color: var(--psc-text-secondary); }
+.psc-fm-transform { font-size: 11px; color: var(--psc-text-muted); background: rgb(var(--psc-primary-rgb) / 0.06); padding: 2px 8px; border-radius: 4px; }
+
+/* Team */
+.psc-team-section { display: flex; flex-direction: column; gap: 12px; }
+.psc-section-header { display: flex; align-items: center; justify-content: space-between; }
+.psc-team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.psc-team-card { display: flex; align-items: center; gap: 12px; padding: 14px; }
+.psc-team-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--psc-gradient-brand); color: white; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.psc-team-info { flex: 1; }
+.psc-team-name { font-size: 13px; font-weight: 700; color: var(--psc-text-primary); }
+.psc-team-role { font-size: 11px; color: var(--psc-text-muted); }
+.psc-team-skills { display: flex; gap: 4px; margin-top: 4px; }
+.psc-team-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.psc-team-avail { display: flex; align-items: center; gap: 6px; }
+.psc-team-avail-pct { font-size: 11px; font-weight: 700; color: var(--psc-success); }
+.psc-team-stories { font-size: 11px; color: var(--psc-text-muted); }
+
+// ── Visual cards (brand tiles, status dots, icon stats) ──
+.psc-int-logo { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 0; box-shadow: 0 4px 10px rgba(0, 0, 0, .12); }
+.psc-int-card[data-status='disconnected'] .psc-int-logo { filter: grayscale(.85); opacity: .6; }
+.psc-int-status { display: inline-flex; align-items: center; gap: 5px; margin-top: 2px; font-size: 11px; font-weight: 700; text-transform: capitalize; color: var(--psc-text-muted); }
+.psc-int-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.psc-int-status[data-status='connected'] { color: var(--psc-on-tint-green); }
+.psc-int-status[data-status='error'] { color: var(--psc-on-tint-red); }
+.psc-int-status[data-status='pending'] { color: var(--psc-on-tint-amber); }
+.psc-int-meta { display: flex; gap: 14px; color: var(--psc-text-secondary); font-size: 12px; font-weight: 700; }
+.psc-int-meta span { display: inline-flex; align-items: center; gap: 5px; }
+.psc-int-meta lucide-icon { color: var(--psc-primary-text); opacity: .7; }
+.psc-int-actions { align-items: center; margin-top: auto; }
+.psc-int-actions .psc-btn { display: inline-flex; align-items: center; gap: 6px; }
+.psc-int-icon-btn {
+  width: 32px; height: 32px; display: grid; place-items: center;
+  color: var(--psc-primary-text); background: rgb(var(--psc-primary-rgb) / .06);
+  border: 1px solid rgb(var(--psc-primary-rgb) / .15); border-radius: 9px; cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+  &:hover { background: rgb(var(--psc-primary-rgb) / .12); border-color: rgb(var(--psc-primary-rgb) / .3); }
+  &:focus-visible { outline: 2px solid rgb(var(--psc-primary-rgb) / .45); outline-offset: 1px; }
+}
+.psc-ring { width: 44px; height: 44px; transform: rotate(-90deg); }
+.psc-ring text { transform: rotate(90deg); transform-origin: 18px 18px; font: 800 9px 'Mulish', sans-serif; fill: var(--psc-text-primary); }
+.psc-ring-track { fill: none; stroke: rgb(var(--psc-primary-rgb) / .1); stroke-width: 4; }
+.psc-ring-fill { fill: none; stroke: var(--psc-primary); stroke-width: 4; stroke-linecap: round; transition: stroke-dasharray .4s ease; }
+.psc-team-stories { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; }
+.psc-section-header .psc-btn { display: inline-flex; align-items: center; gap: 4px; }
+
+@media (max-width: 640px) {
+  .psc-integrations { padding: 16px; }
+  .psc-int-grid, .psc-team-grid { grid-template-columns: 1fr; }
+}

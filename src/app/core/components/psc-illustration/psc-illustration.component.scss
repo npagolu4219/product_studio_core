@@ -1,0 +1,54 @@
+// Palette for spot illustrations. Override --ill-a / --ill-b on the host to retint a scene.
+:host {
+  --ill-a: var(--psc-primary);          // primary (violet)
+  --ill-b: var(--psc-secondary);          // secondary (blue)
+  --ill-l: #EDE9FE;          // light violet
+  --ill-lb: #DBEAFE;         // light blue
+  --ill-paper: #FFFFFF;
+  --ill-line: #E4E1F5;
+  --ill-tint: rgb(var(--psc-primary-rgb) / .08);
+  display: block;
+  line-height: 0;
+}
+
+:host-context([data-theme='dark']) {
+  --ill-l: rgb(var(--psc-primary-rgb) / .3);
+  --ill-lb: rgba(59, 130, 246, .26);
+  --ill-paper: #2A2748;
+  --ill-line: rgba(196, 181, 253, .28);
+  --ill-tint: rgb(var(--psc-primary-rgb) / .16);
+}
+
+svg { width: 100%; height: 100%; overflow: visible; }
+
+.a { fill: var(--ill-a); }
+.b { fill: var(--ill-b); }
+.soft { opacity: .45; }
+.l { fill: var(--ill-l); }
+.soft-b { fill: var(--ill-lb); }
+.tint { fill: var(--ill-tint); }
+.line { fill: var(--ill-line); }
+.dot { fill: var(--ill-a); opacity: .5; }
+.paper, .paper-fill { fill: var(--ill-paper); }
+.paper { stroke: var(--ill-line); stroke-width: 1.5; }
+.stroke { stroke: var(--ill-line); stroke-width: 1.5; }
+.outline { fill: none; stroke: var(--ill-a); stroke-width: 1.6; opacity: .55; }
+.glow { fill: var(--ill-l); }
+
+.tick { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.tick.sm { stroke-width: 1.8; }
+.tick.b-stroke { stroke: var(--ill-b); }
+.arrow { fill: none; stroke: var(--ill-a); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.arrow.alt { stroke: var(--ill-b); }
+.handle { stroke: var(--ill-a); stroke-width: 5; stroke-linecap: round; }
+.lens { fill: rgba(255, 255, 255, .7); stroke: var(--ill-a); stroke-width: 4; }
+.track { fill: none; stroke: var(--ill-line); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 1 7; }
+.link { fill: none; stroke: var(--ill-line); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.corner { fill: none; stroke: var(--ill-a); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.ray { fill: none; stroke: var(--ill-b); stroke-width: 2.5; stroke-linecap: round; opacity: .7; }
+.flame { fill: #F59E0B; }
+.star { fill: #F59E0B; }
+.star.dim { fill: var(--ill-line); }
+.spark { fill: var(--ill-b); }
+.badge { fill: var(--ill-a); stroke: #fff; stroke-width: 3; }
+.vs { fill: #fff; font: 800 7.5px 'Mulish', sans-serif; letter-spacing: .3px; }

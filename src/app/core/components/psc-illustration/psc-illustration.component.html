@@ -1,0 +1,215 @@
+<svg viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg" focusable="false" [attr.data-name]="name">
+  <ng-container [ngSwitch]="name">
+
+    <!-- PRD: document with headings, lines and a check -->
+    <g *ngSwitchCase="'prd'">
+      <circle class="tint" cx="96" cy="16" r="18" />
+      <rect class="paper" x="34" y="10" width="52" height="62" rx="6" />
+      <rect class="a" x="42" y="18" width="24" height="5" rx="2.5" />
+      <rect class="line" x="42" y="29" width="36" height="3" rx="1.5" />
+      <rect class="line" x="42" y="35" width="30" height="3" rx="1.5" />
+      <rect class="b soft" x="42" y="44" width="18" height="4" rx="2" />
+      <rect class="line" x="42" y="52" width="36" height="3" rx="1.5" />
+      <rect class="line" x="42" y="58" width="24" height="3" rx="1.5" />
+      <circle class="b" cx="84" cy="64" r="9" />
+      <path class="tick" d="M80 64.5l3 3 5.5-6" />
+    </g>
+
+    <!-- Epic: stacked cards -->
+    <g *ngSwitchCase="'epic'">
+      <circle class="tint" cx="20" cy="62" r="16" />
+      <rect class="l" x="40" y="12" width="50" height="34" rx="6" transform="rotate(-8 65 29)" />
+      <rect class="soft-b" x="36" y="20" width="50" height="34" rx="6" transform="rotate(-3 61 37)" />
+      <rect class="paper" x="32" y="30" width="54" height="38" rx="6" />
+      <rect class="a" x="40" y="38" width="20" height="5" rx="2.5" />
+      <rect class="line" x="40" y="48" width="38" height="3" rx="1.5" />
+      <rect class="line" x="40" y="54" width="28" height="3" rx="1.5" />
+      <rect class="b" x="70" y="58" width="10" height="5" rx="2.5" />
+    </g>
+
+    <!-- Feature: puzzle block + bolt -->
+    <g *ngSwitchCase="'feature'">
+      <circle class="tint" cx="92" cy="60" r="18" />
+      <path class="a" d="M36 26h14a6 6 0 1 1 12 0h14v14a6 6 0 1 1 0 12v14H36z" />
+      <path class="paper-fill" d="M58 34l-8 14h7l-3 12 10-16h-7l4-10z" />
+      <rect class="soft-b" x="84" y="16" width="16" height="16" rx="4" />
+      <rect class="l" x="18" y="14" width="10" height="10" rx="3" />
+    </g>
+
+    <!-- User story: sticky notes with avatar -->
+    <g *ngSwitchCase="'story'">
+      <circle class="tint" cx="22" cy="18" r="14" />
+      <rect class="l" x="64" y="18" width="34" height="34" rx="5" transform="rotate(6 81 35)" />
+      <rect class="paper" x="28" y="20" width="44" height="44" rx="6" />
+      <circle class="a" cx="40" cy="34" r="6" />
+      <rect class="line" x="50" y="30" width="16" height="3" rx="1.5" />
+      <rect class="line" x="50" y="36" width="12" height="3" rx="1.5" />
+      <rect class="line" x="36" y="46" width="30" height="3" rx="1.5" />
+      <rect class="line" x="36" y="52" width="22" height="3" rx="1.5" />
+      <rect class="b" x="74" y="56" width="22" height="8" rx="4" />
+    </g>
+
+    <!-- Acceptance criteria: checklist -->
+    <g *ngSwitchCase="'acceptance-criteria'">
+      <circle class="tint" cx="96" cy="62" r="16" />
+      <rect class="paper" x="30" y="10" width="56" height="62" rx="6" />
+      <g>
+        <rect class="a" x="38" y="20" width="9" height="9" rx="2.5" /><path class="tick sm" d="M40 24.5l1.8 1.8 3.4-3.6" />
+        <rect class="line" x="52" y="23" width="26" height="3" rx="1.5" />
+        <rect class="a" x="38" y="36" width="9" height="9" rx="2.5" /><path class="tick sm" d="M40 40.5l1.8 1.8 3.4-3.6" />
+        <rect class="line" x="52" y="39" width="22" height="3" rx="1.5" />
+        <rect class="outline" x="38" y="52" width="9" height="9" rx="2.5" />
+        <rect class="line" x="52" y="55" width="24" height="3" rx="1.5" />
+      </g>
+    </g>
+
+    <!-- Market research: bar chart + magnifier -->
+    <g *ngSwitchCase="'market'">
+      <rect class="paper" x="18" y="14" width="64" height="54" rx="6" />
+      <rect class="l" x="28" y="44" width="8" height="16" rx="2" />
+      <rect class="soft-b" x="40" y="36" width="8" height="24" rx="2" />
+      <rect class="a" x="52" y="26" width="8" height="34" rx="2" />
+      <rect class="b" x="64" y="32" width="8" height="28" rx="2" />
+      <circle class="lens" cx="86" cy="44" r="13" />
+      <path class="handle" d="M95 53l9 9" />
+    </g>
+
+    <!-- Competitor analysis: two columns vs -->
+    <g *ngSwitchCase="'competitive'">
+      <rect class="paper" x="14" y="16" width="40" height="50" rx="6" />
+      <rect class="paper" x="66" y="16" width="40" height="50" rx="6" />
+      <rect class="a" x="22" y="40" width="8" height="18" rx="2" /><rect class="a soft" x="34" y="30" width="8" height="28" rx="2" />
+      <rect class="b" x="74" y="34" width="8" height="24" rx="2" /><rect class="b soft" x="86" y="44" width="8" height="14" rx="2" />
+      <circle class="badge" cx="60" cy="41" r="10" />
+      <text class="vs" x="60" y="44.5" text-anchor="middle">VS</text>
+    </g>
+
+    <!-- Goals: target with arrow -->
+    <g *ngSwitchCase="'goal'">
+      <circle class="tint" cx="24" cy="62" r="14" />
+      <circle class="l" cx="56" cy="42" r="28" />
+      <circle class="paper" cx="56" cy="42" r="20" />
+      <circle class="soft-b" cx="56" cy="42" r="12" />
+      <circle class="a" cx="56" cy="42" r="5" />
+      <path class="arrow" d="M58 40l30-22" />
+      <path class="b" d="M86 12l8 2-2 8-6-4z" />
+    </g>
+
+    <!-- Roadmap: timeline with milestones -->
+    <g *ngSwitchCase="'roadmap'">
+      <path class="track" d="M14 56c18-24 34 10 52-12s30-20 40-18" />
+      <circle class="a" cx="14" cy="56" r="6" />
+      <circle class="b" cx="50" cy="46" r="6" />
+      <circle class="a" cx="80" cy="32" r="6" />
+      <path class="b" d="M100 10v20" stroke-width="2" />
+      <path class="a" d="M101 10h14l-4 5 4 5h-14z" />
+      <rect class="paper" x="22" y="12" width="26" height="14" rx="4" />
+      <rect class="line" x="27" y="17.5" width="16" height="3" rx="1.5" />
+      <rect class="paper" x="58" y="56" width="30" height="14" rx="4" />
+      <rect class="line" x="63" y="61.5" width="20" height="3" rx="1.5" />
+    </g>
+
+    <!-- Scope: frame with crosshair corners -->
+    <g *ngSwitchCase="'scope'">
+      <circle class="tint" cx="96" cy="18" r="14" />
+      <rect class="l" x="26" y="16" width="68" height="48" rx="8" />
+      <rect class="paper" x="40" y="26" width="40" height="28" rx="5" />
+      <path class="corner" d="M30 28v-8h8M90 28v-8h-8M30 52v8h8M90 52v8h-8" />
+      <rect class="a" x="48" y="34" width="16" height="4" rx="2" />
+      <rect class="line" x="48" y="42" width="24" height="3" rx="1.5" />
+    </g>
+
+    <!-- Brainstorm: lightbulb + idea notes -->
+    <g *ngSwitchCase="'brainstorm'">
+      <rect class="l" x="14" y="16" width="22" height="22" rx="4" transform="rotate(-8 25 27)" />
+      <rect class="soft-b" x="84" y="44" width="22" height="22" rx="4" transform="rotate(8 95 55)" />
+      <circle class="glow" cx="60" cy="34" r="22" />
+      <path class="a" d="M60 16a16 16 0 0 0-9 29c2 1.5 3 3.5 3 6v3h12v-3c0-2.5 1-4.5 3-6a16 16 0 0 0-9-29z" />
+      <rect class="b" x="54" y="56" width="12" height="4" rx="2" />
+      <rect class="b soft" x="56" y="62" width="8" height="3" rx="1.5" />
+      <path class="ray" d="M60 6v4M38 14l3 3M82 14l-3 3M32 34h4M84 34h4" />
+    </g>
+
+    <!-- Ideation: rocket -->
+    <g *ngSwitchCase="'ideation'">
+      <circle class="tint" cx="30" cy="22" r="12" />
+      <circle class="l" cx="92" cy="58" r="12" />
+      <path class="paper-fill stroke" d="M70 14c12 0 20 8 20 8s0 18-16 30l-12-12C74 26 70 14 70 14z" transform="rotate(10 76 33)" />
+      <circle class="b" cx="76" cy="30" r="5" />
+      <path class="a" d="M56 42l-10 4 8 8zM64 52l-4 10 -8-8z" />
+      <path class="flame" d="M50 56c-6 2-10 8-10 12 4 0 10-4 12-10z" />
+      <circle class="dot" cx="20" cy="54" r="2" /><circle class="dot" cx="100" cy="20" r="2" /><circle class="dot" cx="44" cy="12" r="1.6" />
+    </g>
+
+    <!-- Product memory: brain/knowledge stack -->
+    <g *ngSwitchCase="'product-memory'">
+      <circle class="tint" cx="94" cy="60" r="16" />
+      <rect class="soft-b" x="24" y="46" width="52" height="12" rx="4" />
+      <rect class="l" x="28" y="34" width="52" height="12" rx="4" />
+      <rect class="paper" x="32" y="20" width="52" height="14" rx="4" />
+      <rect class="a" x="38" y="25" width="16" height="4" rx="2" />
+      <circle class="a" cx="92" cy="22" r="10" />
+      <path class="tick" d="M88 22.5l3 3 5-5.5" />
+    </g>
+
+    <!-- Tool sync: two tiles with sync arrows -->
+    <g *ngSwitchCase="'tool-sync'">
+      <rect class="a" x="16" y="24" width="30" height="30" rx="8" />
+      <rect class="b" x="74" y="24" width="30" height="30" rx="8" />
+      <rect class="paper" x="24" y="34" width="14" height="10" rx="2" />
+      <circle class="paper-fill" cx="89" cy="39" r="6" />
+      <path class="arrow" d="M50 32h20M64 26l6 6-6 6" />
+      <path class="arrow alt" d="M70 48H50M56 42l-6 6 6 6" />
+    </g>
+
+    <!-- Dependencies: connected nodes -->
+    <g *ngSwitchCase="'dependencies'">
+      <path class="link" d="M30 22L60 42L90 22M60 42v22M30 22l-8 36" />
+      <circle class="a" cx="30" cy="22" r="9" />
+      <circle class="b" cx="90" cy="22" r="9" />
+      <circle class="paper stroke" cx="60" cy="42" r="10" />
+      <circle class="l" cx="60" cy="64" r="7" />
+      <circle class="soft-b" cx="22" cy="58" r="7" />
+      <circle class="a" cx="60" cy="42" r="4" />
+    </g>
+
+    <!-- Customer feedback: speech bubbles + stars -->
+    <g *ngSwitchCase="'customer-feedback'">
+      <path class="paper-fill stroke" d="M18 18h52a6 6 0 0 1 6 6v22a6 6 0 0 1-6 6H38l-10 9v-9H18a6 6 0 0 1-6-6V24a6 6 0 0 1 6-6z" />
+      <path class="star" d="M30 30l2 4 4.4.6-3.2 3 .8 4.4-4-2.1-4 2.1.8-4.4-3.2-3 4.4-.6z" />
+      <path class="star" d="M44 30l2 4 4.4.6-3.2 3 .8 4.4-4-2.1-4 2.1.8-4.4-3.2-3 4.4-.6z" />
+      <path class="star dim" d="M58 30l2 4 4.4.6-3.2 3 .8 4.4-4-2.1-4 2.1.8-4.4-3.2-3 4.4-.6z" />
+      <path class="b" d="M70 40h34a6 6 0 0 1 6 6v14a6 6 0 0 1-6 6h-6v8l-9-8H70a6 6 0 0 1-6-6V46a6 6 0 0 1 6-6z" />
+      <rect class="paper" x="72" y="48" width="26" height="3" rx="1.5" />
+      <rect class="paper" x="72" y="55" width="18" height="3" rx="1.5" />
+    </g>
+
+    <!-- AI decision context: branching decision with sparkle -->
+    <g *ngSwitchCase="'ai-decision-context'">
+      <path class="link" d="M22 42h22M44 42l18-16h20M44 42l18 16h20" />
+      <circle class="a" cx="22" cy="42" r="8" />
+      <rect class="paper stroke" x="80" y="18" width="24" height="16" rx="5" />
+      <rect class="soft-b" x="80" y="50" width="24" height="16" rx="5" />
+      <path class="tick b-stroke" d="M86 26.5l3.5 3.5 6-6" />
+      <path class="spark" d="M54 12l2.4 5.6L62 20l-5.6 2.4L54 28l-2.4-5.6L46 20l5.6-2.4z" />
+    </g>
+
+    <!-- Empty chats -->
+    <g *ngSwitchCase="'empty-chats'">
+      <circle class="tint" cx="60" cy="40" r="32" />
+      <path class="paper-fill stroke" d="M30 22h40a6 6 0 0 1 6 6v18a6 6 0 0 1-6 6H46l-10 8v-8h-6a6 6 0 0 1-6-6V28a6 6 0 0 1 6-6z" />
+      <rect class="line" x="34" y="30" width="30" height="3" rx="1.5" />
+      <rect class="line" x="34" y="37" width="20" height="3" rx="1.5" />
+      <path class="b" d="M64 40h26a6 6 0 0 1 6 6v12a6 6 0 0 1-6 6h-2v6l-7-6H64a6 6 0 0 1-6-6V46a6 6 0 0 1 6-6z" />
+      <path class="spark sm" d="M90 14l1.6 3.8L95.4 19l-3.8 1.6L90 24.4l-1.6-3.8L84.6 19l3.8-1.2z" />
+    </g>
+
+    <!-- Fallback: generic document -->
+    <g *ngSwitchDefault>
+      <rect class="paper" x="38" y="12" width="44" height="56" rx="6" />
+      <rect class="a" x="46" y="20" width="20" height="5" rx="2.5" />
+      <rect class="line" x="46" y="31" width="28" height="3" rx="1.5" />
+      <rect class="line" x="46" y="37" width="22" height="3" rx="1.5" />
+    </g>
+  </ng-container>
+</svg>

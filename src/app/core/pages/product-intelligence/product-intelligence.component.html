@@ -1,0 +1,17 @@
+<nav class="pi-section-nav" aria-label="Product Intelligence">
+  <div class="pi-section-brand">
+    <span class="pi-section-brand-icon"><lucide-icon name="brain-circuit" [size]="15"></lucide-icon></span>
+    <span class="pi-section-brand-text">Product Intelligence</span>
+  </div>
+  <div class="pi-section-tabs" role="list">
+    <a class="pi-section-tab" role="listitem" routerLink="/psc/intelligence" routerLinkActive="active" ariaCurrentWhenActive="page"
+      [routerLinkActiveOptions]="{ exact: true }">
+      <lucide-icon name="layout-grid" [size]="14"></lucide-icon><span>Overview</span>
+    </a>
+    <a class="pi-section-tab" role="listitem" *ngFor="let f of features" [routerLink]="['/psc/intelligence', f.route]"
+      routerLinkActive="active" ariaCurrentWhenActive="page" [style.--pi-accent]="f.accentColor" [title]="f.title">
+      <lucide-icon [name]="f.icon" [size]="14"></lucide-icon><span>{{ f.tab }}</span>
+    </a>
+  </div>
+</nav>
+<router-outlet></router-outlet>
