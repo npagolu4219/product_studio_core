@@ -1,0 +1,171 @@
+<div class="pi-page">
+
+  <div class="pi-header">
+    <div class="pi-header-left">
+      <div class="pi-header-icon" style="--accent:#059669">
+        <lucide-icon name="link" [size]="20"></lucide-icon>
+      </div>
+      <div>
+        <div class="pi-header-title">Dependencies &amp; Commitments</div>
+        <div class="pi-header-sub">Cross-team dependencies, delivery blockers, ownership and commitment tracking</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="pi-kpis">
+    <div class="pi-kpi">
+      <div class="pi-kpi-val">{{ dependencies.length }}</div>
+      <div class="pi-kpi-label">Total Dependencies</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val" style="color:#DC2626">{{ blockers.length }}</div>
+      <div class="pi-kpi-label">Active Blockers</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val" style="color:#D97706">{{ atRisk.length }}</div>
+      <div class="pi-kpi-label">At Risk</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val" style="color:#059669">{{ onTrackCommitmentsCount }}</div>
+      <div class="pi-kpi-label">Commitments On Track</div>
+    </div>
+  </div>
+
+  <!-- Blockers Alert -->
+  <div class="dep-blocker-alert" *ngIf="blockers.length > 0">
+    <lucide-icon name="alert-triangle" [size]="16"></lucide-icon>
+    <span><strong>{{ blockers.length }} active blocker{{ blockers.length !== 1 ? 's' : '' }}</strong> require immediate attention</span>
+    <button class="pi-btn pi-btn-ghost pi-btn-sm" (click)="activeTab = 'blockers'">View Blockers</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="pi-tabs">
+    <button class="pi-tab" [class.active]="activeTab === 'dependencies'" (click)="activeTab = 'dependencies'">
+      <lucide-icon name="link" [size]="14"></lucide-icon>Dependencies
+    </button>
+    <button class="pi-tab" [class.active]="activeTab === 'commitments'" (click)="activeTab = 'commitments'">
+      <lucide-icon name="clipboard-check" [size]="14"></lucide-icon>Commitments
+    </button>
+    <button class="pi-tab" [class.active]="activeTab === 'blockers'" (click)="activeTab = 'blockers'">
+      <lucide-icon name="x-circle" [size]="14"></lucide-icon>Blockers
+      <span class="pi-tab-badge" *ngIf="blockers.length > 0">{{ blockers.length }}</span>
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="pi-filters">
+    <select class="pi-filter-select" [(ngModel)]="filterStatus">
+      <option value="">All Statuses</option>
+      <option value="on-track">On Track</option>
+      <option value="at-risk">At Risk</option>
+      <option value="blocked">Blocked</option>
+      <option value="resolved">Resolved</option>
+    </select>
+    <select class="pi-filter-select" [(ngModel)]="filterProject">
+      <option value="">All Projects</option>
+      <option *ngFor="let p of projects" [value]="p">{{ p }}</option>
+    </select>
+  </div>
+
+  <!-- Dependencies Tab -->
+  <ng-container *ngIf="activeTab === 'dependencies'">
+    <div class="pi-entries-list">
+      <div class="dep-row" *ngFor="let d of filteredDeps">
+        <div class="dep-status-dot" [style.background]="statusColor(d.status)"></div>
+        <div class="dep-body">
+          <div class="dep-connector-row">
+            <div class="dep-team-chip">{{ d.fromTeam }}</div>
+            <div class="dep-arrow-wrap">
+              <div class="dep-arrow-line"></div>
+              <span class="dep-type-label">{{ d.type }}</span>
+            </div>
+            <div class="dep-team-chip dep-team-chip--target">{{ d.toTeam }}</div>
+          </div>
+          <div class="dep-items-row">
+            <span class="dep-item-pill dep-item-pill--from">{{ d.fromItem }}</span>
+            <lucide-icon name="arrow-right" [size]="12" style="color:#9CA3AF;flex-shrink:0"></lucide-icon>
+            <span class="dep-item-pill dep-item-pill--to">{{ d.toItem }}</span>
+          </div>
+          <div class="dep-desc">{{ d.description }}</div>
+          <div class="pi-entry-meta">
+            <span class="pi-proj-chip" [style.background]="d.projectColor + '18'" [style.color]="d.projectColor">{{ d.project }}</span>
+            <div class="pi-avatar-sm" [title]="d.owner">{{ d.ownerInitials }}</div>
+            <span class="pi-meta-item">{{ d.owner }}</span>
+            <span class="pi-meta-item">Due {{ d.dueDate }}</span>
+          </div>
+        </div>
+        <div class="dep-status-badge" [style.background]="statusColor(d.status) + '15'" [style.color]="statusColor(d.status)">
+          <lucide-icon [name]="statusIcon(d.status)" [size]="11"></lucide-icon>
+          {{ d.status | titlecase }}
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Commitments Tab -->
+  <ng-container *ngIf="activeTab === 'commitments'">
+    <div class="pi-entries-list">
+      <div class="commit-row" *ngFor="let c of filteredCommitments">
+        <div class="pi-entry-row-body">
+          <div class="pi-entry-row-title">{{ c.title }}</div>
+          <div class="commit-progress-row">
+            <div class="pi-progress-track" style="flex:1">
+              <div class="pi-progress-fill" [style.width]="c.progress + '%'" [style.background]="progressColor(c.status)"></div>
+            </div>
+            <span class="commit-pct" [style.color]="progressColor(c.status)">{{ c.progress }}%</span>
+          </div>
+          <div class="pi-entry-row-meta">
+            <span class="pi-proj-chip" [style.background]="c.projectColor + '18'" [style.color]="c.projectColor">{{ c.project }}</span>
+            <div class="pi-avatar-sm">{{ c.ownerInitials }}</div>
+            <span class="pi-meta-item">{{ c.owner }}</span>
+            <span class="pi-meta-item" [style.color]="c.status === 'overdue' ? '#DC2626' : '#9CA3AF'">{{ daysUntil(c.dueDate) }}</span>
+          </div>
+          <div class="commit-linked">
+            <span class="dep-item-pill dep-item-pill--from" *ngFor="let l of c.linkedItems.slice(0,3)">{{ l }}</span>
+          </div>
+        </div>
+        <div class="dep-status-badge" [style.background]="statusColor(c.status) + '15'" [style.color]="statusColor(c.status)">
+          <lucide-icon [name]="statusIcon(c.status)" [size]="11"></lucide-icon>
+          {{ c.status | titlecase }}
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Blockers Tab -->
+  <ng-container *ngIf="activeTab === 'blockers'">
+    <div class="pi-entries-list" *ngIf="blockers.length > 0">
+      <div class="dep-row dep-row--blocker" *ngFor="let d of blockers">
+        <div class="dep-status-dot" style="background:#DC2626"></div>
+        <div class="dep-body">
+          <div class="dep-connector-row">
+            <div class="dep-team-chip">{{ d.fromTeam }}</div>
+            <div class="dep-arrow-wrap">
+              <div class="dep-arrow-line" style="background:#DC2626"></div>
+              <span class="dep-type-label" style="color:#DC2626">BLOCKED BY</span>
+            </div>
+            <div class="dep-team-chip dep-team-chip--target">{{ d.toTeam }}</div>
+          </div>
+          <div class="dep-items-row">
+            <span class="dep-item-pill dep-item-pill--from">{{ d.fromItem }}</span>
+            <lucide-icon name="arrow-right" [size]="12" style="color:#DC2626;flex-shrink:0"></lucide-icon>
+            <span class="dep-item-pill dep-item-pill--blocked">{{ d.toItem }}</span>
+          </div>
+          <div class="dep-desc">{{ d.description }}</div>
+          <div class="pi-entry-meta">
+            <span class="pi-proj-chip" [style.background]="d.projectColor + '18'" [style.color]="d.projectColor">{{ d.project }}</span>
+            <div class="pi-avatar-sm">{{ d.ownerInitials }}</div>
+            <span class="pi-meta-item">{{ d.owner }}</span>
+          </div>
+        </div>
+        <button class="pi-btn pi-btn-ghost pi-btn-sm">Escalate</button>
+      </div>
+    </div>
+    <div class="pi-empty" *ngIf="blockers.length === 0">
+      <lucide-icon name="check-circle" [size]="32" style="color:#059669"></lucide-icon>
+      <span>No active blockers — all dependencies are on track!</span>
+    </div>
+  </ng-container>
+
+</div>

@@ -1,0 +1,343 @@
+<div class="cv" #scroller tabindex="-1" aria-label="Artifact" [attr.data-mode]="canvas.mode()" (scroll)="onScroll()" *ngIf="canvas.artifact() as artifact">
+
+  <!-- Toast (with optional Undo) -->
+  <div class="cv-toast" *ngIf="canvas.toast() as toast" [attr.data-type]="toast.type" role="status" aria-live="polite">
+    <lucide-icon [name]="toastIcon()" [size]="15"></lucide-icon>
+    <span>{{ toast.text }}</span>
+    <button type="button" *ngIf="toast.actionLabel" (click)="canvas.runToastAction()">{{ toast.actionLabel }}</button>
+  </div>
+
+  <!-- Unsaved changes guard -->
+  <div class="cv-guard-scrim" *ngIf="canvas.leaveGuard()" (click)="canvas.resolveGuard('stay')">
+    <div class="cv-guard" role="alertdialog" aria-modal="true" aria-labelledby="cv-guard-title" aria-describedby="cv-guard-desc" (click)="$event.stopPropagation()">
+      <span class="cv-guard-icon"><lucide-icon name="triangle-alert" [size]="18"></lucide-icon></span>
+      <h2 id="cv-guard-title">Save your changes?</h2>
+      <p id="cv-guard-desc">You have unsaved edits to “{{ artifact.title }}”. Saving creates v{{ artifact.version + 1 }}.</p>
+      <div class="cv-guard-actions">
+        <button type="button" class="cv-btn cv-btn--ghost" (click)="canvas.resolveGuard('stay')">Keep editing</button>
+        <button type="button" class="cv-btn cv-btn--danger" (click)="canvas.resolveGuard('discard')">Discard</button>
+        <button type="button" class="cv-btn cv-btn--primary" (click)="canvas.resolveGuard('save')">Save &amp; continue</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cv-inner">
+    <!-- Header -->
+    <header class="cv-head">
+      <span class="cv-head-icon"><lucide-icon [name]="iconName()" [size]="18"></lucide-icon></span>
+      <div class="cv-head-main">
+        <div class="cv-title-row">
+          <input *ngIf="editingTitle(); else titleTpl" class="cv-title-input" [value]="artifact.title" aria-label="Artifact title" maxlength="120"
+            (keydown.enter)="finishRename($any($event.target).value, true)" (keydown.escape)="$event.stopPropagation(); finishRename('', false)"
+            (blur)="finishRename($any($event.target).value, true)" />
+          <ng-template #titleTpl>
+            <h1 class="cv-title">{{ artifact.title }}</h1>
+            <button type="button" class="cv-title-edit" *ngIf="!viewingOld()" (click)="startRename()" aria-label="Rename" title="Rename"><lucide-icon name="pencil" [size]="13"></lucide-icon></button>
+          </ng-template>
+        </div>
+        <div class="cv-meta">
+          <span class="cv-type">{{ typeLabel() }}</span>
+          <span class="cv-status" [attr.data-status]="artifact.status"><span class="cv-status-dot"></span>{{ canvas.statusLabel(artifact.status) }}</span>
+          <span>v{{ viewingOld() ? canvas.viewingVersion() : artifact.version }}</span>
+          <span *ngIf="project() as p" class="cv-meta-project"><lucide-icon name="folder-open" [size]="11"></lucide-icon>{{ p.name }}</span>
+          <span><lucide-icon name="clock" [size]="11"></lucide-icon>{{ readingMinutes() }} min read · {{ doc().words }} words</span>
+          <span>Updated {{ artifact.updatedAt | date:'MMM d, h:mm a' }}</span>
+          <span *ngIf="artifact.jiraIssueKey" class="cv-meta-jira"><lucide-icon name="trello" [size]="11"></lucide-icon>{{ artifact.jiraIssueKey }}</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Newer AI draft available -->
+    <div class="cv-banner cv-banner--info" *ngIf="canvas.newerDraft() as newer">
+      <lucide-icon name="sparkles" [size]="15"></lucide-icon>
+      <span>The AI made a newer version of this {{ typeLabel().toLowerCase() }} (v{{ newer.version }}).</span>
+      <button type="button" class="cv-btn cv-btn--soft cv-btn--sm" (click)="openNewer()">Open v{{ newer.version }}</button>
+    </div>
+
+    <!-- ═══ VIEW ═══ -->
+    <ng-container *ngIf="canvas.mode() === 'view'">
+      <div class="cv-banner cv-banner--warn" *ngIf="viewingOld()">
+        <lucide-icon name="history" [size]="15"></lucide-icon>
+        <span>You’re viewing <strong>v{{ canvas.viewingVersion() }}</strong> (read-only). The current version is v{{ artifact.version }}.</span>
+        <span class="cv-banner-actions">
+          <button type="button" class="cv-btn cv-btn--ghost cv-btn--sm" (click)="canvas.backToCurrent()">Back to current</button>
+          <ng-container *ngFor="let v of canvas.versions()">
+            <button type="button" class="cv-btn cv-btn--soft cv-btn--sm" *ngIf="v.version === canvas.viewingVersion()" (click)="canvas.compareWith(v)">Compare</button>
+            <button type="button" class="cv-btn cv-btn--primary cv-btn--sm" *ngIf="v.version === canvas.viewingVersion()" (click)="canvas.restoreVersion(v)">Restore</button>
+          </ng-container>
+        </span>
+      </div>
+
+      <div class="cv-layout" [class.has-outline]="doc().sections.length > 2">
+        <article class="cv-doc" aria-label="Document">
+          <ng-container *ngTemplateOutlet="docTpl; context: { $implicit: doc(), interactive: !viewingOld() }"></ng-container>
+        </article>
+
+        <nav class="cv-outline" *ngIf="doc().sections.length > 2" aria-label="Contents">
+          <div class="cv-outline-title">Contents</div>
+          <button type="button" *ngFor="let s of doc().sections" [class.active]="activeSection() === s.id" (click)="jumpTo(s.id)" [attr.aria-current]="activeSection() === s.id ? 'true' : null">
+            <span class="cv-outline-icon">{{ s.icon }}</span><span>{{ s.heading }}</span>
+          </button>
+          <div class="cv-outline-tip"><kbd>E</kbd> edit all · hover a section to edit just that part</div>
+        </nav>
+      </div>
+    </ng-container>
+
+    <!-- ═══ EDIT ═══ -->
+    <div class="cv-edit" *ngIf="canvas.mode() === 'edit'">
+      <div class="cv-edit-bar">
+        <span class="cv-edit-state" [class.dirty]="canvas.dirty()">
+          <span class="cv-edit-dot"></span>{{ canvas.dirty() ? 'Unsaved changes' : 'No changes yet' }}
+        </span>
+        <span class="cv-edit-counts">{{ editStats().words }} words · {{ editStats().chars }} chars</span>
+        <span class="cv-spacer"></span>
+        <button type="button" class="cv-btn cv-btn--ghost" (click)="canvas.cancelEdit()">Cancel</button>
+        <button type="button" class="cv-btn cv-btn--primary" (click)="canvas.saveEdit()" [disabled]="!canvas.dirty()" title="Save (⌘S / Ctrl+S)">
+          <lucide-icon name="save" [size]="14"></lucide-icon>Save as v{{ artifact.version + 1 }}
+        </button>
+      </div>
+      <label class="psc-sr-only" for="artifact-editor">Artifact content</label>
+      <textarea id="artifact-editor" class="cv-editor" [ngModel]="canvas.editContent()" (ngModelChange)="canvas.editContent.set($event)"
+        spellcheck="true" placeholder="Write your artifact…"></textarea>
+      <p class="cv-edit-tip"><lucide-icon name="info" [size]="12"></lucide-icon>Sections start with a <code>━━━</code> line, a heading and another <code>━━━</code> line. <kbd>⌘S</kbd> saves · <kbd>Esc</kbd> cancels.</p>
+    </div>
+
+    <!-- ═══ COMPARE ═══ -->
+    <div class="cv-compare" *ngIf="canvas.mode() === 'compare'">
+      <ng-container *ngIf="canvas.versions().length > 1; else noCompare">
+        <div class="cv-compare-bar">
+          <label class="cv-select"><span>From</span>
+            <select [value]="canvas.compareFrom()" (change)="setCompare('from', $any($event.target).value)" aria-label="Compare from version">
+              <option *ngFor="let v of canvas.versions()" [value]="v.version" [selected]="v.version === canvas.compareFrom()">v{{ v.version }} · {{ v.savedAt | date:'MMM d, h:mm a' }}</option>
+            </select>
+          </label>
+          <button type="button" class="cv-swap" (click)="swapCompare()" aria-label="Swap versions" title="Swap"><lucide-icon name="arrow-left-right" [size]="14"></lucide-icon></button>
+          <label class="cv-select"><span>To</span>
+            <select [value]="compareToVersion()?.version" (change)="setCompare('to', $any($event.target).value)" aria-label="Compare to version">
+              <option *ngFor="let v of canvas.versions()" [value]="v.version" [selected]="v.version === compareToVersion()?.version">v{{ v.version }}{{ v.version === artifact.version ? ' (current)' : '' }}</option>
+            </select>
+          </label>
+          <span class="cv-spacer"></span>
+          <span class="cv-diff-stats" *ngIf="diff() as d">
+            <span class="add">+{{ d.added }}</span><span class="del">−{{ d.removed }}</span>
+          </span>
+          <button type="button" class="cv-btn cv-btn--soft cv-btn--sm" *ngIf="compareFromVersion() as f" [disabled]="f.version === artifact.version" (click)="canvas.restoreVersion(f)">
+            <lucide-icon name="rotate-ccw" [size]="12"></lucide-icon>Restore v{{ f.version }}
+          </button>
+        </div>
+        <div class="cv-diff" *ngIf="diff() as d">
+          <div class="cv-empty-inline" *ngIf="!d.added && !d.removed"><lucide-icon name="equal" [size]="16"></lucide-icon>These versions are identical.</div>
+          <ng-container *ngFor="let c of d.chunks; let ci = index">
+            <ng-container *ngIf="c.type === 'lines' || expandedFolds().has(ci); else foldTpl">
+              <div class="cv-diff-line" *ngFor="let l of c.lines; trackBy: trackByIndex" [attr.data-type]="l.type">
+                <span class="cv-diff-sign" aria-hidden="true">{{ l.type === 'add' ? '+' : l.type === 'del' ? '−' : '' }}</span>
+                <span class="psc-sr-only">{{ l.type === 'add' ? 'Added:' : l.type === 'del' ? 'Removed:' : '' }}</span>
+                <span class="cv-diff-text">{{ l.text || ' ' }}</span>
+              </div>
+            </ng-container>
+            <ng-template #foldTpl>
+              <button type="button" class="cv-diff-fold" (click)="toggleFold(ci)"><lucide-icon name="chevrons-up-down" [size]="13"></lucide-icon>Show {{ c.lines.length }} unchanged lines</button>
+            </ng-template>
+          </ng-container>
+        </div>
+      </ng-container>
+      <ng-template #noCompare>
+        <div class="cv-empty">
+          <span class="cv-empty-icon"><lucide-icon name="git-compare" [size]="22"></lucide-icon></span>
+          <h2>Nothing to compare yet</h2>
+          <p>This is the first version. Edit it or ask the AI to refine it, and you’ll see exactly what changed here.</p>
+          <div class="cv-empty-actions">
+            <button type="button" class="cv-btn cv-btn--primary" (click)="canvas.setMode('edit')"><lucide-icon name="pencil" [size]="13"></lucide-icon>Edit</button>
+            <button type="button" class="cv-btn cv-btn--soft" (click)="canvas.requestRefine()"><lucide-icon name="sparkles" [size]="13"></lucide-icon>Ask AI to refine</button>
+          </div>
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- ═══ HISTORY ═══ -->
+    <div class="cv-history" *ngIf="canvas.mode() === 'history'">
+      <div class="cv-section-title"><lucide-icon name="history" [size]="15"></lucide-icon>Version history <span class="cv-count">{{ canvas.versions().length }}</span></div>
+      <ol class="cv-timeline">
+        <li *ngFor="let v of canvas.versions(); let i = index" [class.current]="i === 0">
+          <span class="cv-tl-dot" aria-hidden="true"></span>
+          <div class="cv-tl-body">
+            <div class="cv-tl-top">
+              <strong>v{{ v.version }}</strong>
+              <span class="cv-tl-label">{{ v.label.replace('Version ' + v.version, '').replace('(', '').replace(')', '').trim() || 'Saved' }}</span>
+              <span class="cv-badge" *ngIf="i === 0">Current</span>
+            </div>
+            <div class="cv-tl-meta">
+              {{ v.savedAt | date:'MMM d, h:mm a' }}
+              <ng-container *ngIf="versionStats()[i] as st">
+                <span *ngIf="st.first"> · first version</span>
+                <span *ngIf="!st.first"> · <span class="add">+{{ st.added }}</span> <span class="del">−{{ st.removed }}</span> lines</span>
+              </ng-container>
+            </div>
+          </div>
+          <div class="cv-tl-actions">
+            <button type="button" class="cv-btn cv-btn--ghost cv-btn--sm" (click)="canvas.viewVersion(v)"><lucide-icon name="eye" [size]="12"></lucide-icon>View</button>
+            <button type="button" class="cv-btn cv-btn--ghost cv-btn--sm" *ngIf="i > 0" (click)="canvas.compareWith(v)"><lucide-icon name="git-compare" [size]="12"></lucide-icon>Compare</button>
+            <button type="button" class="cv-btn cv-btn--soft cv-btn--sm" *ngIf="i > 0" (click)="canvas.restoreVersion(v)"><lucide-icon name="rotate-ccw" [size]="12"></lucide-icon>Restore</button>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ═══ PREVIEW ═══ -->
+    <div class="cv-preview" *ngIf="canvas.mode() === 'preview'">
+      <div class="cv-banner cv-banner--info"><lucide-icon name="monitor" [size]="15"></lucide-icon><span>Reader preview — how teammates see this when it’s shared or published.</span></div>
+      <article class="cv-doc cv-doc--paper">
+        <h1 class="cv-paper-title">{{ artifact.title }}</h1>
+        <p class="cv-paper-meta">{{ typeLabel() }} · v{{ artifact.version }} · {{ artifact.updatedAt | date:'MMM d, yyyy' }}<ng-container *ngIf="project() as p"> · {{ p.name }}</ng-container></p>
+        <ng-container *ngTemplateOutlet="docTpl; context: { $implicit: doc(), interactive: false }"></ng-container>
+      </article>
+    </div>
+
+    <!-- ═══ SHARE ═══ -->
+    <div class="cv-panel" *ngIf="canvas.mode() === 'share'">
+      <span class="cv-panel-icon"><lucide-icon name="share-2" [size]="22"></lucide-icon></span>
+      <h2>Share “{{ artifact.title }}”</h2>
+      <p>{{ artifact.status === 'published' ? 'Published — everyone on the project can open it.' : 'Anyone with the link who has access to Product Studio can open it. Publish to make it the team’s official version.' }}</p>
+      <div class="cv-link-row">
+        <lucide-icon name="link" [size]="14"></lucide-icon>
+        <input [value]="canvas.shareUrl" readonly aria-label="Share link" (focus)="$any($event.target).select()" />
+        <button type="button" class="cv-btn cv-btn--primary" (click)="canvas.copyLink()"><lucide-icon name="copy" [size]="13"></lucide-icon>Copy link</button>
+      </div>
+      <div class="cv-share-grid">
+        <button type="button" class="cv-share-card" (click)="canvas.emailLink()"><lucide-icon name="mail" [size]="18"></lucide-icon><strong>Email</strong><small>Opens your mail app</small></button>
+        <button type="button" class="cv-share-card" (click)="canvas.copyForSlack()"><lucide-icon name="slack" [size]="18"></lucide-icon><strong>Slack / Teams</strong><small>Copies a ready-to-paste message</small></button>
+        <button type="button" class="cv-share-card" (click)="canvas.notifyTeam()" [disabled]="!team().length"><lucide-icon name="users" [size]="18"></lucide-icon><strong>Notify project team</strong>
+          <small *ngIf="team().length; else noTeam"><span class="cv-avatars"><span *ngFor="let m of team().slice(0, 4)" [title]="m">{{ initials(m) }}</span></span>{{ team().length }} people</small>
+          <ng-template #noTeam><small>Chat isn’t in a project</small></ng-template>
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══ PUBLISH ═══ -->
+    <div class="cv-panel" *ngIf="canvas.mode() === 'publish'">
+      <ng-container *ngIf="artifact.status === 'published'; else notPublished">
+        <span class="cv-panel-icon cv-panel-icon--done"><lucide-icon name="badge-check" [size]="22"></lucide-icon></span>
+        <h2>v{{ artifact.version }} is published</h2>
+        <p>Your team sees this version. Any edit you make moves it back to <em>In review</em> until you publish again.</p>
+        <div class="cv-empty-actions">
+          <button type="button" class="cv-btn cv-btn--primary" (click)="canvas.setMode('share')"><lucide-icon name="share-2" [size]="13"></lucide-icon>Share</button>
+          <button type="button" class="cv-btn cv-btn--ghost" (click)="canvas.unpublish()"><lucide-icon name="undo-2" [size]="13"></lucide-icon>Unpublish</button>
+        </div>
+      </ng-container>
+      <ng-template #notPublished>
+        <span class="cv-panel-icon"><lucide-icon name="send" [size]="22"></lucide-icon></span>
+        <h2>Publish v{{ artifact.version }}</h2>
+        <p>Publishing marks this as the team’s approved version and notifies {{ team().length ? team().length + ' teammates' : 'your team' }}.</p>
+        <ul class="cv-checks" aria-label="Readiness checks">
+          <li *ngFor="let c of publishChecks()" [class.ok]="c.ok">
+            <lucide-icon [name]="c.ok ? 'circle-check' : (c.id === 'content' ? 'circle-x' : 'circle-alert')" [size]="16"></lucide-icon>
+            <span><strong>{{ c.label }}</strong><small *ngIf="c.detail">{{ c.detail }}</small></span>
+            <button type="button" class="cv-btn cv-btn--ghost cv-btn--sm" *ngIf="c.fix" (click)="runFix(c.fix)">
+              {{ c.fix === 'review' ? 'Mark in review' : c.fix === 'edit' ? 'Edit' : 'Ask AI' }}
+            </button>
+          </li>
+        </ul>
+        <div class="cv-publishing" *ngIf="canvas.publishStatus() === 'publishing'; else pubBtn"><span class="cv-spinner"></span>Publishing…</div>
+        <ng-template #pubBtn>
+          <button type="button" class="cv-btn cv-btn--primary cv-btn--lg" (click)="canvas.publish()" [disabled]="publishBlocked()">
+            <lucide-icon name="send" [size]="14"></lucide-icon>Publish v{{ artifact.version }}
+          </button>
+        </ng-template>
+      </ng-template>
+    </div>
+
+    <!-- ═══ EXPORT ═══ -->
+    <div class="cv-panel cv-panel--wide" *ngIf="canvas.mode() === 'export'">
+      <span class="cv-panel-icon"><lucide-icon name="download" [size]="22"></lucide-icon></span>
+      <h2>Export or push</h2>
+      <p>Download v{{ artifact.version }}, copy it, or create work items in your delivery tool.</p>
+      <div class="cv-export-grid">
+        <button type="button" class="cv-export-card" *ngFor="let f of exportFormats" (click)="canvas.exportAs(f.id)"
+          [disabled]="!!canvas.exportFormat()" [class.busy]="canvas.exportFormat() === f.id">
+          <span class="cv-export-icon"><lucide-icon [name]="canvas.exportFormat() === f.id ? 'loader' : f.icon" [size]="18" [class.cv-spin]="canvas.exportFormat() === f.id"></lucide-icon></span>
+          <strong>{{ f.label }}</strong>
+          <small>{{ canvas.exportFormat() === f.id ? (f.id === 'jira' || f.id === 'ado' ? 'Creating items…' : 'Preparing…') : f.desc }}</small>
+        </button>
+      </div>
+      <div class="cv-push-result" *ngIf="canvas.pushResult() as r" role="status">
+        <lucide-icon name="circle-check" [size]="16"></lucide-icon>
+        <div>
+          <strong>Created {{ r.keys.length }} {{ r.tool === 'Jira' ? 'issues' : 'work items' }} in {{ r.tool }}</strong>
+          <div class="cv-keys"><span *ngFor="let k of r.keys.slice(0, 12)">{{ k }}</span><span *ngIf="r.keys.length > 12">+{{ r.keys.length - 12 }} more</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shared document renderer (View + Preview) -->
+  <ng-template #docTpl let-doc let-interactive="interactive">
+    <div class="cv-request" *ngIf="doc.request"><lucide-icon name="message-square-quote" [size]="14"></lucide-icon><span><strong>Request</strong>{{ doc.request }}</span></div>
+    <ng-container *ngTemplateOutlet="blocksTpl; context: { $implicit: doc.intro }"></ng-container>
+
+    <section class="cv-section" *ngFor="let s of doc.sections" [id]="s.id" [class.editing]="canvas.sectionEdit()?.section?.id === s.id" [attr.aria-labelledby]="s.id + '-h'">
+      <div class="cv-section-head">
+        <h2 [id]="s.id + '-h'" tabindex="-1"><span class="cv-section-icon" *ngIf="s.icon" aria-hidden="true">{{ s.icon }}</span>{{ s.heading }}</h2>
+        <span class="cv-section-meta" *ngIf="s.meta">{{ s.meta }}</span>
+        <span class="cv-section-actions" *ngIf="interactive && canvas.sectionEdit()?.section?.id !== s.id">
+          <button type="button" (click)="copySection(s)" [attr.aria-label]="'Copy ' + s.heading" [title]="copiedSection() === s.id ? 'Copied' : 'Copy section'">
+            <lucide-icon [name]="copiedSection() === s.id ? 'check' : 'copy'" [size]="13"></lucide-icon>
+          </button>
+          <button type="button" (click)="canvas.startSectionEdit(s)" [attr.aria-label]="'Edit ' + s.heading" title="Edit this section"><lucide-icon name="pencil" [size]="13"></lucide-icon></button>
+          <button type="button" (click)="canvas.requestRefine(s)" [attr.aria-label]="'Ask AI to refine ' + s.heading" title="Ask AI to refine this section"><lucide-icon name="sparkles" [size]="13"></lucide-icon><span>Ask AI</span></button>
+        </span>
+      </div>
+
+      <div class="cv-section-edit" *ngIf="interactive && canvas.sectionEdit() as se; else sectionBody">
+        <ng-container *ngIf="se.section.id === s.id; else sectionBody">
+          <textarea class="cv-section-editor" #sectionArea [ngModel]="se.text" (ngModelChange)="canvas.updateSectionEdit($event); autosize(sectionArea)"
+            (focus)="autosize(sectionArea)" [attr.aria-label]="'Edit ' + s.heading" spellcheck="true"></textarea>
+          <div class="cv-section-edit-bar">
+            <span class="cv-edit-counts"><kbd>⌘↵</kbd> save · <kbd>Esc</kbd> cancel</span>
+            <span class="cv-spacer"></span>
+            <button type="button" class="cv-btn cv-btn--ghost cv-btn--sm" (click)="cancelSection()">Cancel</button>
+            <button type="button" class="cv-btn cv-btn--primary cv-btn--sm" (click)="canvas.saveSectionEdit()" [disabled]="se.text === se.section.body">Save section</button>
+          </div>
+        </ng-container>
+      </div>
+      <ng-template #sectionBody>
+        <ng-container *ngTemplateOutlet="blocksTpl; context: { $implicit: s.blocks }"></ng-container>
+        <p class="cv-muted" *ngIf="!s.blocks.length">Empty section.</p>
+      </ng-template>
+    </section>
+
+    <div class="cv-empty" *ngIf="!doc.sections.length && !doc.intro.length">
+      <span class="cv-empty-icon"><lucide-icon name="file-pen-line" [size]="22"></lucide-icon></span>
+      <h2>This draft is empty</h2>
+      <p>Start writing, or ask the AI to draft it from your prompt and Product Memory.</p>
+      <div class="cv-empty-actions">
+        <button type="button" class="cv-btn cv-btn--primary" (click)="canvas.setMode('edit')">Start writing</button>
+        <button type="button" class="cv-btn cv-btn--soft" (click)="canvas.requestRefine()">Ask AI</button>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-template #blocksTpl let-blocks>
+    <ng-container *ngFor="let b of blocks; let bi = index">
+      <ng-container [ngSwitch]="b.kind">
+        <p *ngSwitchCase="'para'" class="cv-p">{{ b.text }}</p>
+        <h3 *ngSwitchCase="'subheading'" class="cv-sub">{{ b.text }}<span *ngIf="b.meta">{{ b.meta }}</span></h3>
+        <div *ngSwitchCase="'bullet'" class="cv-li" [attr.data-marker]="b.marker">
+          <span class="cv-li-mark" aria-hidden="true">{{ b.marker === 'number' ? b.n + '.' : b.marker === 'arrow' ? '→' : '•' }}</span><span>{{ b.text }}</span>
+        </div>
+        <div *ngSwitchCase="'item'" class="cv-item" [attr.data-tone]="b.tone">
+          <span class="cv-tag">{{ b.tag }}</span><span class="cv-item-text">{{ b.text }}</span><span class="cv-badge" *ngIf="b.badge">{{ b.badge }}</span>
+        </div>
+        <div *ngSwitchCase="'kv'" class="cv-kv">
+          <span class="cv-kv-key">{{ b.key }}</span>
+          <span class="cv-kv-vals"><span *ngFor="let v of b.values">{{ v }}</span></span>
+        </div>
+        <div *ngSwitchCase="'table'" class="cv-table-wrap">
+          <table class="cv-table">
+            <thead><tr><th *ngFor="let c of b.rows[0]" scope="col">{{ c }}</th></tr></thead>
+            <tbody><tr *ngFor="let r of b.rows.slice(1)"><td *ngFor="let c of r; let ci = index" [class.cv-td-key]="ci === 0">{{ c }}</td></tr></tbody>
+          </table>
+        </div>
+      </ng-container>
+    </ng-container>
+  </ng-template>
+</div>

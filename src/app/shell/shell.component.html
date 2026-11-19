@@ -1,0 +1,316 @@
+<div class="psc-shell" [class.prompt-mode]="homeMode" [class.psc-rail-expanded]="!railCollapsed && viewport === 'desktop'" [attr.data-viewport]="viewport">
+  <!-- Mobile top bar -->
+  <header class="psc-topbar" *ngIf="viewport === 'mobile'">
+    <button type="button" class="psc-topbar-btn" (click)="toggleNav()" [attr.aria-expanded]="navOpen" aria-controls="psc-rail" aria-label="Open navigation">
+      <lucide-icon name="menu" [size]="20"></lucide-icon>
+    </button>
+    <button type="button" class="psc-topbar-brand" (click)="navigate('home')" aria-label="Product Studio home">
+      <span class="psc-rail-logo-icon-wrap"><lucide-icon name="zap" [size]="15" color="white"></lucide-icon></span>
+      <span>Product Studio</span>
+    </button>
+    <span class="psc-topbar-spacer"></span>
+    <button type="button" class="psc-topbar-btn" (click)="openCmd()" aria-label="Search">
+      <lucide-icon name="search" [size]="19"></lucide-icon>
+    </button>
+    <button type="button" class="psc-topbar-btn" (click)="toggleNotifications()" aria-label="Notifications">
+      <lucide-icon name="bell" [size]="19"></lucide-icon>
+      <span class="psc-topbar-dot" *ngIf="unreadCount > 0"></span>
+    </button>
+  </header>
+
+  <!-- Rail Nav (sidebar on desktop, icon rail on tablet, drawer on mobile) -->
+  <nav class="psc-rail" id="psc-rail" [class.collapsed]="railCollapsed" [class.open]="navOpen" aria-label="Product Studio">
+    <div class="psc-rail-top">
+      <button type="button" class="psc-rail-logo" (click)="railCollapsed ? toggleNav() : navigate('home')"
+        [attr.aria-label]="railCollapsed ? 'Expand navigation' : 'Dashboard'" [title]="railCollapsed ? 'Expand navigation' : 'Dashboard'">
+        <span class="psc-rail-logo-icon-wrap"><lucide-icon name="zap" [size]="16" color="white"></lucide-icon></span>
+        <span class="psc-rail-logo-text">Product Studio</span>
+      </button>
+      <button type="button" class="psc-rail-collapse-btn" *ngIf="!railCollapsed" (click)="toggleNav()"
+        [attr.aria-label]="viewport === 'desktop' ? 'Collapse navigation' : 'Close navigation'" [title]="viewport === 'desktop' ? 'Collapse' : 'Close'">
+        <lucide-icon [name]="viewport === 'desktop' ? 'chevron-left' : 'x'" [size]="16"></lucide-icon>
+      </button>
+    </div>
+
+    <!-- Section 1: primary destinations + More -->
+    <div class="psc-rail-items psc-rail-section" role="list">
+      <button type="button" class="psc-rail-item" role="listitem" *ngFor="let item of mainNavItems" [class.active]="activeRoute === item.route"
+        [attr.aria-current]="activeRoute === item.route ? 'page' : null" (click)="navigate(item.route)"
+        [attr.title]="railCollapsed ? item.label : null" [attr.aria-label]="item.label">
+        <lucide-icon [name]="item.icon" [size]="20"></lucide-icon>
+        <span class="psc-rail-label">{{ item.label }}</span>
+        <span class="psc-rail-badge" *ngIf="item.route === 'jobs' && runningJobsCount > 0">{{ runningJobsCount }}</span>
+      </button>
+
+      <button type="button" class="psc-rail-item psc-rail-more" role="listitem" (click)="toggleMore()" [class.has-active]="moreActive && !moreOpen"
+        [attr.aria-expanded]="moreOpen" aria-controls="psc-rail-more-items" [attr.title]="railCollapsed ? (moreOpen ? 'Less' : 'More') : null">
+        <lucide-icon [name]="moreOpen ? 'chevron-up' : 'ellipsis'" [size]="20"></lucide-icon>
+        <span class="psc-rail-label">{{ moreOpen ? 'Less' : 'More' }}</span>
+        <span class="psc-rail-badge" *ngIf="!moreOpen && runningJobsCount > 0" [attr.aria-label]="runningJobsCount + ' running jobs'">{{ runningJobsCount }}</span>
+      </button>
+      <div class="psc-rail-more-items" id="psc-rail-more-items" *ngIf="moreOpen">
+        <button type="button" class="psc-rail-item psc-rail-item--sub" role="listitem" *ngFor="let item of moreNavItems" [class.active]="activeRoute === item.route"
+          [attr.aria-current]="activeRoute === item.route ? 'page' : null" (click)="navigate(item.route)"
+          [attr.title]="railCollapsed ? item.label : null" [attr.aria-label]="item.label">
+          <lucide-icon [name]="item.icon" [size]="18"></lucide-icon>
+          <span class="psc-rail-label">{{ item.label }}</span>
+          <span class="psc-rail-badge" *ngIf="item.route === 'jobs' && runningJobsCount > 0">{{ runningJobsCount }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Section 2: chats -->
+    <section class="psc-rail-chats" aria-label="Chats">
+      <ng-container *ngIf="!railCollapsed; else collapsedChats">
+        <div class="psc-chats-header">
+          <span class="psc-chats-title">Chats</span>
+          <button type="button" class="psc-chats-new" (click)="newChat()" aria-label="New chat" title="New chat">
+            <lucide-icon name="square-pen" [size]="15"></lucide-icon>
+          </button>
+        </div>
+        <div class="psc-chats-list">
+          <!-- Project chats: one folder per project -->
+          <div class="psc-chat-section" *ngIf="projectFolders.length">
+            <button type="button" class="psc-chat-section-head" (click)="toggleChatSection('projects')" [attr.aria-expanded]="!chatSections.projects" aria-controls="chats-projects">
+              <lucide-icon name="chevron-down" [size]="13" class="psc-chat-section-chev" [class.closed]="chatSections.projects"></lucide-icon>
+              <span>Projects</span><span class="psc-chat-section-count">{{ projectFolders.length }}</span>
+            </button>
+            <div id="chats-projects" *ngIf="!chatSections.projects" role="list">
+              <div class="psc-folder" *ngFor="let f of projectFolders; trackBy: trackFolder" role="listitem" [class.has-active]="folderHasActive(f)"
+                [class.drop-target]="dropProjectId === f.project.id" (dragover)="onFolderDragOver(f.project.id, $event)" (dragleave)="dropProjectId = null" (drop)="onFolderDrop(f.project.id, $event)">
+                <div class="psc-folder-head" role="button" tabindex="0" (click)="toggleFolder(f.project.id)" (keydown.enter)="toggleFolder(f.project.id)"
+                  [attr.aria-expanded]="isFolderOpen(f.project.id)" [title]="f.project.name">
+                  <lucide-icon name="chevron-right" [size]="12" class="psc-folder-chev" [class.open]="isFolderOpen(f.project.id)"></lucide-icon>
+                  <span class="psc-folder-av" [style.background]="projectGradient(f.project.id, f.index)">{{ initials(f.project.name) }}</span>
+                  <span class="psc-folder-name">{{ f.project.name }}</span>
+                  <span class="psc-folder-count">{{ f.chats.length }}</span>
+                  <button type="button" class="psc-folder-new" (click)="newProjectChat(f.project.id, $event)" [attr.aria-label]="'New chat in ' + f.project.name" title="New chat in project">
+                    <lucide-icon name="plus" [size]="13"></lucide-icon>
+                  </button>
+                </div>
+                <div class="psc-folder-chats" *ngIf="isFolderOpen(f.project.id)">
+                  <ng-container *ngFor="let c of folderChats(f); trackBy: trackById">
+                    <ng-container *ngTemplateOutlet="chatItem; context: { $implicit: c, inProject: true }"></ng-container>
+                  </ng-container>
+                  <button type="button" class="psc-folder-all" *ngIf="f.chats.length > folderPreview" (click)="openProjectChats(f.project.id)">
+                    View all {{ f.chats.length }} chats<lucide-icon name="arrow-right" [size]="11"></lucide-icon>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- While dragging: every project is a drop target (even ones without chats yet) -->
+          <div class="psc-drop-projects" *ngIf="dragChatId">
+            <div class="psc-chat-section-head psc-drop-title">Drop on a project</div>
+            <div class="psc-drop-project" *ngFor="let t of dragTargets; trackBy: trackById" [class.drop-target]="dropProjectId === t.id"
+              (dragover)="onFolderDragOver(t.id, $event)" (dragleave)="dropProjectId = null" (drop)="onFolderDrop(t.id, $event)">
+              <span class="psc-folder-av" [style.background]="projectGradient(t.id, t.index)">{{ initials(t.name) }}</span>{{ t.name }}
+            </div>
+          </div>
+
+          <!-- Recent: chats without a project -->
+          <div class="psc-chat-section" *ngIf="recentCount">
+            <button type="button" class="psc-chat-section-head" (click)="toggleChatSection('recent')" [attr.aria-expanded]="!chatSections.recent" aria-controls="chats-recent">
+              <lucide-icon name="chevron-down" [size]="13" class="psc-chat-section-chev" [class.closed]="chatSections.recent"></lucide-icon>
+              <span>Recent</span><span class="psc-chat-section-count">{{ recentCount }}</span>
+            </button>
+            <p class="psc-recent-hint" *ngIf="!chatSections.recent && recentHintVisible">
+              <lucide-icon name="folder-input" [size]="12"></lucide-icon>
+              <span>Not in a project. Use <strong>⋯ → Move to project</strong> or drag a chat onto a project.</span>
+              <button type="button" (click)="dismissRecentHint()" aria-label="Dismiss tip"><lucide-icon name="x" [size]="11"></lucide-icon></button>
+            </p>
+            <div id="chats-recent" *ngIf="!chatSections.recent">
+              <div class="psc-history-group" *ngFor="let group of recentGroups">
+                <div class="psc-history-group-label">{{ group.label }}</div>
+                <ng-container *ngFor="let c of group.items; trackBy: trackById">
+                  <ng-container *ngTemplateOutlet="chatItem; context: { $implicit: c, inProject: false }"></ng-container>
+                </ng-container>
+              </div>
+            </div>
+          </div>
+
+          <div class="psc-history-empty" *ngIf="!hasHistory">
+            <app-psc-illustration class="psc-history-empty-art" name="empty-chats"></app-psc-illustration>
+            <span>No chats yet</span>
+          </div>
+        </div>
+
+        <ng-template #chatItem let-c let-inProject="inProject">
+          <div class="psc-history-item" [class.in-folder]="inProject" draggable="true" (dragstart)="onChatDragStart(c, $event)" (dragend)="dragChatId = null"
+            [class.dragging]="dragChatId === c.id"
+            role="link" tabindex="0" [class.active]="c.id === activeConversationId"
+            [attr.aria-current]="c.id === activeConversationId ? 'page' : null"
+            (click)="openConversation(c)" (keydown.enter)="openConversation(c)" [title]="c.title">
+            <span class="psc-history-item-icon" [title]="getArtifactLabel(c.artifactId)">
+              <lucide-icon [name]="getArtifactIconName(c.artifactId)" [size]="13"></lucide-icon>
+            </span>
+            <span class="psc-history-item-text">
+              <span class="psc-history-item-title">{{ c.title }}</span>
+              <span class="psc-history-item-meta">{{ getArtifactShortLabel(c.artifactId) }} · {{ inProject ? (c.updatedAt | date:'MMM d, h:mm a') : (c.updatedAt | date:'h:mm a') }}</span>
+            </span>
+            <button type="button" class="psc-history-delete psc-history-more" (click)="openChatMenu(c, $event)" aria-haspopup="menu"
+              [attr.aria-expanded]="chatMenu?.conv?.id === c.id" [attr.aria-label]="'Chat actions for ' + c.title" title="Move to project, delete…">
+              <lucide-icon name="ellipsis" [size]="14"></lucide-icon>
+            </button>
+          </div>
+        </ng-template>
+      </ng-container>
+      <ng-template #collapsedChats>
+        <button type="button" class="psc-rail-item" (click)="newChat()" title="New chat" aria-label="New chat">
+          <lucide-icon name="square-pen" [size]="20"></lucide-icon>
+        </button>
+        <button type="button" class="psc-rail-item" (click)="showChats()" title="Chats" aria-label="Show chats">
+          <lucide-icon name="messages-square" [size]="20"></lucide-icon>
+        </button>
+      </ng-template>
+    </section>
+
+    <div class="psc-rail-bottom">
+      <!-- Theme: segmented control when expanded, cycling button when collapsed -->
+      <div class="psc-theme-switch" *ngIf="!railCollapsed; else themeCycle" role="radiogroup" aria-label="Theme">
+        <button type="button" class="psc-theme-option" *ngFor="let o of themeOptions" role="radio"
+          [attr.aria-checked]="theme.mode() === o.id" [class.active]="theme.mode() === o.id"
+          (click)="setTheme(o.id)" [title]="o.id === 'system' ? 'System — follows your OS live' : o.label + ' theme'">
+          <lucide-icon [name]="o.icon" [size]="14"></lucide-icon>
+          <span>{{ o.label }}</span>
+        </button>
+        <button type="button" class="psc-theme-option psc-theme-palette" (click)="openAppearance()" title="Customize colours" aria-label="Customize colours">
+          <span class="psc-theme-palette-dot" [style.background]="'linear-gradient(135deg,' + theme.activeColors().primary + ',' + theme.activeColors().secondary + ')'"></span>
+        </button>
+      </div>
+      <ng-template #themeCycle>
+        <button type="button" class="psc-rail-item" (click)="openAppearance()" [title]="'Appearance — ' + themeLabel" aria-label="Appearance and colours">
+          <lucide-icon name="palette" [size]="20"></lucide-icon>
+        </button>
+      </ng-template>
+      <button type="button" class="psc-rail-item psc-rail-item--cmd" (click)="openCmd()"
+        [attr.title]="railCollapsed ? 'Search (⌘K)' : null" aria-label="Search (Command K)">
+        <lucide-icon name="search" [size]="20"></lucide-icon>
+        <span class="psc-rail-label">Search</span>
+        <span class="psc-rail-cmd-hint" *ngIf="!railCollapsed && viewport === 'desktop'">⌘K</span>
+      </button>
+      <button type="button" class="psc-rail-item" (click)="toggleNotifications()"
+        [attr.title]="railCollapsed ? 'Notifications' : null" aria-label="Notifications">
+        <lucide-icon name="bell" [size]="20"></lucide-icon>
+        <span class="psc-rail-label">Notifications</span>
+        <span class="psc-rail-badge unread" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
+      </button>
+      <div class="psc-rail-user" [attr.title]="railCollapsed ? user.name : null">
+        <div class="psc-rail-avatar">{{ user.initials }}</div>
+        <div class="psc-rail-user-info">
+          <span class="psc-rail-user-name">{{ user.name }}</span>
+          <span class="psc-rail-user-role">{{ user.role }}</span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Backdrop for tablet/mobile drawers -->
+  <div class="psc-scrim" *ngIf="scrimVisible" (click)="closeDrawers()" aria-hidden="true"></div>
+
+  <!-- Main Content -->
+  <main class="psc-main">
+    <router-outlet></router-outlet>
+  </main>
+
+  <!-- Notification Panel -->
+  <div class="psc-notification-panel" [class.open]="notificationsOpen" role="dialog" aria-label="Notifications" [attr.aria-hidden]="!notificationsOpen">
+    <div class="psc-notif-header">
+      <h3>Notifications</h3>
+      <div class="psc-notif-actions">
+        <button type="button" class="psc-btn psc-btn-ghost psc-btn-sm" (click)="markAllRead()">Mark all read</button>
+        <button type="button" class="psc-btn psc-btn-icon" (click)="toggleNotifications()" aria-label="Close notifications">
+          <lucide-icon name="x" [size]="16"></lucide-icon>
+        </button>
+      </div>
+    </div>
+    <div class="psc-notif-list">
+      <div class="psc-notif-item" *ngFor="let n of notifications" [class.unread]="!n.read" (click)="handleNotification(n)">
+        <div class="psc-notif-icon" [ngClass]="'type-' + n.type">
+          <lucide-icon *ngIf="n.type === 'ai'" name="bot" [size]="16"></lucide-icon>
+          <lucide-icon *ngIf="n.type === 'success'" name="check-circle" [size]="16"></lucide-icon>
+          <lucide-icon *ngIf="n.type === 'warning'" name="alert-triangle" [size]="16"></lucide-icon>
+          <lucide-icon *ngIf="n.type === 'error'" name="x-circle" [size]="16"></lucide-icon>
+          <lucide-icon *ngIf="n.type === 'info'" name="info" [size]="16"></lucide-icon>
+        </div>
+        <div class="psc-notif-content">
+          <div class="psc-notif-title">{{ n.title }}</div>
+          <div class="psc-notif-msg">{{ n.message }}</div>
+          <div class="psc-notif-time">{{ n.timestamp | date:'MMM d, h:mm a' }}</div>
+          <button type="button" class="psc-btn psc-btn-ghost psc-btn-sm" *ngIf="n.actionLabel" (click)="$event.stopPropagation(); handleNotificationAction(n)">{{ n.actionLabel }}</button>
+        </div>
+        <div class="psc-notif-dot" *ngIf="!n.read"></div>
+      </div>
+    </div>
+  </div>
+  <div class="psc-overlay" *ngIf="notificationsOpen" (click)="toggleNotifications()"></div>
+
+  <!-- Appearance (theme mode + custom colours) -->
+  <app-psc-theme-customizer *ngIf="appearanceOpen" (closed)="appearanceOpen = false"></app-psc-theme-customizer>
+
+  <!-- Command Palette (⌘K / Ctrl+K) -->
+  <div class="cmd-overlay" *ngIf="cmdOpen" (click)="closeCmd()" aria-hidden="true"></div>
+  <div class="cmd-palette" [class.open]="cmdOpen" role="dialog" aria-modal="true" aria-label="Command palette" [attr.aria-hidden]="!cmdOpen">
+    <div class="cmd-search-row">
+      <lucide-icon name="search" [size]="16" class="cmd-search-icon"></lucide-icon>
+      <input #cmdInput class="cmd-input" [(ngModel)]="cmdQuery" (input)="onCmdInput()" (keydown)="onCmdKeydown($event)"
+        placeholder="Search chats, pages, or create an artifact…" autocomplete="off" aria-label="Search"
+        role="combobox" aria-controls="cmd-results" [attr.aria-expanded]="cmdOpen"
+        [attr.aria-activedescendant]="cmdResults.length ? 'cmd-result-' + cmdActiveIndex : null" />
+      <button type="button" class="cmd-esc" (click)="closeCmd()">Esc</button>
+    </div>
+    <div class="cmd-results" id="cmd-results" role="listbox">
+      <ng-container *ngFor="let r of cmdResults; let i = index">
+        <div class="cmd-group-label" *ngIf="showGroupLabel(i)">{{ r.group }}</div>
+        <button type="button" class="cmd-result" [id]="'cmd-result-' + i" role="option" [attr.aria-selected]="i === cmdActiveIndex"
+          [class.active]="i === cmdActiveIndex" (mouseenter)="cmdActiveIndex = i" (click)="runCmd(r)">
+          <div class="cmd-result-icon"><lucide-icon [name]="r.icon" [size]="14"></lucide-icon></div>
+          <div class="cmd-result-copy">
+            <span class="cmd-result-label">{{ r.label }}</span>
+            <span class="cmd-result-desc">{{ r.desc }}</span>
+          </div>
+          <lucide-icon name="arrow-right" [size]="12" class="cmd-result-arrow"></lucide-icon>
+        </button>
+      </ng-container>
+      <div class="cmd-empty" *ngIf="cmdResults.length === 0">No results for “{{ cmdQuery }}”</div>
+    </div>
+    <div class="cmd-footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+      <span><kbd>Enter</kbd> open</span>
+      <span><kbd>Esc</kbd> close</span>
+    </div>
+  </div>
+</div>
+
+<!-- Chat actions (sidebar ⋯): move to a project, remove from project, delete -->
+<div class="psc-chat-menu" *ngIf="chatMenu as m" role="menu" [attr.aria-label]="'Actions for ' + m.conv.title"
+  [style.top.px]="m.y" [style.left.px]="m.x" (click)="$event.stopPropagation()" (keydown.escape)="closeChatMenu()">
+  <div class="psc-chat-menu-title">{{ m.conv.projectId ? 'Move to another project' : 'Move to project' }}</div>
+  <div class="psc-chat-menu-search" *ngIf="m.targets.length > 5">
+    <lucide-icon name="search" [size]="12"></lucide-icon>
+    <input [(ngModel)]="chatMenuQuery" placeholder="Find a project…" aria-label="Find a project" />
+  </div>
+  <div class="psc-chat-menu-list">
+    <button type="button" role="menuitem" class="psc-chat-menu-item" *ngFor="let t of chatMenuTargets; trackBy: trackById" (click)="moveChat(m.conv, t.id)">
+      <span class="psc-folder-av" [style.background]="projectGradient(t.id, t.index)">{{ initials(t.name) }}</span>
+      <span class="psc-chat-menu-label">{{ t.name }}</span>
+    </button>
+    <div class="psc-chat-menu-empty" *ngIf="!chatMenuTargets.length">No matching project</div>
+  </div>
+  <div class="psc-chat-menu-sep"></div>
+  <button type="button" role="menuitem" class="psc-chat-menu-item" *ngIf="m.conv.projectId" (click)="moveChat(m.conv, null)">
+    <lucide-icon name="folder-output" [size]="14"></lucide-icon><span class="psc-chat-menu-label">Remove from project</span>
+  </button>
+  <button type="button" role="menuitem" class="psc-chat-menu-item danger" (click)="deleteConversation(m.conv, $event); closeChatMenu()">
+    <lucide-icon name="trash-2" [size]="14"></lucide-icon><span class="psc-chat-menu-label">Delete chat</span>
+  </button>
+</div>
+
+<!-- Feedback after moving a chat (with Undo) -->
+<div class="psc-organizer-toast" *ngIf="organizer.notice() as n" role="status" aria-live="polite">
+  <lucide-icon name="folder-check" [size]="15"></lucide-icon>
+  <span>{{ n.text }}</span>
+  <button type="button" *ngIf="n.undo" (click)="n.undo!()">Undo</button>
+  <button type="button" class="psc-organizer-x" (click)="organizer.dismiss()" aria-label="Dismiss"><lucide-icon name="x" [size]="13"></lucide-icon></button>
+</div>

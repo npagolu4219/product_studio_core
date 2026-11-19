@@ -1,0 +1,970 @@
+// ── Shared PI Page Styles ──────────────────────────────────────────────────
+// Shared by all 5 Product Intelligence pages: `@use '../pi-shared' as *;`
+
+$primary:       var(--psc-primary);
+$primary-light: var(--psc-tint-violet);
+$primary-dark: var(--psc-on-tint-violet);
+$blue:          var(--psc-secondary);
+$blue-light: var(--psc-tint-blue);
+$green:         #059669;
+$green-light: var(--psc-tint-green);
+$amber:         #D97706;
+$amber-light: var(--psc-tint-amber);
+$red:           #DC2626;
+$red-light: var(--psc-tint-red);
+$cyan:          #0891B2;
+$surface: var(--psc-surface);
+$surface-2: var(--psc-surface-2);
+$surface-3: var(--psc-surface-3);
+$border: var(--psc-line);
+$border-strong: var(--psc-line-strong);
+$text-1: var(--psc-text-strong);
+$text-2: var(--psc-text-body);
+$text-3: var(--psc-text-subtle);
+$text-muted: var(--psc-text-faint);
+$radius-sm:     6px;
+$radius-md:     10px;
+$radius-lg:     14px;
+$radius-xl:     20px;
+$radius-full:   999px;
+$shadow-sm:     0 1px 3px rgba(0,0,0,.06);
+$shadow-md:     0 4px 14px rgb(var(--psc-primary-rgb) / .09), 0 2px 6px rgba(0,0,0,.05);
+$shadow-card: var(--psc-shadow-card);
+$ease-out:      cubic-bezier(.22,.68,0,1.2);
+$ease-smooth:   cubic-bezier(.4,0,.2,1);
+$font:          'Mulish', 'Inter', system-ui, sans-serif;
+
+@keyframes pi-fade-up {
+  from { opacity:0; }
+  to   { opacity:1; }
+}
+@keyframes pi-spin {
+  to { transform: rotate(360deg); }
+}
+
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  font-family: $font;
+  position: relative;
+  animation: pi-fade-up .3s ease both;
+}
+
+.pi-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: $surface-2;
+
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-thumb { background: $border-strong; border-radius: $radius-full; }
+}
+
+// Scroll box model: .pi-page is the single scroll container. Its children (and tab-content wrappers)
+// keep their natural height instead of shrinking to fit — otherwise lists with overflow:hidden collapse
+// and the page never overflows, so it can't scroll.
+.pi-page > *,
+.pi-tab-content > * { flex-shrink: 0; }
+.pi-page { overscroll-behavior: contain; }
+
+// ── Header ─────────────────────────────────────────────────────────────────
+.pi-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pi-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pi-header-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: $radius-lg;
+  background: color-mix(in srgb, var(--accent, #{$primary}) 12%, transparent);
+  color: var(--accent, #{$primary});
+  border: 1px solid color-mix(in srgb, var(--accent, #{$primary}) 25%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pi-header-title {
+  font-size: 20px;
+  font-weight: 900;
+  color: $text-1;
+  line-height: 1.2;
+}
+
+.pi-header-sub {
+  font-size: 12px;
+  color: $text-muted;
+  margin-top: 3px;
+  font-weight: 500;
+}
+
+.pi-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+// ── Buttons ────────────────────────────────────────────────────────────────
+.pi-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: $radius-md;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: $font;
+  transition: all .18s $ease-smooth;
+  padding: 8px 16px;
+  border: none;
+
+  &-primary {
+    background: linear-gradient(135deg, $primary 0%, $blue 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgb(var(--psc-primary-rgb) / .3);
+    &:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgb(var(--psc-primary-rgb) / .4); }
+    &:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  }
+
+  &-ghost {
+    background: $surface;
+    color: $text-2;
+    border: 1.5px solid $border-strong;
+    &:hover { border-color: $primary; color: var(--psc-primary-text); background: $primary-light; }
+  }
+
+  &-sm { padding: 6px 12px; font-size: 12px; }
+}
+
+// ── KPI Strip ──────────────────────────────────────────────────────────────
+.pi-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+
+  @media (max-width: 1100px) { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 700px)  { grid-template-columns: repeat(2, 1fr); }
+}
+
+.pi-kpi {
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  padding: 16px 18px;
+  box-shadow: $shadow-card;
+}
+
+.pi-kpi-val {
+  font-size: 28px;
+  font-weight: 900;
+  color: $text-1;
+  line-height: 1;
+  letter-spacing: -.5px;
+}
+
+.pi-kpi-label {
+  font-size: 11px;
+  color: $text-muted;
+  font-weight: 600;
+  margin-top: 5px;
+}
+
+// ── Tabs ───────────────────────────────────────────────────────────────────
+.pi-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid $border;
+  padding-bottom: 0;
+}
+
+.pi-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: $text-3;
+  cursor: pointer;
+  font-family: $font;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all .18s;
+
+  &.active {
+    color: var(--psc-primary-text);
+    border-bottom-color: $primary;
+  }
+
+  &:hover:not(.active) { color: $text-2; }
+}
+
+// ── Filters ────────────────────────────────────────────────────────────────
+.pi-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pi-filter-input,
+.pi-filter-select {
+  padding: 7px 12px;
+  border: 1.5px solid $border;
+  border-radius: $radius-md;
+  font-size: 12px;
+  font-family: $font;
+  color: $text-2;
+  background: $surface;
+  outline: none;
+  transition: border-color .15s;
+
+  &:focus { border-color: $primary; }
+}
+
+.pi-filter-input { min-width: 200px; }
+
+// ── Tab content wrapper ────────────────────────────────────────────────────
+// Wraps all children of a tab so .pi-page gap fires once, not per-child
+.pi-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+// ── Section Label ──────────────────────────────────────────────────────────
+.pi-section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+// ── Entry Cards (pinned grid) ──────────────────────────────────────────────
+.pi-entries-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+
+  @media (max-width: 900px) { grid-template-columns: 1fr; }
+}
+
+.pi-entry-card {
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  padding: 16px;
+  box-shadow: $shadow-card;
+  display: flex;
+  gap: 12px;
+  transition: box-shadow .2s;
+
+  &:hover { box-shadow: $shadow-md; }
+
+  &--pinned {
+    border-color: rgb(var(--psc-primary-rgb) / .25);
+    background: linear-gradient(135deg, rgb(var(--psc-primary-rgb) / .02), $surface);
+  }
+}
+
+.pi-entry-type-dot {
+  width: 4px;
+  border-radius: $radius-full;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+.pi-entry-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.pi-entry-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pi-entry-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: $text-1;
+  flex: 1;
+  line-height: 1.3;
+}
+
+.pi-entry-badge {
+  padding: 2px 8px;
+  border-radius: $radius-full;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pi-entry-summary {
+  font-size: 12px;
+  color: $text-3;
+  line-height: 1.5;
+}
+
+.pi-entry-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.pi-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: $text-muted;
+  background: $surface-3;
+  padding: 2px 7px;
+  border-radius: $radius-full;
+}
+
+.pi-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pi-proj-chip {
+  padding: 2px 8px;
+  border-radius: $radius-full;
+  font-size: 10px;
+  font-weight: 700;
+}
+.pi-proj-chip--brand { background: var(--psc-tint-violet); color: var(--psc-on-tint-violet); }
+// Project chips get per-project colours inline; lift them on dark surfaces for legibility.
+:host-context([data-theme='dark']) .pi-proj-chip:not(.pi-proj-chip--brand) { filter: brightness(1.75) saturate(1.1); }
+// Inline-coloured status / confidence badges (dependencies, decision context): same lift on dark.
+:host-context([data-theme='dark']) .dep-status-badge,
+:host-context([data-theme='dark']) .adc-confidence-badge { filter: brightness(1.6) saturate(1.1); }
+
+.pi-meta-item {
+  font-size: 11px;
+  color: $text-muted;
+  font-weight: 500;
+}
+
+// ── Entry Rows (list) ──────────────────────────────────────────────────────
+.pi-entries-list {
+  display: flex;
+  flex-direction: column;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  box-shadow: $shadow-card;
+}
+
+.pi-entry-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid $border;
+  transition: background .15s;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: $surface-3; }
+}
+
+.pi-entry-type-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pi-entry-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+
+.pi-entry-row-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: $text-1;
+}
+
+.pi-entry-row-summary {
+  font-size: 12px;
+  color: $text-3;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pi-entry-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+// ── Avatar ─────────────────────────────────────────────────────────────────
+.pi-avatar-sm {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: $primary-light;
+  color: var(--psc-primary-text);
+  font-size: 9px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1.5px solid $surface;
+}
+
+.pi-avatar-more {
+  font-size: 10px;
+  font-weight: 700;
+  color: $text-muted;
+}
+
+// ── Search Bar ─────────────────────────────────────────────────────────────
+.pi-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: $surface;
+  border: 1.5px solid $border;
+  border-radius: $radius-lg;
+  padding: 10px 14px;
+  box-shadow: $shadow-sm;
+  transition: border-color .2s;
+
+  &:focus-within { border-color: $primary; }
+}
+
+.pi-search-icon { color: $text-muted; flex-shrink: 0; }
+
+.pi-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  font-family: $font;
+  color: $text-1;
+  background: transparent;
+
+  &::placeholder { color: $text-muted; }
+}
+
+.pi-search-results {
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  box-shadow: $shadow-card;
+}
+
+.pi-search-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+  font-size: 13px;
+  color: $text-muted;
+}
+
+.pi-search-result-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--psc-primary-text);
+  border-bottom: 1px solid $border;
+  background: $primary-light;
+}
+
+.pi-spin { animation: pi-spin .8s linear infinite; }
+
+// ── Empty ──────────────────────────────────────────────────────────────────
+.pi-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px;
+  color: $text-muted;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+// ── Meeting Cards ──────────────────────────────────────────────────────────
+.pi-meetings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pi-meeting-card {
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  box-shadow: $shadow-card;
+}
+
+.pi-meeting-header {
+  padding: 16px 18px;
+  border-bottom: 1px solid $border;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pi-meeting-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: $text-1;
+}
+
+.pi-meeting-title {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.pi-meeting-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: $text-muted;
+  font-weight: 500;
+}
+
+.pi-meeting-attendees {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.pi-meeting-body {
+  padding: 16px 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+
+  @media (max-width: 700px) { grid-template-columns: 1fr; }
+}
+
+.pi-meeting-section { display: flex; flex-direction: column; gap: 8px; }
+
+.pi-meeting-section-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+
+.pi-meeting-list {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  li {
+    font-size: 12px;
+    color: $text-2;
+    line-height: 1.45;
+  }
+}
+
+.pi-action-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: $surface-2;
+  border-radius: $radius-md;
+  border: 1px solid $border;
+}
+
+.pi-action-task {
+  flex: 1;
+  font-size: 12px;
+  color: $text-2;
+  font-weight: 600;
+}
+
+.pi-action-due {
+  font-size: 10px;
+  color: $text-muted;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+// ── Sync / Status badges ───────────────────────────────────────────────────
+.pi-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: $radius-full;
+  font-size: 10px;
+  font-weight: 700;
+
+  &--connected  { background: $green-light;   color: var(--psc-on-tint-green); }
+  &--error      { background: $red-light;      color: var(--psc-on-tint-red); }
+  &--pending    { background: $amber-light;    color: var(--psc-on-tint-amber); }
+  &--syncing    { background: $blue-light;     color: var(--psc-on-tint-blue); }
+  &--disconnected { background: var(--psc-surface-3);       color: $text-muted; }
+}
+
+// ── Table ──────────────────────────────────────────────────────────────────
+.pi-table-wrap {
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  box-shadow: $shadow-card;
+}
+
+.pi-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 800;
+    color: $text-muted;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    text-align: left;
+    background: $surface-2;
+    border-bottom: 1px solid $border;
+  }
+
+  td {
+    padding: 12px 14px;
+    font-size: 12px;
+    color: $text-2;
+    border-bottom: 1px solid $border;
+    vertical-align: middle;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: $surface-3; }
+}
+
+// ── Progress bar ───────────────────────────────────────────────────────────
+.pi-progress-track {
+  height: 6px;
+  border-radius: $radius-full;
+  background: $border;
+  overflow: hidden;
+  min-width: 80px;
+}
+
+.pi-progress-fill {
+  height: 100%;
+  border-radius: $radius-full;
+  transition: width .5s $ease-smooth;
+}
+
+// ── Feedback card ──────────────────────────────────────────────────────────
+.pi-feedback-card {
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  padding: 16px;
+  box-shadow: $shadow-card;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: box-shadow .2s;
+
+  &:hover { box-shadow: $shadow-md; }
+}
+
+.pi-feedback-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+
+  @media (max-width: 900px) { grid-template-columns: 1fr; }
+}
+
+// ── Dependency row ─────────────────────────────────────────────────────────
+.pi-dep-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid $border;
+  transition: background .15s;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: $surface-3; }
+}
+
+.pi-dep-connector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: $text-muted;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.pi-dep-arrow {
+  width: 32px;
+  height: 2px;
+  background: $border-strong;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: -3px;
+    border: 4px solid transparent;
+    border-left-color: $border-strong;
+  }
+}
+
+// ── Add Memory Modal ────────────────────────────────────────────────────────
+.mem-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 1000;
+  backdrop-filter: blur(3px);
+}
+
+.mem-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, 94vw);
+  max-height: 88vh;
+  background: $surface;
+  border-radius: $radius-xl;
+  border: 1.5px solid $border;
+  box-shadow: 0 24px 64px rgba(0,0,0,.22), 0 4px 16px rgb(var(--psc-primary-rgb) / .14);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: pi-fade-up .2s ease both;
+}
+
+.mem-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid $border;
+  flex-shrink: 0;
+}
+
+.mem-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 800;
+  color: $text-1;
+}
+
+.mem-modal-close {
+  width: 30px;
+  height: 30px;
+  border-radius: $radius-md;
+  border: 1px solid $border;
+  background: $surface;
+  color: $text-muted;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+  &:hover { border-color: $red; color: var(--psc-on-tint-red); background: $red-light; }
+}
+
+.mem-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mem-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid $border;
+  flex-shrink: 0;
+  background: $surface-2;
+}
+
+.mem-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  &--inline { flex-direction: row; align-items: center; }
+}
+
+.mem-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: $text-2;
+}
+
+.mem-required { color: var(--psc-on-tint-red); margin-left: 2px; }
+.mem-hint { font-weight: 500; color: $text-muted; }
+
+.mem-input,
+.mem-select,
+.mem-textarea {
+  padding: 9px 12px;
+  border: 1.5px solid $border;
+  border-radius: $radius-md;
+  font-size: 13px;
+  font-family: $font;
+  color: $text-1;
+  background: $surface;
+  outline: none;
+  transition: border-color .15s;
+  width: 100%;
+  box-sizing: border-box;
+
+  &:focus { border-color: $primary; }
+  &::placeholder { color: $text-muted; }
+}
+
+.mem-textarea { resize: vertical; min-height: 72px; }
+
+.mem-type-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.mem-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 6px;
+  border: 1.5px solid $border;
+  border-radius: $radius-md;
+  background: $surface;
+  font-size: 11px;
+  font-weight: 700;
+  color: $text-3;
+  cursor: pointer;
+  font-family: $font;
+  transition: all .15s;
+
+  &:hover { border-color: $primary; color: var(--psc-primary-text); background: $primary-light; }
+
+  &.active {
+    border-color: $primary;
+    background: $primary-light;
+    color: var(--psc-primary-text);
+  }
+}
+
+.mem-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-2;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mem-toggle {
+  width: 36px;
+  height: 20px;
+  border-radius: $radius-full;
+  background: $border-strong;
+  position: relative;
+  flex-shrink: 0;
+  transition: background .2s;
+  cursor: pointer;
+
+  &.on { background: $primary; }
+}
+
+.mem-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--psc-surface);
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  transition: transform .2s cubic-bezier(.4,0,.2,1);
+
+  .mem-toggle.on & { transform: translateX(16px); }
+}
+
+
+// ── Tab badge (reused from tool-sync) ─────────────────────────────────────
+
+.pi-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: $radius-full;
+  color: white;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 0 4px;
+}
+

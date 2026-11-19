@@ -1,0 +1,100 @@
+<div class="tc-scrim" (click)="close()" aria-hidden="true"></div>
+<section #panel class="tc-panel" role="dialog" aria-modal="true" aria-labelledby="tc-title">
+  <header class="tc-header">
+    <span class="tc-header-icon"><lucide-icon name="palette" [size]="16"></lucide-icon></span>
+    <h2 id="tc-title">Appearance</h2>
+    <button type="button" class="tc-icon-btn" (click)="close()" aria-label="Close appearance settings" title="Close">
+      <lucide-icon name="x" [size]="16"></lucide-icon>
+    </button>
+  </header>
+
+  <div class="tc-body">
+    <!-- Mode -->
+    <div class="tc-section">
+      <div class="tc-label">Theme</div>
+      <div class="tc-modes" role="radiogroup" aria-label="Theme">
+        <button type="button" class="tc-mode" *ngFor="let m of modes; let first = first" role="radio" [attr.data-autofocus]="first ? '' : null"
+          [attr.aria-checked]="theme.mode() === m.id" [class.active]="theme.mode() === m.id" (click)="theme.setMode(m.id)">
+          <span class="tc-mode-preview" [attr.data-mode]="m.id" aria-hidden="true">
+            <span class="tc-mode-bar"></span><span class="tc-mode-line"></span><span class="tc-mode-line short"></span>
+          </span>
+          <span class="tc-mode-label"><lucide-icon [name]="m.icon" [size]="13"></lucide-icon>{{ m.label }}</span>
+        </button>
+      </div>
+      <p class="tc-hint" *ngIf="theme.mode() === 'system'">
+        <lucide-icon name="radio" [size]="12"></lucide-icon> Live — follows your OS, currently {{ theme.resolved() }}
+      </p>
+    </div>
+
+    <!-- Presets -->
+    <div class="tc-section">
+      <div class="tc-label">Colour palette</div>
+      <div class="tc-presets" role="radiogroup" aria-label="Colour palette">
+        <button type="button" class="tc-preset" *ngFor="let p of presets; trackBy: trackById" role="radio"
+          [attr.aria-checked]="theme.presetId() === p.id" [class.active]="theme.presetId() === p.id" (click)="applyPreset(p)" [title]="p.label">
+          <span class="tc-swatch" [style.background]="'linear-gradient(135deg,' + p.primary + ',' + p.secondary + ')'">
+            <lucide-icon *ngIf="theme.presetId() === p.id" name="check" [size]="14" color="white"></lucide-icon>
+          </span>
+          <span class="tc-preset-label">{{ p.label }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Custom colours -->
+    <div class="tc-section">
+      <div class="tc-label">
+        Custom colours
+        <span class="tc-custom-badge" *ngIf="theme.presetId() === 'custom'">Custom</span>
+      </div>
+      <div class="tc-color-row">
+        <label class="tc-color-picker" [style.background]="current().primary" title="Pick accent colour">
+          <input type="color" [value]="current().primary" (input)="onPick('primary', $any($event.target).value)" aria-label="Accent colour" />
+        </label>
+        <div class="tc-color-text">
+          <span class="tc-color-name">Accent</span>
+          <span class="tc-color-use">Buttons, links, active items</span>
+        </div>
+        <input class="tc-hex" [class.invalid]="hexInvalid('primary')" [value]="draft.primary" maxlength="7" spellcheck="false"
+          (input)="onHexInput('primary', $any($event.target).value)" aria-label="Accent colour hex" />
+      </div>
+      <div class="tc-color-row">
+        <label class="tc-color-picker" [style.background]="current().secondary" title="Pick secondary colour">
+          <input type="color" [value]="current().secondary" (input)="onPick('secondary', $any($event.target).value)" aria-label="Secondary colour" />
+        </label>
+        <div class="tc-color-text">
+          <span class="tc-color-name">Secondary</span>
+          <span class="tc-color-use">Gradients, highlights</span>
+        </div>
+        <input class="tc-hex" [class.invalid]="hexInvalid('secondary')" [value]="draft.secondary" maxlength="7" spellcheck="false"
+          (input)="onHexInput('secondary', $any($event.target).value)" aria-label="Secondary colour hex" />
+      </div>
+      <p class="tc-hint tc-hint--warn" *ngIf="theme.adjusted()">
+        <lucide-icon name="info" [size]="12"></lucide-icon> Slightly deepened where needed so text stays readable.
+      </p>
+    </div>
+
+    <!-- Live preview (uses the same CSS variables as the app) -->
+    <div class="tc-section">
+      <div class="tc-label">Preview</div>
+      <div class="tc-preview">
+        <div class="tc-preview-row">
+          <span class="tc-p-btn">Primary</span>
+          <span class="tc-p-ghost">Ghost</span>
+          <span class="tc-p-chip">Draft · v2</span>
+          <span class="tc-p-toggle" aria-hidden="true"><span></span></span>
+        </div>
+        <div class="tc-preview-row">
+          <span class="tc-p-link">View full brief →</span>
+          <span class="tc-p-progress"><span></span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="tc-footer">
+    <button type="button" class="tc-reset" (click)="reset()" [disabled]="theme.presetId() === 'violet'">
+      <lucide-icon name="rotate-ccw" [size]="13"></lucide-icon> Reset to default
+    </button>
+    <button type="button" class="tc-done" (click)="close()">Done</button>
+  </footer>
+</section>

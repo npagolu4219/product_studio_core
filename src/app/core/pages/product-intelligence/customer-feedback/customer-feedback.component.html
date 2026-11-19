@@ -1,0 +1,218 @@
+<div class="pi-page">
+
+  <div class="pi-header">
+    <div class="pi-header-left">
+      <div class="pi-header-icon" style="--accent:#D97706">
+        <lucide-icon name="message-square" [size]="20"></lucide-icon>
+      </div>
+      <div>
+        <div class="pi-header-title">Unified Customer Feedback</div>
+        <div class="pi-header-sub">Ingestion, AI categorization, insight extraction and feedback-to-feature mapping</div>
+      </div>
+    </div>
+    <div class="pi-header-actions">
+      <button class="pi-btn pi-btn-ghost" (click)="openAddSourceModal()">
+        <lucide-icon name="plus" [size]="13"></lucide-icon>Add Source
+      </button>
+    </div>
+  </div>
+
+  <!-- Connected Sources Strip -->
+  <div class="fb-sources-strip">
+    <span class="fb-sources-label">Connected:</span>
+    <div class="fb-sources-list">
+      <div class="fb-source-chip" *ngFor="let s of sources">
+        <div class="fb-source-chip-icon" [style.background]="sourceColor(s.type) + '15'" [style.color]="sourceColor(s.type)">
+          <lucide-icon [name]="sourceIcon(s.type)" [size]="11"></lucide-icon>
+        </div>
+        <span>{{ s.name }}</span>
+        <span class="fb-source-chip-count" *ngIf="s.itemCount > 0">{{ s.itemCount }}</span>
+        <button class="fb-source-chip-remove" (click)="removeSource(s.id)">
+          <lucide-icon name="x" [size]="10"></lucide-icon>
+        </button>
+      </div>
+      <button class="fb-source-chip fb-source-chip--add" (click)="openAddSourceModal()">
+        <lucide-icon name="plus" [size]="11"></lucide-icon>Add
+      </button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="pi-kpis">
+    <div class="pi-kpi">
+      <div class="pi-kpi-val">{{ feedbackItems.length }}</div>
+      <div class="pi-kpi-label">Feedback Items</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val" style="color:#DC2626">{{ negativeCount }}</div>
+      <div class="pi-kpi-label">Negative Signals</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val" style="color:#059669">{{ positiveCount }}</div>
+      <div class="pi-kpi-label">Positive Signals</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val" style="color:#D97706">{{ highPriorityCount }}</div>
+      <div class="pi-kpi-label">High Priority</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="pi-tabs">
+    <button class="pi-tab" [class.active]="activeTab === 'insights'" (click)="activeTab = 'insights'">
+      <lucide-icon name="lightbulb" [size]="14"></lucide-icon>AI Insights
+    </button>
+    <button class="pi-tab" [class.active]="activeTab === 'feedback'" (click)="activeTab = 'feedback'">
+      <lucide-icon name="message-circle" [size]="14"></lucide-icon>All Feedback
+    </button>
+    <button class="pi-tab" [class.active]="activeTab === 'mapping'" (click)="activeTab = 'mapping'">
+      <lucide-icon name="link" [size]="14"></lucide-icon>Feature Mapping
+    </button>
+  </div>
+
+  <!-- AI Insights Tab -->
+  <ng-container *ngIf="activeTab === 'insights'">
+    <div class="fb-insights-grid">
+      <div class="fb-insight-card" *ngFor="let ins of insights" [style.--ins-color]="ins.color">
+        <div class="fb-insight-header">
+          <div class="fb-insight-theme">{{ ins.theme }}</div>
+          <div class="fb-insight-count" [style.color]="ins.color">{{ ins.count }}</div>
+        </div>
+        <div class="fb-insight-bar-wrap">
+          <div class="fb-insight-bar" [style.width]="(ins.count / 50 * 100) + '%'" [style.background]="ins.color"></div>
+        </div>
+        <div class="fb-insight-top-request">
+          <lucide-icon name="quote" [size]="11" style="flex-shrink:0"></lucide-icon>
+          {{ ins.topRequest }}
+        </div>
+        <div class="fb-insight-footer">
+          <span class="fb-sentiment-chip" [style.background]="sentimentColor(ins.sentiment) + '15'" [style.color]="sentimentColor(ins.sentiment)">
+            <lucide-icon [name]="sentimentIcon(ins.sentiment)" [size]="10"></lucide-icon>
+            {{ ins.sentiment | titlecase }}
+          </span>
+          <span class="fb-trend" [class.fb-trend--up]="ins.trend > 0" [class.fb-trend--down]="ins.trend < 0">
+            <lucide-icon [name]="ins.trend > 0 ? 'trending-up' : 'trending-down'" [size]="11"></lucide-icon>
+            {{ ins.trend > 0 ? '+' : '' }}{{ ins.trend }}%
+          </span>
+        </div>
+        <div class="fb-linked-features" *ngIf="ins.linkedFeatures.length">
+          <span class="dep-item-pill dep-item-pill--from" *ngFor="let f of ins.linkedFeatures.slice(0,2)">{{ f }}</span>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- All Feedback Tab -->
+  <ng-container *ngIf="activeTab === 'feedback'">
+    <div class="pi-filters">
+      <input class="pi-filter-input" [(ngModel)]="search" placeholder="Search feedback…" />
+      <select class="pi-filter-select" [(ngModel)]="filterSentiment">
+        <option value="">All Sentiments</option>
+        <option value="positive">Positive</option>
+        <option value="neutral">Neutral</option>
+        <option value="negative">Negative</option>
+      </select>
+      <select class="pi-filter-select" [(ngModel)]="filterCategory">
+        <option value="">All Categories</option>
+        <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+      </select>
+    </div>
+    <div class="pi-feedback-grid">
+      <div class="pi-feedback-card" *ngFor="let f of filtered">
+        <div class="fb-card-header">
+          <div class="fb-source-icon" [style.background]="sourceColor(f.source) + '15'" [style.color]="sourceColor(f.source)">
+            <lucide-icon [name]="sourceIcon(f.source)" [size]="14"></lucide-icon>
+          </div>
+          <div class="fb-customer-info">
+            <div class="fb-customer-name">{{ f.customer }}</div>
+            <div class="fb-company">{{ f.company }}</div>
+          </div>
+          <span class="fb-sentiment-chip" [style.background]="sentimentColor(f.sentiment) + '15'" [style.color]="sentimentColor(f.sentiment)">
+            <lucide-icon [name]="sentimentIcon(f.sentiment)" [size]="10"></lucide-icon>
+            {{ f.sentiment | titlecase }}
+          </span>
+        </div>
+        <div class="fb-summary">{{ f.summary }}</div>
+        <div class="fb-verbatim">"{{ f.verbatim }}"</div>
+        <div class="fb-card-footer">
+          <span class="pi-tag">{{ f.category }}</span>
+          <span class="fb-votes"><lucide-icon name="thumbs-up" [size]="10"></lucide-icon>{{ f.votes }}</span>
+          <span class="pi-meta-item">{{ daysAgo(f.date) }}</span>
+          <span class="dep-item-pill dep-item-pill--from" *ngIf="f.linkedFeature" style="font-size:10px">{{ f.linkedFeature }}</span>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Feature Mapping Tab -->
+  <ng-container *ngIf="activeTab === 'mapping'">
+    <div class="pi-entries-list">
+      <div class="pi-entry-row" *ngFor="let f of mappedFeedback">
+        <div class="fb-source-icon" [style.background]="sourceColor(f.source) + '15'" [style.color]="sourceColor(f.source)">
+          <lucide-icon [name]="sourceIcon(f.source)" [size]="14"></lucide-icon>
+        </div>
+        <div class="pi-entry-row-body">
+          <div class="pi-entry-row-title">{{ f.summary }}</div>
+          <div class="pi-entry-row-meta">
+            <span class="fb-sentiment-chip" [style.background]="sentimentColor(f.sentiment) + '15'" [style.color]="sentimentColor(f.sentiment)">{{ f.sentiment }}</span>
+            <lucide-icon name="arrow-right" [size]="11" style="color:#9CA3AF"></lucide-icon>
+            <span class="dep-item-pill dep-item-pill--from">{{ f.linkedFeature }}</span>
+            <span class="fb-votes"><lucide-icon name="thumbs-up" [size]="10"></lucide-icon>{{ f.votes }} votes</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+</div>
+
+<!-- Add Source Modal -->
+<ng-container *ngIf="showAddSourceModal">
+  <div class="mem-overlay" (click)="closeAddSourceModal()"></div>
+  <div class="mem-modal" role="dialog" aria-modal="true">
+    <div class="mem-modal-header">
+      <div class="mem-modal-title">
+        <lucide-icon name="plug" [size]="16"></lucide-icon>
+        Add Feedback Source
+      </div>
+      <button class="mem-modal-close" (click)="closeAddSourceModal()">
+        <lucide-icon name="x" [size]="16"></lucide-icon>
+      </button>
+    </div>
+    <div class="mem-modal-body">
+      <div class="mem-field">
+        <label class="mem-label">Source Type <span class="mem-required">*</span></label>
+        <div class="fb-source-type-grid">
+          <button
+            *ngFor="let t of addSourceTypes"
+            class="fb-source-type-btn"
+            [class.active]="sourceForm.type === t.value"
+            (click)="sourceForm.type = t.value; sourceForm.name = t.label">
+            <lucide-icon [name]="sourceIcon(t.value)" [size]="15"></lucide-icon>
+            {{ t.label }}
+          </button>
+        </div>
+      </div>
+      <div class="mem-field">
+        <label class="mem-label">Display Name <span class="mem-required">*</span></label>
+        <input class="mem-input" [(ngModel)]="sourceForm.name" placeholder="e.g. Intercom Production" />
+      </div>
+      <div class="mem-field">
+        <label class="mem-label">Webhook / API URL</label>
+        <input class="mem-input" [(ngModel)]="sourceForm.url" placeholder="https://…" />
+      </div>
+      <div class="mem-field">
+        <label class="mem-label">API Key / Token</label>
+        <input class="mem-input" type="password" [(ngModel)]="sourceForm.apiKey" placeholder="Paste your key here" />
+        <span class="mem-label mem-hint">Stored securely and never shared.</span>
+      </div>
+    </div>
+    <div class="mem-modal-footer">
+      <button class="pi-btn pi-btn-ghost" (click)="closeAddSourceModal()">Cancel</button>
+      <button class="pi-btn pi-btn-primary" (click)="saveSource()" [disabled]="!sourceFormValid || savingSource">
+        <lucide-icon [name]="savingSource ? 'loader' : 'plug'" [size]="13" [class.pi-spin]="savingSource"></lucide-icon>
+        {{ savingSource ? 'Connecting…' : 'Add Source' }}
+      </button>
+    </div>
+  </div>
+</ng-container>

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Product Studio Core</title>
+  <base href="/product-studio-core/"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
+  <meta name="theme-color" content="#F8F7FF"/>
+  <script>
+    // Apply the saved theme (or the OS preference) before Angular boots to avoid a flash.
+    (function () {
+      var mode = 'system';
+      try { mode = localStorage.getItem('psc.theme') || 'system'; } catch (e) {}
+      var dark = mode === 'dark' || (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      var theme = dark ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.style.colorScheme = theme;
+      // Custom brand colours (pre-computed per theme by ThemeService).
+      try {
+        var vars = JSON.parse(localStorage.getItem('psc.theme.vars') || 'null');
+        var set = vars && vars[theme];
+        if (set) for (var k in set) document.documentElement.style.setProperty(k, set[k]);
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <app-root></app-root>
+</body>
+</html>

@@ -1,0 +1,239 @@
+<div class="repo psc-animate-in" [class.has-detail]="!!selected">
+
+  <!-- ── Projects ── -->
+  <aside class="repo-projects" aria-label="Projects">
+    <div class="repo-projects-head">
+      <span class="repo-logo"><lucide-icon name="library" [size]="17"></lucide-icon></span>
+      <div>
+        <h1>Repository</h1>
+        <p>{{ allCount }} documents · {{ allPublished }} published</p>
+      </div>
+    </div>
+
+    <label class="repo-psearch">
+      <lucide-icon name="search" [size]="13"></lucide-icon>
+      <input [(ngModel)]="projectSearch" placeholder="Find a project" aria-label="Find a project">
+    </label>
+
+    <nav class="repo-plist">
+      <button type="button" class="repo-prow" [class.active]="project === 'all'" (click)="selectProject('all')" [attr.aria-current]="project === 'all' ? 'page' : null">
+        <span class="repo-pav repo-pav--all"><lucide-icon name="layers" [size]="14"></lucide-icon></span>
+        <span class="repo-ptext"><strong>All projects</strong><small>{{ allPublished }} published</small></span>
+        <span class="repo-pcount">{{ allCount }}</span>
+      </button>
+
+      <div class="repo-plabel">Projects</div>
+      <button type="button" class="repo-prow" *ngFor="let r of projectRows" [class.active]="project === r.id" [class.empty]="!r.total"
+        (click)="selectProject(r.id)" [attr.aria-current]="project === r.id ? 'page' : null" [title]="r.name">
+        <span class="repo-pav" [style.background]="projectGradient(r.id, 0)">{{ initials(r.name) }}</span>
+        <span class="repo-ptext"><strong>{{ r.name }}</strong><small>{{ r.total ? r.published + ' published' : 'No documents yet' }}{{ r.phase ? ' · ' + r.phase : '' }}</small></span>
+        <span class="repo-pcount" *ngIf="r.total">{{ r.total }}</span>
+      </button>
+
+      <ng-container *ngIf="unfiledCount">
+        <div class="repo-plabel">Other</div>
+        <button type="button" class="repo-prow" [class.active]="project === 'none'" (click)="selectProject('none')" title="Documents from chats that aren't in a project">
+          <span class="repo-pav repo-pav--none"><lucide-icon name="message-square" [size]="14"></lucide-icon></span>
+          <span class="repo-ptext"><strong>Not in a project</strong><small>From general chats</small></span>
+          <span class="repo-pcount">{{ unfiledCount }}</span>
+        </button>
+      </ng-container>
+    </nav>
+  </aside>
+
+  <!-- ── Documents ── -->
+  <section class="repo-main" aria-labelledby="repo-title">
+    <header class="repo-head">
+      <span class="repo-head-av" *ngIf="scopeProject as sp" [style.background]="projectGradient(sp.id, 0)">{{ initials(sp.name) }}</span>
+      <div class="repo-head-text">
+        <h2 id="repo-title">{{ scopeTitle }}</h2>
+        <p>
+          {{ scoped.length }} {{ scoped.length === 1 ? 'document' : 'documents' }}
+          <ng-container *ngIf="scopePhase"> · {{ scopePhase }}</ng-container>
+          <ng-container *ngIf="scopeProject as sp"> · {{ sp.team.length }} people</ng-container>
+        </p>
+      </div>
+      <div class="repo-head-actions">
+        <a class="repo-btn" *ngIf="scopeProject as sp" [routerLink]="['/psc', 'home']" [queryParams]="{ project: sp.id }">
+          <lucide-icon name="message-square" [size]="14"></lucide-icon><span>Open project chats</span>
+        </a>
+        <a class="repo-btn repo-btn--primary" [routerLink]="['/psc', 'home']" [queryParams]="scopeProject ? { project: scopeProject.id } : {}">
+          <lucide-icon name="sparkles" [size]="14"></lucide-icon><span>New document</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Status overview (also the status filter) -->
+    <div class="repo-stats" role="tablist" aria-label="Filter by status">
+      <button type="button" role="tab" class="repo-stat" [class.active]="status === 'all'" [attr.aria-selected]="status === 'all'" (click)="setStatus('all')">
+        <span class="repo-stat-n">{{ count('all') }}</span><span class="repo-stat-l">All</span>
+      </button>
+      <button type="button" role="tab" class="repo-stat" *ngFor="let s of statuses" [attr.data-status]="s" [class.active]="status === s" [attr.aria-selected]="status === s" (click)="setStatus(s)">
+        <span class="repo-stat-n"><i class="repo-dot"></i>{{ count(s) }}</span><span class="repo-stat-l">{{ statusMeta[s].label }}</span>
+      </button>
+    </div>
+
+    <div class="repo-toolbar">
+      <label class="repo-search">
+        <lucide-icon name="search" [size]="14"></lucide-icon>
+        <input [(ngModel)]="query" placeholder="Search titles, chats, Jira keys…" aria-label="Search documents">
+        <button type="button" *ngIf="query" (click)="query = ''" aria-label="Clear search"><lucide-icon name="x" [size]="13"></lucide-icon></button>
+      </label>
+      <select class="repo-select" [(ngModel)]="type" aria-label="Type">
+        <option value="all">All types</option>
+        <option *ngFor="let t of typeOptions" [value]="t.id">{{ t.label }} ({{ t.count }})</option>
+      </select>
+      <select class="repo-select" [(ngModel)]="groupBy" aria-label="Group by">
+        <option value="phase">Group: Lifecycle phase</option>
+        <option value="type">Group: Type</option>
+        <option value="none">No grouping</option>
+      </select>
+      <select class="repo-select" [(ngModel)]="sortBy" aria-label="Sort by">
+        <option value="updated">Recently updated</option>
+        <option value="status">Status</option>
+        <option value="title">Title A–Z</option>
+      </select>
+      <div class="repo-viewtoggle" role="group" aria-label="View">
+        <button type="button" [class.on]="view === 'list'" (click)="setView('list')" aria-label="List view" title="List"><lucide-icon name="list" [size]="15"></lucide-icon></button>
+        <button type="button" [class.on]="view === 'grid'" (click)="setView('grid')" aria-label="Grid view" title="Grid"><lucide-icon name="layout-grid" [size]="15"></lucide-icon></button>
+      </div>
+    </div>
+
+    <div class="repo-scroll">
+      <section class="repo-group" *ngFor="let g of groups; trackBy: trackById" [attr.aria-label]="g.label || 'Documents'">
+        <h3 class="repo-group-title" *ngIf="g.label">
+          <lucide-icon [name]="g.icon" [size]="13"></lucide-icon>{{ g.label }}<span>{{ g.docs.length }}</span>
+        </h3>
+
+        <div [class.repo-list]="view === 'list'" [class.repo-grid]="view === 'grid'">
+          <button type="button" class="repo-doc" *ngFor="let d of g.docs; trackBy: trackByKey" (click)="open(d)"
+            [class.active]="d.key === docKey" [attr.aria-label]="d.title + ', ' + statusMeta[effectiveStatus(d)].label">
+            <span class="repo-doc-icon"><lucide-icon [name]="artifactIcon(d.type)" [size]="16"></lucide-icon></span>
+            <span class="repo-doc-body">
+              <span class="repo-doc-title">{{ d.title }}</span>
+              <span class="repo-doc-meta">
+                {{ artifactShortLabel(d.type) }} · v{{ d.version }} · {{ d.updatedAt | date:'MMM d' }}
+                <ng-container *ngIf="project === 'all' && projectName(d)"> · {{ projectName(d) }}</ng-container>
+              </span>
+              <span class="repo-doc-source">
+                <lucide-icon [name]="d.source === 'chat' ? 'message-square' : 'history'" [size]="11"></lucide-icon>
+                {{ d.source === 'chat' ? d.conversationTitle : (d.published ? 'Published by ' : 'Edited by ') + d.author }}
+              </span>
+            </span>
+            <span class="repo-doc-side">
+              <span class="repo-pill" [attr.data-status]="effectiveStatus(d)"><i class="repo-dot"></i>{{ d.published ? 'Published v' + d.published.version : statusMeta[d.status].label }}</span>
+              <span class="repo-newer" *ngIf="hasNewerDraft(d)" [title]="'v' + d.latest.version + ' is ' + statusMeta[d.status].label.toLowerCase()">v{{ d.latest.version }} {{ statusMeta[d.status].label.toLowerCase() }}</span>
+              <span class="repo-jira" *ngIf="d.jiraKey"><lucide-icon name="layers" [size]="10"></lucide-icon>{{ d.jiraKey }}</span>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Empty states -->
+      <div class="repo-empty" *ngIf="!groups.length">
+        <span class="repo-empty-icon"><lucide-icon [name]="hasFilters ? 'search-x' : 'library'" [size]="26"></lucide-icon></span>
+        <ng-container *ngIf="hasFilters; else noDocs">
+          <h3>No documents match</h3>
+          <p>Try another status, type or search.</p>
+          <button type="button" class="repo-btn" (click)="clearFilters()">Clear filters</button>
+        </ng-container>
+        <ng-template #noDocs>
+          <h3>Nothing here yet</h3>
+          <p>Documents you generate in {{ scopeProject ? scopeProject.name + '’s' : 'your' }} chats appear here — published ones are shared with the team.</p>
+          <a class="repo-btn repo-btn--primary" [routerLink]="['/psc', 'home']" [queryParams]="scopeProject ? { project: scopeProject.id } : {}">
+            <lucide-icon name="sparkles" [size]="14"></lucide-icon>Create the first document
+          </a>
+        </ng-template>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Detail ── -->
+  <div class="repo-backdrop" *ngIf="selected" (click)="close()" aria-hidden="true"></div>
+  <aside class="repo-detail" *ngIf="selected as d" role="dialog" aria-modal="false" aria-labelledby="repo-detail-title">
+    <header class="repo-detail-head">
+      <span class="repo-doc-icon repo-doc-icon--lg"><lucide-icon [name]="artifactIcon(d.type)" [size]="18"></lucide-icon></span>
+      <div class="repo-detail-titles">
+        <span class="repo-detail-kicker">{{ artifactLabel(d.type) }}</span>
+        <h2 id="repo-detail-title">{{ d.title }}</h2>
+      </div>
+      <button type="button" class="repo-icon-btn" (click)="close()" aria-label="Close"><lucide-icon name="x" [size]="17"></lucide-icon></button>
+    </header>
+
+    <div class="repo-detail-actions">
+      <button type="button" class="repo-btn repo-btn--primary" (click)="openInChat(d)">
+        <lucide-icon [name]="d.source === 'chat' ? 'message-square' : 'sparkles'" [size]="14"></lucide-icon>
+        {{ d.source === 'chat' ? 'Open in chat' : 'Iterate in chat' }}
+      </button>
+      <button type="button" class="repo-btn" (click)="copyLink(d)"><lucide-icon name="link" [size]="14"></lucide-icon>Copy link</button>
+      <button type="button" class="repo-btn" (click)="download(d)" title="Download as Markdown"><lucide-icon name="download" [size]="14"></lucide-icon>.md</button>
+      <button type="button" class="repo-btn repo-btn--icon" (click)="copyMarkdown(d)" title="Copy as Markdown" aria-label="Copy as Markdown"><lucide-icon name="copy" [size]="14"></lucide-icon></button>
+    </div>
+
+    <div class="repo-banner" *ngIf="hasNewerDraft(d)">
+      <lucide-icon name="info" [size]="14"></lucide-icon>
+      <span>The team sees <b>v{{ d.published!.version }}</b> (published). <b>v{{ d.latest.version }}</b> is {{ statusMeta[d.status].label.toLowerCase() }} — publish it from the chat when it’s ready.</span>
+    </div>
+
+    <dl class="repo-meta">
+      <div><dt>Status</dt><dd><span class="repo-pill" [attr.data-status]="effectiveStatus(d)"><i class="repo-dot"></i>{{ d.published ? 'Published' : statusMeta[d.status].label }}</span></dd></div>
+      <div><dt>Version</dt><dd>v{{ d.version }} · {{ d.versions.length }} saved</dd></div>
+      <div><dt>Project</dt><dd>{{ projectName(d) || 'Not in a project' }}</dd></div>
+      <div><dt>Phase</dt><dd>{{ phaseLabel(d.phase) }}</dd></div>
+      <div><dt>Updated</dt><dd>{{ d.updatedAt | date:'MMM d, y, h:mm a' }}</dd></div>
+      <div><dt>{{ d.source === 'chat' ? 'Chat' : 'Author' }}</dt><dd class="repo-ellipsis" [title]="d.conversationTitle || d.author">{{ d.source === 'chat' ? d.conversationTitle : d.author }}</dd></div>
+      <div *ngIf="d.jiraKey"><dt>Jira</dt><dd>{{ d.jiraKey }}</dd></div>
+    </dl>
+
+    <div class="repo-tabs" role="tablist">
+      <button type="button" role="tab" [class.on]="detailTab === 'preview'" [attr.aria-selected]="detailTab === 'preview'" (click)="detailTab = 'preview'">
+        <lucide-icon name="eye" [size]="13"></lucide-icon>Preview<small *ngIf="shown as s">v{{ s.version }}</small>
+      </button>
+      <button type="button" role="tab" [class.on]="detailTab === 'versions'" [attr.aria-selected]="detailTab === 'versions'" (click)="detailTab = 'versions'">
+        <lucide-icon name="history" [size]="13"></lucide-icon>Versions<small>{{ d.versions.length }}</small>
+      </button>
+    </div>
+
+    <div class="repo-detail-body">
+      <!-- Reader -->
+      <article class="repo-reader" *ngIf="detailTab === 'preview' && parsed as doc">
+        <p class="repo-reader-ver" *ngIf="previewVersion != null">
+          Reading {{ shown?.label }} · <button type="button" (click)="previewVersion = null">back to current</button>
+        </p>
+        <blockquote *ngIf="doc.request"><b>Request:</b> {{ doc.request }}</blockquote>
+        <section *ngFor="let s of doc.sections">
+          <h4>{{ s.icon }} {{ s.heading }}<small *ngIf="s.meta">{{ s.meta }}</small></h4>
+          <ng-container *ngFor="let b of s.blocks; trackBy: blockTrack">
+            <p *ngIf="b.kind === 'para'">{{ b.text }}</p>
+            <h5 *ngIf="b.kind === 'subheading'">{{ b.text }}<small *ngIf="b.meta"> {{ b.meta }}</small></h5>
+            <div class="repo-li" *ngIf="b.kind === 'bullet'"><span>{{ b.marker === 'number' ? b.n + '.' : '•' }}</span>{{ b.text }}</div>
+            <div class="repo-li repo-li--item" *ngIf="b.kind === 'item'"><b>{{ b.tag }}</b>{{ b.text }}<code *ngIf="b.badge" [attr.data-tone]="b.tone">{{ b.badge }}</code></div>
+            <div class="repo-kv" *ngIf="b.kind === 'kv'"><b>{{ b.key }}</b><span>{{ b.values.join(' · ') }}</span></div>
+            <div class="repo-table" *ngIf="b.kind === 'table'">
+              <table>
+                <tr *ngFor="let row of b.rows; let first = first"><ng-container *ngFor="let c of row"><th *ngIf="first">{{ c }}</th><td *ngIf="!first">{{ c }}</td></ng-container></tr>
+              </table>
+            </div>
+          </ng-container>
+        </section>
+        <p class="repo-reader-foot">{{ doc.words }} words</p>
+      </article>
+
+      <!-- Versions -->
+      <ol class="repo-versions" *ngIf="detailTab === 'versions'">
+        <li *ngFor="let v of d.versions" [class.current]="(shown?.version ?? 0) === v.version">
+          <span class="repo-v-dot"></span>
+          <div class="repo-v-body">
+            <span class="repo-v-title">v{{ v.version }}
+              <em *ngIf="versionStatus(d, v) as st" [attr.data-status]="st === 'Published' ? 'published' : d.status">{{ st }}</em>
+            </span>
+            <small>{{ v.label }} · {{ v.savedAt | date:'MMM d, h:mm a' }}</small>
+          </div>
+          <button type="button" (click)="readVersion(v)">Read</button>
+        </li>
+      </ol>
+    </div>
+  </aside>
+
+  <div class="repo-toast" *ngIf="toast" role="status"><lucide-icon name="circle-check" [size]="15"></lucide-icon>{{ toast }}</div>
+</div>

@@ -1,0 +1,271 @@
+@use '../pi-shared' as *;
+
+// ── Context Sources Tab ────────────────────────────────────────────────────
+
+.mem-sources-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: linear-gradient(135deg, rgb(var(--psc-primary-rgb) / .06), rgb(var(--psc-secondary-rgb) / .04));
+  border: 1.5px solid rgb(var(--psc-primary-rgb) / .18);
+  border-radius: $radius-lg;
+  padding: 18px 20px;
+}
+
+.mem-sources-banner-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: $radius-md;
+  background: linear-gradient(135deg, $primary, $blue);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mem-sources-banner-body { flex: 1; min-width: 0; }
+
+.mem-sources-banner-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: $text-1;
+  margin-bottom: 5px;
+}
+
+.mem-sources-banner-desc {
+  font-size: 12px;
+  color: $text-3;
+  line-height: 1.55;
+
+  strong { color: $text-2; font-weight: 700; }
+}
+
+.mem-source-types-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+
+  @media (max-width: 800px) { grid-template-columns: 1fr; }
+}
+
+.mem-source-type-pill {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+  border-top: 3px solid var(--st-color, #{$primary});
+}
+
+.mem-source-type-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mem-source-type-name {
+  font-size: 12px;
+  font-weight: 800;
+  color: $text-1;
+}
+
+.mem-source-type-hint {
+  font-size: 11px;
+  color: $text-muted;
+  font-weight: 500;
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+.mem-sources-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mem-source-card {
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  padding: 16px 18px;
+  box-shadow: $shadow-card;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: box-shadow .2s;
+
+  &:hover { box-shadow: $shadow-md; }
+  &--error { border-color: rgba($red, .3); }
+
+  @media (max-width: 800px) { flex-wrap: wrap; }
+}
+
+.mem-source-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.mem-source-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mem-source-info { flex: 1; min-width: 0; }
+
+.mem-source-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: $text-1;
+}
+
+.mem-source-url {
+  font-size: 11px;
+  color: $text-muted;
+  font-weight: 500;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mem-source-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.mem-source-stats {
+  display: flex;
+  gap: 20px;
+  flex-shrink: 0;
+}
+
+.mem-source-stat {
+  text-align: center;
+}
+
+.mem-source-stat-val {
+  font-size: 20px;
+  font-weight: 900;
+  color: $text-1;
+  line-height: 1;
+}
+
+.mem-source-stat-label {
+  font-size: 10px;
+  color: $text-muted;
+  font-weight: 600;
+  margin-top: 3px;
+  white-space: nowrap;
+}
+
+.mem-source-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.mem-source-remove {
+  color: $text-muted !important;
+  &:hover { color: var(--psc-on-tint-red) !important; border-color: $red !important; background: $red-light !important; }
+}
+
+// ── Connect Source Modal picker ────────────────────────────────────────────
+
+.mem-source-type-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mem-source-type-pick-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1.5px solid $border;
+  border-radius: $radius-md;
+  background: $surface-2;
+  cursor: pointer;
+  font-family: $font;
+  text-align: left;
+  transition: border-color .15s, background .15s;
+
+  &:hover { border-color: var(--st-color, #{$primary}); background: $surface; }
+
+  &.active {
+    border-color: var(--st-color, #{$primary});
+    background: color-mix(in srgb, var(--st-color, #{$primary}) 6%, white);
+  }
+}
+
+.mem-source-type-pick-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mem-source-type-pick-body { flex: 1; min-width: 0; }
+
+.mem-source-type-pick-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: $text-1;
+}
+
+.mem-source-type-pick-hint {
+  font-size: 11px;
+  color: $text-muted;
+  font-weight: 500;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+
+// ── Shared-memory actions (Use in chat / pin) and the item you arrived at from a chat ──
+.mem-chat-btn {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; margin-left: auto;
+  color: var(--psc-primary-text); background: rgb(var(--psc-primary-rgb) / .08); border: 1px solid transparent; border-radius: 999px;
+  font: 700 11px 'Mulish', sans-serif; white-space: nowrap; cursor: pointer; transition: background .15s ease, border-color .15s ease;
+  &:hover { background: rgb(var(--psc-primary-rgb) / .14); border-color: rgb(var(--psc-primary-rgb) / .25); }
+  &:focus-visible { outline: 2px solid var(--psc-primary); outline-offset: 1px; }
+}
+.mem-pin-btn {
+  display: inline-grid; place-items: center; width: 26px; height: 26px; color: var(--psc-text-subtle);
+  background: transparent; border: 1px solid var(--psc-line); border-radius: 8px; cursor: pointer;
+  &:hover, &.on { color: var(--psc-primary-text); border-color: rgb(var(--psc-primary-rgb) / .3); }
+}
+.mem-row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; align-self: center; }
+.pi-entry-meta .mem-pin-btn { margin-left: auto; }
+.pi-entry-meta .mem-pin-btn + .mem-chat-btn { margin-left: 0; }
+.pi-meeting-title-row { flex-wrap: wrap; }
+.mem-focus { box-shadow: 0 0 0 2px var(--psc-primary), 0 10px 24px rgb(var(--psc-primary-rgb) / .18) !important; animation: mem-focus-pulse 1.4s ease 2; }
+@keyframes mem-focus-pulse { 50% { box-shadow: 0 0 0 5px rgb(var(--psc-primary-rgb) / .25); } }
+@media (max-width: 640px) {
+  .pi-entry-row { flex-wrap: wrap; }
+  .pi-entry-row .mem-row-actions { order: 3; width: 100%; justify-content: flex-end; }
+}
+@media (prefers-reduced-motion: reduce) { .mem-focus { animation: none; } }

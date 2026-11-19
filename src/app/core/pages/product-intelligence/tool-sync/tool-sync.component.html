@@ -1,0 +1,211 @@
+<div class="pi-page">
+
+  <div class="pi-header">
+    <div class="pi-header-left">
+      <div class="pi-header-icon" style="--accent:var(--psc-secondary)">
+        <lucide-icon name="git-merge" [size]="20"></lucide-icon>
+      </div>
+      <div>
+        <div class="pi-header-title">Updates &amp; Tool Synchronization</div>
+        <div class="pi-header-sub">Jira, Azure DevOps and GitHub — bi-directional sync with field mapping</div>
+      </div>
+    </div>
+    <div class="pi-header-actions">
+      <button class="pi-btn pi-btn-ghost" (click)="openConnectModal()">
+        <lucide-icon name="plus" [size]="13"></lucide-icon>Connect Tool
+      </button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="pi-kpis">
+    <div class="pi-kpi">
+      <div class="pi-kpi-val" style="color:#059669">{{ connectedCount }}</div>
+      <div class="pi-kpi-label">Connected Tools</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val" style="color:#DC2626">{{ errorCount }}</div>
+      <div class="pi-kpi-label">Sync Errors</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val" style="color:#D97706">{{ conflictCount }}</div>
+      <div class="pi-kpi-label">Field Conflicts</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val">{{ successfulSyncsToday }}</div>
+      <div class="pi-kpi-label">Successful Syncs Today</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="pi-tabs">
+    <button class="pi-tab" [class.active]="activeTab === 'overview'" (click)="activeTab = 'overview'">
+      <lucide-icon name="layout-grid" [size]="14"></lucide-icon>Integrations
+    </button>
+    <button class="pi-tab" [class.active]="activeTab === 'mappings'" (click)="activeTab = 'mappings'">
+      <lucide-icon name="arrow-left-right" [size]="14"></lucide-icon>Field Mappings
+      <span class="pi-tab-badge" *ngIf="conflictCount > 0">{{ conflictCount }}</span>
+    </button>
+    <button class="pi-tab" [class.active]="activeTab === 'history'" (click)="activeTab = 'history'">
+      <lucide-icon name="history" [size]="14"></lucide-icon>Sync History
+    </button>
+  </div>
+
+  <!-- Integrations Tab -->
+  <ng-container *ngIf="activeTab === 'overview'">
+    <div class="sync-integrations-grid">
+      <div class="sync-int-card" *ngFor="let i of integrations" [class.sync-int-card--error]="i.status === 'error'">
+        <div class="sync-int-header">
+          <div class="sync-int-icon-wrap" [style.background]="toolColor(i.name) + '15'" [style.color]="toolColor(i.name)">
+            <lucide-icon [name]="toolIcon(i.type)" [size]="22"></lucide-icon>
+          </div>
+          <div class="sync-int-info">
+            <div class="sync-int-name">{{ i.name }}</div>
+            <div class="sync-int-projects">{{ i.projectCount }} project{{ i.projectCount !== 1 ? 's' : '' }}</div>
+          </div>
+          <span class="pi-status-badge" [class]="'pi-status-badge--' + i.status">
+            <lucide-icon [name]="statusIcon(i.status)" [size]="10"></lucide-icon>
+            {{ i.status | titlecase }}
+          </span>
+        </div>
+        <div class="sync-int-body">
+          <div class="sync-int-meta" *ngIf="i.lastSync">
+            <lucide-icon name="clock" [size]="11"></lucide-icon>
+            Last sync: {{ timeAgo(i.lastSync) }}
+          </div>
+          <div class="sync-int-meta sync-int-meta--warn" *ngIf="i.status === 'error'">
+            <lucide-icon name="alert-triangle" [size]="11"></lucide-icon>
+            Token expired — reconnect required
+          </div>
+          <div class="sync-int-mappings" *ngIf="i.fieldMappings.length > 0">
+            <span>{{ i.fieldMappings.length }} field mapping{{ i.fieldMappings.length !== 1 ? 's' : '' }}</span>
+          </div>
+        </div>
+        <div class="sync-int-actions">
+          <button class="pi-btn pi-btn-ghost pi-btn-sm" (click)="triggerSync(i.id)" [disabled]="syncingId === i.id || i.status === 'disconnected'">
+            <lucide-icon [name]="syncingId === i.id ? 'loader' : 'refresh-cw'" [size]="12" [class.pi-spin]="syncingId === i.id"></lucide-icon>
+            {{ syncingId === i.id ? 'Syncing…' : 'Sync Now' }}
+          </button>
+          <button class="pi-btn pi-btn-ghost pi-btn-sm">Configure</button>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Field Mappings Tab -->
+  <ng-container *ngIf="activeTab === 'mappings'">
+    <div class="pi-filters">
+      <select class="pi-filter-select" [(ngModel)]="filterTool">
+        <option value="">All Tools</option>
+        <option *ngFor="let t of mappingTools" [value]="t">{{ t }}</option>
+      </select>
+    </div>
+    <div class="pi-table-wrap">
+      <table class="pi-table">
+        <thead>
+          <tr>
+            <th>Tool</th>
+            <th>Source Field (Product Studio)</th>
+            <th></th>
+            <th>Target Field</th>
+            <th>Transform</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let m of filteredMappings">
+            <td>
+              <div class="sync-tool-chip" [style.background]="toolColor(m.tool) + '15'" [style.color]="toolColor(m.tool)">
+                {{ m.tool }}
+              </div>
+            </td>
+            <td><span class="sync-field-pill sync-field-pill--source">{{ m.sourceField }}</span></td>
+            <td><lucide-icon name="arrow-right" [size]="12" style="color:#9CA3AF"></lucide-icon></td>
+            <td><span class="sync-field-pill sync-field-pill--target">{{ m.targetField }}</span></td>
+            <td>
+              <span class="sync-transform" *ngIf="m.transform">{{ m.transform }}</span>
+              <span class="sync-no-transform" *ngIf="!m.transform">—</span>
+            </td>
+            <td>
+              <span class="pi-status-badge" [class]="'pi-status-badge--' + (m.status === 'active' ? 'connected' : m.status === 'conflict' ? 'error' : 'disconnected')">
+                {{ m.status | titlecase }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </ng-container>
+
+  <!-- Sync History Tab -->
+  <ng-container *ngIf="activeTab === 'history'">
+    <div class="pi-entries-list">
+      <div class="pi-dep-row" *ngFor="let s of syncHistory">
+        <div class="sync-hist-icon" [class.sync-hist-icon--success]="s.status === 'success'" [class.sync-hist-icon--failed]="s.status === 'failed'">
+          <lucide-icon [name]="s.status === 'success' ? 'check-circle' : 'x-circle'" [size]="14"></lucide-icon>
+        </div>
+        <div class="pi-entry-row-body">
+          <div class="pi-entry-row-title">{{ s.action }}</div>
+          <div class="pi-entry-row-meta">
+            <span class="sync-tool-chip" [style.background]="s.toolColor + '15'" [style.color]="s.toolColor">{{ s.tool }}</span>
+            <span class="pi-proj-chip pi-proj-chip--brand">{{ s.project }}</span>
+            <span class="pi-meta-item" *ngIf="s.items > 0">{{ s.items }} items</span>
+          </div>
+        </div>
+        <span class="pi-meta-item">{{ timeAgo(s.timestamp) }}</span>
+      </div>
+    </div>
+  </ng-container>
+
+</div>
+
+<!-- Connect Tool Modal -->
+<ng-container *ngIf="showConnectModal">
+  <div class="mem-overlay" (click)="closeConnectModal()"></div>
+  <div class="mem-modal" role="dialog" aria-modal="true">
+    <div class="mem-modal-header">
+      <div class="mem-modal-title">
+        <lucide-icon name="plug" [size]="16"></lucide-icon>
+        Connect a Tool
+      </div>
+      <button class="mem-modal-close" (click)="closeConnectModal()">
+        <lucide-icon name="x" [size]="16"></lucide-icon>
+      </button>
+    </div>
+    <div class="mem-modal-body">
+      <div class="mem-field">
+        <label class="mem-label">Tool Type <span class="mem-required">*</span></label>
+        <div class="connect-tool-types">
+          <button
+            *ngFor="let t of toolTypes"
+            class="connect-tool-type-btn"
+            [class.active]="connectForm.type === t.value"
+            (click)="connectForm.type = t.value; connectForm.name = t.label">
+            <lucide-icon [name]="toolIcon(t.value)" [size]="14"></lucide-icon>
+            {{ t.label }}
+          </button>
+        </div>
+      </div>
+      <div class="mem-field">
+        <label class="mem-label">Display Name <span class="mem-required">*</span></label>
+        <input class="mem-input" [(ngModel)]="connectForm.name" placeholder="e.g. My Jira Workspace" />
+      </div>
+      <div class="mem-field">
+        <label class="mem-label">Instance URL <span class="mem-required">*</span></label>
+        <input class="mem-input" [(ngModel)]="connectForm.url" placeholder="https://yourorg.atlassian.net" />
+      </div>
+      <div class="mem-field">
+        <label class="mem-label">API Token / PAT <span class="mem-required">*</span></label>
+        <input class="mem-input" type="password" [(ngModel)]="connectForm.token" placeholder="Paste your token here" />
+        <span class="mem-label mem-hint">Token is stored securely and never shared.</span>
+      </div>
+    </div>
+    <div class="mem-modal-footer">
+      <button class="pi-btn pi-btn-ghost" (click)="closeConnectModal()">Cancel</button>
+      <button class="pi-btn pi-btn-primary" (click)="saveConnect()" [disabled]="!connectFormValid || connecting">
+        <lucide-icon [name]="connecting ? 'loader' : 'plug'" [size]="13" [class.pi-spin]="connecting"></lucide-icon>
+        {{ connecting ? 'Connecting…' : 'Connect Tool' }}
+      </button>
+    </div>
+  </div>
+</ng-container>

@@ -1,0 +1,279 @@
+<div class="pi-page">
+
+  <div class="pi-header">
+    <div class="pi-header-left">
+      <div class="pi-header-icon" style="--accent:#EC4899">
+        <lucide-icon name="sparkles" [size]="20"></lucide-icon>
+      </div>
+      <div>
+        <div class="pi-header-title">AI Decision Context</div>
+        <div class="pi-header-sub">AI-generated decision briefs using product knowledge, customer evidence and delivery constraints</div>
+      </div>
+    </div>
+    <div class="pi-header-actions">
+      <button class="pi-btn pi-btn-primary" (click)="openGenerateModal()">
+        <lucide-icon name="sparkles" [size]="13"></lucide-icon>Generate Brief
+      </button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="pi-kpis">
+    <div class="pi-kpi">
+      <div class="pi-kpi-val">{{ briefs.length }}</div>
+      <div class="pi-kpi-label">Decision Briefs</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val" style="color:#059669">{{ highConfidenceCount }}</div>
+      <div class="pi-kpi-label">High Confidence</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val">{{ decisions.length }}</div>
+      <div class="pi-kpi-label">Logged Decisions</div>
+    </div>
+    <div class="pi-kpi">
+      <div class="pi-kpi-val" style="color:#D97706">{{ underReviewCount }}</div>
+      <div class="pi-kpi-label">Awaiting Decision</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="pi-tabs">
+    <button class="pi-tab" [class.active]="activeTab === 'briefs'" (click)="activeTab = 'briefs'">
+      <lucide-icon name="sparkles" [size]="14"></lucide-icon>AI Briefs
+    </button>
+    <button class="pi-tab" [class.active]="activeTab === 'decisions'" (click)="activeTab = 'decisions'">
+      <lucide-icon name="check-circle" [size]="14"></lucide-icon>Decision Log
+    </button>
+  </div>
+
+  <!-- AI Briefs Tab -->
+  <ng-container *ngIf="activeTab === 'briefs' && !selectedBrief">
+    <div class="adc-briefs-list">
+      <div class="adc-brief-card" *ngFor="let b of briefs" (click)="openBrief(b)">
+        <div class="adc-brief-header">
+          <div class="adc-brief-icon">
+            <lucide-icon name="sparkles" [size]="16"></lucide-icon>
+          </div>
+          <div class="adc-brief-meta">
+            <span class="pi-proj-chip" [style.background]="b.projectColor + '18'" [style.color]="b.projectColor">{{ b.project }}</span>
+            <span class="pi-meta-item">Generated {{ daysAgo(b.generatedAt) }}</span>
+          </div>
+          <div class="adc-confidence-badge" [style.background]="confidenceColor(b.confidence) + '15'" [style.color]="confidenceColor(b.confidence)">
+            <lucide-icon [name]="confidenceIcon(b.confidence)" [size]="11"></lucide-icon>
+            {{ b.confidence | titlecase }} confidence
+          </div>
+        </div>
+        <div class="adc-brief-question">{{ b.title }}</div>
+        <div class="adc-brief-rec-preview">
+          <lucide-icon name="zap" [size]="12" style="flex-shrink:0;color:var(--psc-primary-text)"></lucide-icon>
+          {{ b.recommendation | slice:0:120 }}…
+        </div>
+        <div class="adc-brief-evidence-row">
+          <span class="adc-evidence-chip adc-evidence-chip--product">
+            <lucide-icon name="book-open" [size]="10"></lucide-icon>{{ b.productContext.length }} product signals
+          </span>
+          <span class="adc-evidence-chip adc-evidence-chip--customer">
+            <lucide-icon name="message-circle" [size]="10"></lucide-icon>{{ b.customerEvidence.length }} customer signals
+          </span>
+          <span class="adc-evidence-chip adc-evidence-chip--delivery">
+            <lucide-icon name="package" [size]="10"></lucide-icon>{{ b.deliveryConstraints.length }} constraints
+          </span>
+          <span class="adc-evidence-chip adc-evidence-chip--risk">
+            <lucide-icon name="alert-triangle" [size]="10"></lucide-icon>{{ b.risks.length }} risks
+          </span>
+        </div>
+        <div class="adc-brief-footer">
+          <button class="pi-btn pi-btn-primary pi-btn-sm" (click)="$event.stopPropagation(); openBrief(b)">
+            <lucide-icon name="eye" [size]="12"></lucide-icon>View Full Brief
+          </button>
+          <button class="pi-btn pi-btn-ghost pi-btn-sm" (click)="$event.stopPropagation(); generateBrief(b.id)" [disabled]="generatingId === b.id">
+            <lucide-icon [name]="generatingId === b.id ? 'loader' : 'refresh-cw'" [size]="12" [class.pi-spin]="generatingId === b.id"></lucide-icon>
+            {{ generatingId === b.id ? 'Regenerating…' : 'Regenerate' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Brief Detail View -->
+  <ng-container *ngIf="selectedBrief">
+    <div class="adc-detail">
+      <div class="adc-detail-header">
+        <button class="pi-btn pi-btn-ghost pi-btn-sm" (click)="closeBrief()">
+          <lucide-icon name="arrow-left" [size]="13"></lucide-icon>Back to Briefs
+        </button>
+        <div class="adc-confidence-badge" [style.background]="confidenceColor(selectedBrief.confidence) + '15'" [style.color]="confidenceColor(selectedBrief.confidence)">
+          <lucide-icon [name]="confidenceIcon(selectedBrief.confidence)" [size]="11"></lucide-icon>
+          {{ selectedBrief.confidence | titlecase }} confidence
+        </div>
+      </div>
+
+      <div class="adc-detail-question">{{ selectedBrief.title }}</div>
+
+      <!-- Recommendation -->
+      <div class="adc-rec-box">
+        <div class="adc-rec-label">
+          <lucide-icon name="zap" [size]="14"></lucide-icon>AI Recommendation
+        </div>
+        <div class="adc-rec-text">{{ selectedBrief.recommendation }}</div>
+      </div>
+
+      <!-- Evidence Grid -->
+      <div class="adc-evidence-grid">
+        <div class="adc-evidence-section adc-evidence-section--product">
+          <div class="adc-evidence-section-label">
+            <lucide-icon name="book-open" [size]="13"></lucide-icon>Product Context
+          </div>
+          <ul class="adc-evidence-list">
+            <li *ngFor="let e of selectedBrief.productContext">{{ e }}</li>
+          </ul>
+        </div>
+        <div class="adc-evidence-section adc-evidence-section--customer">
+          <div class="adc-evidence-section-label">
+            <lucide-icon name="message-circle" [size]="13"></lucide-icon>Customer Evidence
+          </div>
+          <ul class="adc-evidence-list">
+            <li *ngFor="let e of selectedBrief.customerEvidence">{{ e }}</li>
+          </ul>
+        </div>
+        <div class="adc-evidence-section adc-evidence-section--delivery">
+          <div class="adc-evidence-section-label">
+            <lucide-icon name="package" [size]="13"></lucide-icon>Delivery Constraints
+          </div>
+          <ul class="adc-evidence-list">
+            <li *ngFor="let e of selectedBrief.deliveryConstraints">{{ e }}</li>
+          </ul>
+        </div>
+        <div class="adc-evidence-section adc-evidence-section--risk">
+          <div class="adc-evidence-section-label">
+            <lucide-icon name="alert-triangle" [size]="13"></lucide-icon>Risks
+          </div>
+          <ul class="adc-evidence-list">
+            <li *ngFor="let r of selectedBrief.risks">{{ r }}</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Alternatives -->
+      <div class="pi-section-label">
+        <lucide-icon name="git-branch" [size]="12"></lucide-icon>Alternatives Considered
+      </div>
+      <div class="adc-alts-list">
+        <div class="adc-alt-row" *ngFor="let a of selectedBrief.alternatives; let i = index" [class.adc-alt-row--recommended]="i === 0">
+          <div class="adc-alt-label">
+            <span class="adc-alt-badge" *ngIf="i === 0">Recommended</span>
+            {{ a.option }}
+          </div>
+          <div class="adc-alt-cols">
+            <div class="adc-alt-col adc-alt-col--pro">
+              <lucide-icon name="check" [size]="11"></lucide-icon>{{ a.pros }}
+            </div>
+            <div class="adc-alt-col adc-alt-col--con">
+              <lucide-icon name="x" [size]="11"></lucide-icon>{{ a.cons }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Decision Log Tab -->
+  <ng-container *ngIf="activeTab === 'decisions'">
+    <div class="pi-entries-list">
+      <div class="pi-entry-row" *ngFor="let d of decisions">
+        <div class="pi-entry-type-icon" [style.background]="getStatusColor(d.status) + '15'" [style.color]="getStatusColor(d.status)">
+          <lucide-icon name="check-circle" [size]="14"></lucide-icon>
+        </div>
+        <div class="pi-entry-row-body">
+          <div class="pi-entry-row-title">{{ d.title }}</div>
+          <div class="pi-entry-row-summary">{{ d.rationale }}</div>
+          <div class="pi-entry-row-meta">
+            <span class="pi-status-badge" [class]="'pi-status-badge--' + (d.status === 'approved' ? 'connected' : d.status === 'under-review' ? 'pending' : 'disconnected')">
+              {{ d.status | titlecase }}
+            </span>
+            <span class="pi-meta-item">{{ d.owner }}</span>
+            <span class="pi-meta-item">{{ d.createdAt }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+</div>
+
+<!-- Generate Brief Modal -->
+<ng-container *ngIf="showGenerateModal">
+  <div class="mem-overlay" (click)="closeGenerateModal()"></div>
+  <div class="mem-modal adc-gen-modal" role="dialog" aria-modal="true">
+    <div class="mem-modal-header">
+      <div class="mem-modal-title">
+        <lucide-icon name="sparkles" [size]="16"></lucide-icon>
+        Generate AI Decision Brief
+      </div>
+      <button class="mem-modal-close" (click)="closeGenerateModal()" [disabled]="isGenerating">
+        <lucide-icon name="x" [size]="16"></lucide-icon>
+      </button>
+    </div>
+
+    <!-- Input form (shown before generation starts) -->
+    <ng-container *ngIf="!isGenerating && generationSteps.length === 0">
+      <div class="mem-modal-body">
+        <div class="mem-field">
+          <label class="mem-label">Decision Question <span class="mem-required">*</span></label>
+          <textarea
+            class="mem-textarea"
+            [(ngModel)]="generateForm.question"
+            placeholder="e.g. Should we add dark mode to the mobile app before Q2 launch?"
+            rows="3"></textarea>
+          <span class="mem-label mem-hint">Ask a clear yes/no or prioritisation question for best results.</span>
+        </div>
+        <div class="mem-field">
+          <label class="mem-label">Project <span class="mem-required">*</span></label>
+          <div class="adc-project-grid">
+            <button
+              *ngFor="let p of projects"
+              class="adc-project-btn"
+              [class.active]="generateForm.project === p.name"
+              [style.--proj-color]="projectColor(p.name)"
+              (click)="selectProject(p.name)">
+              <span class="adc-project-dot" [style.background]="projectColor(p.name)"></span>
+              {{ p.name }}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="mem-modal-footer">
+        <button class="pi-btn pi-btn-ghost" (click)="closeGenerateModal()">Cancel</button>
+        <button class="pi-btn pi-btn-primary" (click)="startGeneration()" [disabled]="!generateFormValid">
+          <lucide-icon name="sparkles" [size]="13"></lucide-icon>Generate Brief
+        </button>
+      </div>
+    </ng-container>
+
+    <!-- Generation progress (shown while generating) -->
+    <ng-container *ngIf="isGenerating || generationSteps.length > 0">
+      <div class="adc-gen-progress">
+        <div class="adc-gen-question">{{ generateForm.question }}</div>
+        <div class="adc-gen-steps">
+          <div
+            *ngFor="let step of generationSteps; let i = index"
+            class="adc-gen-step"
+            [class.adc-gen-step--done]="step.done"
+            [class.adc-gen-step--active]="!step.done && i === generationCurrentStep">
+            <div class="adc-gen-step-icon">
+              <lucide-icon *ngIf="step.done" name="check" [size]="12"></lucide-icon>
+              <lucide-icon *ngIf="!step.done && i === generationCurrentStep" name="loader" [size]="12" class="pi-spin"></lucide-icon>
+              <lucide-icon *ngIf="!step.done && i !== generationCurrentStep" name="circle" [size]="12"></lucide-icon>
+            </div>
+            <span>{{ step.label }}</span>
+          </div>
+        </div>
+        <div class="adc-gen-bar-wrap">
+          <div class="adc-gen-bar" [style.width]="generationProgress + '%'"></div>
+        </div>
+      </div>
+    </ng-container>
+
+  </div>
+</ng-container>
