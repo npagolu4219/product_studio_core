@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Build output
+/dist/
+/tmp/
+/out-tsc/
+/bazel-out/
+
+# Angular cache
+/.angular/
+.sass-cache/
+
+# Vercel
+.vercel/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Test coverage
+/coverage/
+/libpeerconnection.log
+testem.log
+/typings
+
+# Editors / IDEs
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.sublime-workspace
+*.swp
+.history/
+
+# OS files
+.DS_Store
+Thumbs.db
