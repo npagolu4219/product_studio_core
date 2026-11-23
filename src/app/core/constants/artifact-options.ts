@@ -27,7 +27,7 @@ export const ARTIFACT_OPTIONS: ArtifactOption[] = [
 ];
 
 /** Plain conversation: Product Studio replies in chat and creates no document until the user picks one. */
-export const CHAT_ARTIFACT_ID = 'chat';
+export const CHAT_ARTIFACT_ID = 'Ask';
 export const CHAT_OPTION: ArtifactOption = { id: CHAT_ARTIFACT_ID, iconName: 'message-circle', icon: '💬', label: 'Chat', shortLabel: 'Chat' };
 
 /** What the Home prompt bar can do: just chat, or create one of the artifacts. */
