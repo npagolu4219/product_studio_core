@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable, delay, of } from 'rxjs';
-import { getArtifactLabel } from '../constants/artifact-options';
+import { getArtifactLabel, isChatMode } from '../constants/artifact-options';
 
 export type RefineMode = 'improve' | 'detailed' | 'concise' | 'structured';
 
@@ -67,8 +67,11 @@ export class PromptRefinerService {
 
   private rewrite(raw: string, mode: RefineMode, ctx: RefineContext): string {
     const idea = this.coreIdea(raw);
-    const artifact = getArtifactLabel(ctx.artifactId).toLowerCase();
-    const sections = ARTIFACT_SECTIONS[ctx.artifactId] ?? ['overview', 'details', 'next steps'];
+    const chat = isChatMode(ctx.artifactId);
+    const artifact = chat ? 'clear, practical answer' : getArtifactLabel(ctx.artifactId).toLowerCase();
+    const sections = chat
+      ? ['the core question', 'options', 'trade-offs', 'a recommendation']
+      : ARTIFACT_SECTIONS[ctx.artifactId] ?? ['overview', 'details', 'next steps'];
     const sources = ctx.contextNames.length ? ctx.contextNames.join(', ') : '';
 
     switch (mode) {

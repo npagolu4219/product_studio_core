@@ -394,6 +394,7 @@
 .psc-popover.psc-popover--up { top: auto; bottom: calc(100% + 8px); }
 .psc-popover-title { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px 6px; color: var(--psc-text-subtle); font-size: 10px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
 .psc-popover-title span { color: var(--psc-primary-text); letter-spacing: 0; text-transform: none; font-weight: 700; }
+.psc-popover-divider { margin: 6px 0 2px; padding: 8px 10px 4px; border-top: 1px solid var(--prompt-line); color: var(--psc-text-subtle); font-size: 10px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
 .psc-popover-option, .psc-popover-check-row {
   display: flex;
   align-items: center;
@@ -501,20 +502,6 @@
   position: absolute; top: 8px; right: 8px; z-index: 2; display: grid; place-items: center; width: 22px; height: 22px;
   color: var(--psc-primary-text); background: var(--psc-surface); border-radius: 50%; box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
 }
-
-// Recent chats in the selected project
-.psc-project-chats { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
-.psc-project-chats-label { width: 100%; color: var(--psc-text-subtle); font-size: 10.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
-.psc-project-chat {
-  display: inline-flex; align-items: center; gap: 7px; max-width: 100%; min-width: 0; height: 34px; padding: 0 12px;
-  color: var(--psc-text-body); background: var(--psc-surface); border: 1px solid var(--prompt-line); border-radius: 999px;
-  font: 700 12px 'Mulish', sans-serif; cursor: pointer; animation: psc-pop .2s ease both;
-  lucide-icon { flex-shrink: 0; color: var(--psc-primary-text); }
-  &:hover { border-color: rgb(var(--psc-primary-rgb) / .35); background: rgb(var(--psc-primary-rgb) / .05); }
-  &:focus-visible { outline: 2px solid rgb(var(--psc-primary-rgb) / .45); outline-offset: 1px; }
-}
-.psc-project-chat-title { min-width: 0; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.psc-project-chat-meta { flex-shrink: 0; color: var(--psc-text-subtle); font-size: 11px; font-weight: 600; }
 
 // ── Conversation ──────────────────────────────────────────────────────────
 .psc-conversation { min-height: 0; display: flex; flex-direction: column; }
@@ -809,10 +796,9 @@
   a:hover, button:hover { color: var(--psc-text-strong); background: var(--psc-surface-3); }
 }
 // Context popover inside the panel: drops down under "Add", spanning the panel.
-.psc-project-panel .psc-popover.psc-popover--context {
+.psc-pw-tabpanel .psc-popover.psc-popover--context {
   position: fixed; z-index: 60; right: auto; text-transform: none; letter-spacing: 0;
 }
-.psc-pp-section:has(.psc-pp-context-anchor) .psc-pp-title { position: relative; }
 
 // Header: project name (h1), this chat underneath, "Create ▾" and New chat on the right.
 .psc-pw-head { position: relative; display: flex; align-items: center; gap: 10px; padding: 16px 4px 12px; border-bottom: 1px solid var(--prompt-line); flex-shrink: 0; }
@@ -901,9 +887,6 @@
   background: var(--psc-surface); box-shadow: 16px 0 44px rgba(20, 16, 60, .22);
 }
 .psc-pp-backdrop.overlay { display: block; position: absolute; inset: 0 0 0 56px; z-index: 44; background: rgba(15, 12, 40, .18); }
-
-// Chats list scrolls on its own so Lifecycle and Context stay in view.
-.psc-pp-chats { display: flex; flex-direction: column; gap: 2px; max-height: 232px; overflow-y: auto; scrollbar-width: thin; }
 
 // ── Lifecycle (PDLC) in the panel ──
 .psc-pl-track {

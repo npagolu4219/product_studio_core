@@ -19,21 +19,25 @@ import { PromptRefinerService, REFINE_OPTIONS, RefineMode } from '../../services
 import { CURRENT_USER } from '../../constants/current-user';
 import { ArtifactCanvasComponent } from '../../components/artifact-canvas/artifact-canvas.component';
 import { ArtifactToolbarComponent } from '../../components/artifact-toolbar/artifact-toolbar.component';
-import { PmNextBriefComponent } from '../../components/pm-next-brief/pm-next-brief.component';
 import { ActivityWatchComponent } from '../../components/activity-watch/activity-watch.component';
 import { PscOnboardingComponent, hasSeenOnboarding } from '../../components/psc-onboarding/psc-onboarding.component';
 import { initials, projectGradient } from '../../constants/project-visuals';
 import {
-  ARTIFACT_OPTIONS,
+  COMPOSER_OPTIONS,
   DEFAULT_ARTIFACT_ID,
   getArtifactIconName,
   getArtifactLabel,
   getArtifactOption,
   getArtifactShortLabel,
-  isArtifactOptionId
+  isArtifactOptionId,
+  isChatMode
 } from '../../constants/artifact-options';
 
 type PromptMenu = 'project' | 'artifact' | 'context' | 'refine' | 'move';
+/** Tabs in a project's header. The left panel holds only the chat history. */
+export type ProjectTab = 'chat' | 'lifecycle' | 'context' | 'documents';
+/** A document drafted in one of the project's chats (latest version per chat + type). */
+interface ProjectDocument { artifact: Artifact; chat: Conversation; }
 /** Screen inside the Add context popover: the source list, or one source's picker. */
 type ContextView = 'root' | ContextSourceKind | 'kb';
 
@@ -56,7 +60,7 @@ interface RouteState {
 @Component({
   selector: 'app-psc-home',
   standalone: true,
-  imports: [PmNextBriefComponent, 
+  imports: [
     CommonModule,
     FormsModule,
     LucideAngularModule,
@@ -67,7 +71,7 @@ interface RouteState {
     PscOnboardingComponent
   ],
   templateUrl: './home.component.html',
-  styleUrl: './home.component.scss'
+  styleUrls: ['./home.component.scss', './home-project-workspace.scss']
 })
 export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   @ViewChild('messageList') private messageList?: ElementRef<HTMLElement>;
@@ -94,7 +98,9 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   showOnboarding = !hasSeenOnboarding();
   isResizing = false;
 
-  readonly artifactOptions = ARTIFACT_OPTIONS;
+  /** Chat first, then the documents it can create. */
+  readonly artifactOptions = COMPOSER_OPTIONS;
+  readonly isChatMode = isChatMode;
   readonly getArtifactIconName = getArtifactIconName;
   readonly getArtifactLabel = getArtifactLabel;
   readonly getArtifactShortLabel = getArtifactShortLabel;
@@ -202,13 +208,126 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   /** From the rail (or the small-screen header button): dock it back, or show it over the canvas / on a phone. */
-  openProjectPanel(section?: 'chats' | 'lifecycle' | 'context'): void {
+  openProjectPanel(): void {
     if (this.canvasOpen || window.innerWidth < 900) this.panelOverlay = true;
     else {
       this.projectPanelOpen = true;
       try { localStorage.setItem('psc.home.project-panel', 'true'); } catch { /* ignore */ }
     }
-    if (section) setTimeout(() => document.getElementById(`pp-${section}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+  }
+
+  // ── Project tabs: Chat · Lifecycle · Context · Documents ──
+  projectTab: ProjectTab = 'chat';
+
+  get projectTabs(): { id: ProjectTab; label: string; icon: string; badge?: string }[] {
+    const docs = this.projectDocuments.length;
+    return [
+      { id: 'chat', label: 'Chat', icon: 'message-square' },
+      { id: 'lifecycle', label: 'Lifecycle', icon: this.lifecyclePhase?.icon ?? 'route', badge: this.workspaceLifecycle ? `${this.lifecycleIndex}/${this.lifecycleTrack.length}` : undefined },
+      { id: 'context', label: 'Context', icon: 'layers', badge: this.contextCount ? String(this.contextCount) : undefined },
+      { id: 'documents', label: 'Documents', icon: 'file-text', badge: docs ? String(docs) : undefined }
+    ];
+  }
+
+  setProjectTab(tab: ProjectTab): void {
+    this.openMenu = null;
+    this.projectTab = tab;
+    if (tab === 'chat') this.focusPrompt(true);
+  }
+
+  /** Arrow keys move between tabs (WAI-ARIA tabs pattern). */
+  onTabKeydown(e: KeyboardEvent, i: number): void {
+    const n = this.projectTabs.length;
+    const to = e.key === 'ArrowRight' ? (i + 1) % n : e.key === 'ArrowLeft' ? (i - 1 + n) % n : e.key === 'Home' ? 0 : e.key === 'End' ? n - 1 : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    this.setProjectTab(this.projectTabs[to].id);
+    setTimeout(() => document.getElementById(`pw-tab-${this.projectTabs[to].id}`)?.focus());
+  }
+
+  /** A tab other than Chat is showing (the conversation and composer are hidden, not destroyed). */
+  get otherTabOpen(): boolean {
+    return this.projectMode && this.projectTab !== 'chat';
+  }
+
+  /** Documents drafted in this project's chats — the latest version per chat and type, newest first. */
+  get projectDocuments(): ProjectDocument[] {
+    const latest = new Map<string, ProjectDocument>();
+    for (const chat of this.workspaceChats) {
+      for (const m of chat.messages) {
+        for (const a of m.artifacts ?? []) latest.set(`${chat.id}:${a.type}`, { artifact: a, chat });
+      }
+    }
+    return [...latest.values()].sort((x, y) => y.artifact.updatedAt.localeCompare(x.artifact.updatedAt));
+  }
+
+  /** Open a document on the canvas, inside the chat it came from. */
+  openDocument(d: ProjectDocument): void {
+    this.projectTab = 'chat';
+    this.router.navigate(['/psc', 'home', d.chat.artifactId, d.chat.id], { queryParams: { artifact: d.artifact.id } });
+  }
+
+  // ── Chat history (left panel): search, grouping, rename, delete ──
+  chatQuery = '';
+  renamingChatId: string | null = null;
+  renameDraft = '';
+  confirmDeleteChatId: string | null = null;
+
+  /** The project's chats filtered by the search box, grouped by when they were last active. */
+  get chatGroups(): { label: string; chats: Conversation[] }[] {
+    const q = this.chatQuery.trim().toLowerCase();
+    const list = q ? this.workspaceChats.filter(c => c.title.toLowerCase().includes(q) || c.messages.some(m => m.content.toLowerCase().includes(q))) : this.workspaceChats;
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const today = startOfToday.getTime();
+    const week = today - 6 * 86_400_000;
+    const groups = [
+      { label: 'Today', chats: [] as Conversation[] },
+      { label: 'Previous 7 days', chats: [] as Conversation[] },
+      { label: 'Older', chats: [] as Conversation[] }
+    ];
+    for (const c of list) {
+      const t = new Date(c.updatedAt).getTime();
+      groups[t >= today ? 0 : t >= week ? 1 : 2].chats.push(c);
+    }
+    return groups.filter(g => g.chats.length);
+  }
+
+  startRenameChat(c: Conversation, e?: Event): void {
+    e?.stopPropagation();
+    this.confirmDeleteChatId = null;
+    this.renamingChatId = c.id;
+    this.renameDraft = c.title;
+    setTimeout(() => {
+      const input = document.getElementById(`pp-rename-${c.id}`) as HTMLInputElement | null;
+      input?.focus();
+      input?.select();
+    });
+  }
+
+  commitRenameChat(): void {
+    if (this.renamingChatId && this.renameDraft.trim()) this.conversations.renameConversation(this.renamingChatId, this.renameDraft);
+    this.renamingChatId = null;
+  }
+
+  askDeleteChat(c: Conversation, e?: Event): void {
+    e?.stopPropagation();
+    this.renamingChatId = null;
+    this.confirmDeleteChatId = c.id;
+  }
+
+  /** Delete a chat; if it's the open one, land on a new chat in the same project. */
+  deleteChat(c: Conversation, e?: Event): void {
+    e?.stopPropagation();
+    const projectId = c.projectId;
+    const wasOpen = c.id === this.activeConversation?.id;
+    this.confirmDeleteChatId = null;
+    this.conversations.deleteConversation(c.id);
+    if (wasOpen) this.router.navigate(['/psc', 'home'], { queryParams: { project: projectId ?? null } });
+  }
+
+  cancelChatEdit(): void {
+    this.renamingChatId = null;
+    this.confirmDeleteChatId = null;
   }
 
   /** On small screens (and over the canvas) the panel is a drawer: close it after picking a chat. */
@@ -312,7 +431,9 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   openWorkspaceChat(c: Conversation): void {
+    if (this.renamingChatId === c.id) return;
     this.closePanelOnSmallScreens();
+    this.projectTab = 'chat';
     this.openChat(c);
   }
 
@@ -337,6 +458,7 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   useStarter(s: { artifactId: string; prompt: string }): void {
+    this.projectTab = 'chat';
     this.onArtifactChange(s.artifactId);
     this.promptText = s.prompt;
     this.refineUndo = null;
@@ -455,7 +577,7 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   /** Position of the context menu when opened from the project panel (fixed, so the panel's scroll can't clip it). */
   panelPopoverStyle: Record<string, string> | null = null;
 
-  /** Keep the panel's context menu attached to "Add" while the panel scrolls. */
+  /** Keep the Context tab's menu attached to "Add" while the tab scrolls. */
   onPanelScroll(): void {
     if (this.openMenu === 'context' && this.projectMode) this.placePopover('.psc-pp-context-anchor');
   }
@@ -469,8 +591,8 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     const above = r.top - gap;
     const inPanel = anchor !== '.psc-prompt-composer';
     if (inPanel) {
-      // In the project panel: a fixed popover under "Add" (or above it when there's no room), panel-wide, always on screen.
-      const panel = el.closest<HTMLElement>('.psc-project-panel')?.getBoundingClientRect();
+      // In the project's Context tab: a fixed popover under "Add" (or above it when there's no room), panel-wide, always on screen.
+      const panel = el.closest<HTMLElement>('.psc-pw-tabpanel')?.getBoundingClientRect();
       const left = (panel?.left ?? r.left) + 8;
       const width = Math.min(380, (panel?.width ?? 300) - 16, window.innerWidth - left - 8);
       const up = below < 300 && above > below;
@@ -618,7 +740,8 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   onArtifactChange(id: string): void {
     this.selectedArtifact = id;
     if (!this.activeConversation) {
-      this.router.navigate(['/psc', 'home', id], { replaceUrl: true, queryParamsHandling: 'merge' });
+      // Plain chat lives at /psc/home; a document type is reflected as /psc/home/<artifact>.
+      this.router.navigate(['/psc', 'home', ...(isChatMode(id) ? [] : [id])], { replaceUrl: true, queryParamsHandling: 'merge' });
     }
   }
 
@@ -654,10 +777,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     return sel && !recent.includes(sel) ? [sel, ...recent.slice(0, 2)] : recent;
   }
 
-  /** Recent chats in the selected project, so you can pick up where you left off. */
-  get projectChats(): Conversation[] {
-    return this.selectedProjectId ? this.allChats.filter(c => c.projectId === this.selectedProjectId).slice(0, 3) : [];
-  }
 
   /** Project the knowledge picker is scoped to (the open chat's project, or the one selected for a new chat). */
   private get knowledgeProjectId(): string | null {
@@ -858,7 +977,11 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   get promptPlaceholder(): string {
     const p = this.selectedProject;
-    return p ? `What should we create for ${p.name}?` : 'Describe your product idea, problem or goal…';
+    if (isChatMode(this.selectedArtifact)) {
+      return p ? `Ask anything about ${p.name}…` : 'Ask anything, or describe an idea you’re working on…';
+    }
+    const doc = getArtifactShortLabel(this.selectedArtifact);
+    return p ? `What should the ${doc} for ${p.name} cover?` : `Describe what the ${doc} should cover…`;
   }
 
   /** Scope the new chat to a project (or clear it). Reflected in the URL as ?project=<id>. */
@@ -1002,13 +1125,20 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   /** "New chat" from inside a project chat stays in that project. */
+  /** New chat — inside a project it stays in that project (also from an empty project chat) and shows the Chat tab. */
   startNewConversation(): void {
-    const project = this.activeConversation?.projectId;
+    const project = this.activeConversation ? this.activeConversation.projectId : this.workspaceProject?.id;
+    this.projectTab = 'chat';
     this.router.navigate(['/psc', 'home'], { queryParams: project ? { project } : {} });
+    this.focusPrompt(true);
   }
 
   trackById(_: number, item: { id: string }): string {
     return item.id;
+  }
+
+  trackDoc(_: number, d: ProjectDocument): string {
+    return `${d.chat.id}:${d.artifact.id}`;
   }
 
   trackByLabel(_: number, g: { label: string }): string {
@@ -1042,7 +1172,7 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       return;
     }
     const projectChanged = projectId !== this.selectedProjectId;
-    if (projectChanged) { this.lifecycleNote = ''; this.panelOverlay = false; }
+    if (projectChanged) { this.lifecycleNote = ''; this.panelOverlay = false; this.chatQuery = ''; this.cancelChatEdit(); }
     this.selectedProjectId = projectId;
 
     const switched = (conversation?.id ?? null) !== (this.activeConversation?.id ?? null);
@@ -1051,6 +1181,9 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.activeConversation = conversation ?? null;
     this.messages = conversation?.messages ?? [];
     this.isTyping = pending;
+
+    // Opening another chat (or a new one) always shows the conversation.
+    if (switched || projectChanged) this.projectTab = 'chat';
 
     if (switched) {
       this.clearPrompt();
@@ -1095,7 +1228,9 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     if (!conversation && kickoff) {
       const p = this.selectedProject;
       if (p) {
-        this.promptText = `Create a ${getArtifactLabel(this.selectedArtifact)} for ${p.name}.${p.description ? ' ' + p.description : ''}`;
+        this.promptText = isChatMode(this.selectedArtifact)
+          ? `Let’s get started on ${p.name}.${p.description ? ' ' + p.description : ''}`
+          : `Create a ${getArtifactLabel(this.selectedArtifact)} for ${p.name}.${p.description ? ' ' + p.description : ''}`;
         this.refineUndo = null;
         this.focusPrompt(true);
       }

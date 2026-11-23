@@ -1,0 +1,112 @@
+// Home · project workspace: chat history panel, header tabs (Chat · Lifecycle · Context · Documents) and their content.
+// Kept apart from home.component.scss so each stylesheet stays within the component style budget.
+
+// ── Chat history (the panel holds only chats) ──
+.psc-project-panel { gap: 10px; }
+.psc-pp-history { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.psc-pp-search {
+  display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 8px 0 10px; border-radius: 9px;
+  color: var(--psc-text-subtle); background: var(--psc-surface-2, var(--psc-surface)); border: 1px solid var(--prompt-line);
+  &:focus-within { border-color: rgb(var(--psc-primary-rgb) / .45); box-shadow: 0 0 0 3px rgb(var(--psc-primary-rgb) / .1); }
+  input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--psc-text-strong); font: 600 12.5px 'Mulish', sans-serif; }
+  input::-webkit-search-cancel-button { display: none; }
+  button { display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--psc-text-subtle); cursor: pointer;
+    &:hover { color: var(--psc-text-strong); background: var(--psc-surface-3); } }
+}
+.psc-pp-chat-row {
+  position: relative; display: flex; align-items: center; border-radius: 8px;
+  .psc-pp-chat { padding-right: 8px; }
+  &:hover .psc-pp-chat, &:focus-within .psc-pp-chat { padding-right: 58px; }
+}
+.psc-pp-chat-actions {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: flex; gap: 2px; opacity: 0; pointer-events: none; transition: opacity .12s;
+  button { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: var(--psc-surface); color: var(--psc-text-subtle); cursor: pointer;
+    &:hover, &:focus-visible { color: var(--psc-text-strong); background: rgb(var(--psc-primary-rgb) / .1); }
+    &:focus-visible { outline: 2px solid rgb(var(--psc-primary-rgb) / .45); } }
+}
+.psc-pp-chat-row:hover .psc-pp-chat-actions, .psc-pp-chat-row:focus-within .psc-pp-chat-actions { opacity: 1; pointer-events: auto; }
+@media (hover: none) {
+  .psc-pp-chat-actions { opacity: 1; pointer-events: auto; }
+  .psc-pp-chat-row .psc-pp-chat { padding-right: 58px; }
+}
+.psc-pp-rename { flex: 1; padding: 3px 2px;
+  input { width: 100%; height: 32px; padding: 0 8px; border-radius: 7px; border: 1px solid rgb(var(--psc-primary-rgb) / .45); outline: 0;
+    background: var(--psc-surface); color: var(--psc-text-strong); font: 700 12.5px 'Mulish', sans-serif; box-shadow: 0 0 0 3px rgb(var(--psc-primary-rgb) / .1); }
+}
+.psc-pp-confirm {
+  flex: 1; display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 8px; background: var(--psc-tint-red, #FEE2E2);
+  span { flex: 1; color: var(--psc-on-tint-red, #991B1B); font-size: 12px; font-weight: 700; }
+  button { height: 26px; padding: 0 9px; border: 0; border-radius: 6px; background: var(--psc-surface); color: var(--psc-text-body); font: 800 11.5px 'Mulish', sans-serif; cursor: pointer;
+    &.danger { color: #fff; background: #DC2626; }
+    &:focus-visible { outline: 2px solid rgb(var(--psc-primary-rgb) / .45); } }
+}
+
+// ── Project tabs (header) ──
+.psc-pw-tabs {
+  display: flex; gap: 2px; padding: 0 2px; border-bottom: 1px solid var(--prompt-line); flex-shrink: 0;
+  overflow-x: auto; scrollbar-width: none; &::-webkit-scrollbar { display: none; }
+}
+.psc-pw-head { border-bottom: 0; padding-bottom: 6px; }
+.psc-pw-tab {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; border: 0; background: transparent;
+  color: var(--psc-text-subtle); font: 700 13px 'Mulish', sans-serif; white-space: nowrap; cursor: pointer;
+  lucide-icon { color: currentColor; }
+  &::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: transparent; }
+  &:hover { color: var(--psc-text-strong); }
+  &.active { color: var(--psc-primary-dark); &::after { background: var(--psc-primary); } }
+  &:focus-visible { outline: 2px solid rgb(var(--psc-primary-rgb) / .45); outline-offset: -4px; border-radius: 8px; }
+}
+.psc-pw-tab-badge {
+  min-width: 18px; height: 18px; padding: 0 5px; display: grid; place-items: center; border-radius: 9px;
+  background: rgb(var(--psc-primary-rgb) / .1); color: var(--psc-primary-text); font-size: 10.5px; font-weight: 800;
+}
+.psc-tab-hidden { display: none !important; }
+.psc-inline-link { padding: 0; border: 0; background: none; color: var(--psc-primary-text); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+
+// Tab content (Lifecycle, Context, Documents)
+.psc-pw-tabpanel { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 4px 24px; animation: psc-pop .18s ease both; scrollbar-width: thin; }
+.psc-pw-card { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+.psc-pw-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.psc-pw-card-title { margin: 0; display: flex; align-items: baseline; gap: 8px; color: var(--psc-text-primary); font-size: 17px; font-weight: 800;
+  span { color: var(--psc-text-subtle); font-size: 12.5px; font-weight: 700; } }
+.psc-pw-card-sub { margin: 0 0 6px; color: var(--psc-text-subtle); font-size: 12.5px; }
+.psc-pw-card .psc-pp-add { height: 32px; padding: 0 12px; font-size: 12.5px; text-decoration: none; }
+.psc-pw-card .psc-pp-ctx { padding: 9px 10px; font-size: 13px; border: 1px solid var(--prompt-line); background: var(--psc-surface); button { opacity: 1; } }
+.psc-pw-card .psc-pp-empty { font-size: 13px; padding: 8px 0; }
+// Lifecycle reads at full size in its tab
+.psc-pw-card.psc-pp-lifecycle {
+  .psc-pl-track { margin: 6px 0 14px; }
+  .psc-pl-dot { width: 28px; height: 28px; }
+  .psc-pl-track li + li::before { top: 13px; right: calc(50% + 14px); width: calc(100% - 28px); }
+  .psc-pl-label { font-size: 11px; }
+  .psc-pl-now { padding: 14px; gap: 10px; }
+  .psc-pl-now-text strong { font-size: 15px; } .psc-pl-now-text small, .psc-pl-gate { font-size: 12.5px; }
+  .psc-pl-deliverables button, .psc-pl-deliverables span { height: 30px; font-size: 12px; }
+  .psc-pl-advance { align-self: flex-start; height: 34px; padding: 0 14px; font-size: 12.5px; }
+  .psc-pl-eval { margin-top: 14px; padding: 12px 0 0; } .psc-pl-eval-head { font-size: 14px; }
+  .psc-pl-metric { font-size: 13px; padding: 7px 0; } .psc-pl-criteria { font-size: 12.5px; }
+}
+.psc-pw-doc {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 12px; border-radius: 12px; text-align: left;
+  border: 1px solid var(--prompt-line); background: var(--psc-surface); font-family: 'Mulish', sans-serif; cursor: pointer;
+  &:hover { border-color: rgb(var(--psc-primary-rgb) / .35); box-shadow: 0 4px 14px rgb(var(--psc-primary-rgb) / .08); }
+  &:focus-visible { outline: 2px solid rgb(var(--psc-primary-rgb) / .45); outline-offset: 1px; }
+  .psc-artifact-open { flex-shrink: 0; color: var(--psc-text-subtle); }
+}
+.psc-pw-doc-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+  strong { overflow: hidden; color: var(--psc-text-strong); font-size: 13.5px; text-overflow: ellipsis; white-space: nowrap; }
+  small { overflow: hidden; color: var(--psc-text-subtle); font-size: 11.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+}
+.psc-pw-blank { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 16px; text-align: center; color: var(--psc-text-subtle);
+  lucide-icon { color: var(--psc-primary-text); }
+  h2 { margin: 0; color: var(--psc-text-strong); font-size: 16px; }
+  p { max-width: 420px; margin: 0; font-size: 13px; line-height: 1.55; }
+}
+.psc-pw-blank-btn { margin-top: 4px; height: 34px; padding: 0 14px; display: inline-flex; align-items: center; border-radius: 9px; border: 1px solid rgb(var(--psc-primary-rgb) / .3);
+  background: var(--psc-surface); color: var(--psc-primary-dark); font: 800 12.5px 'Mulish', sans-serif; text-decoration: none; cursor: pointer;
+  &:hover { background: rgb(var(--psc-primary-rgb) / .06); } }
+@media (max-width: 520px) {
+  .psc-pw-tab { padding: 0 9px; font-size: 12.5px; }
+  .psc-pw-doc .psc-artifact-status { display: none; }
+}
+

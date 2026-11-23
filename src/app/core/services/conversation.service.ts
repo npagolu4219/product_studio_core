@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, Observable, map, distinctUntilChanged } from 'rxjs';
 import { AiMessage, Artifact, ContextAttachment, Conversation } from '../models/psc.models';
-import { getArtifactLabel, toArtifactType } from '../constants/artifact-options';
+import { getArtifactLabel, isChatMode, toArtifactType } from '../constants/artifact-options';
 import { buildArtifactContent } from '../constants/artifact-content';
 
 export interface SendMessageOptions {
@@ -190,6 +190,10 @@ export class ConversationService {
       timestamp: now
     };
 
+    if (isChatMode(options.artifactId)) {
+      return { ...base, content: this.chatReply(prompt, options, isFirstReply, previousArtifacts.length > 0) };
+    }
+
     if (isFirstReply) {
       const n = options.contextNames.length;
       const contextText = n
@@ -219,6 +223,28 @@ export class ConversationService {
       content: `Here’s a new **${label.toLowerCase()}** draft built on what we’ve covered so far in this conversation.`,
       artifacts: [this.createArtifact(options.artifactId, 1, prompt, conversation.projectId, options.contextNames)]
     };
+  }
+
+  /** Plain conversation (Chat mode): answer in the thread, no draft — offer a document only as a next step. */
+  private chatReply(prompt: string, options: SendMessageOptions, isFirstReply: boolean, hasDrafts: boolean): string {
+    const topic = this.truncate(prompt.replace(/\s+/g, ' ').trim(), 80);
+    const n = options.contextNames.length;
+    const grounded = n ? `\n\nI’m using the **${n} context item${n === 1 ? '' : 's'}** you added.` : '';
+    const lifecycle = options.lifecycle ? `\n\n**Where the project is:** ${options.lifecycle}.` : '';
+
+    if (isFirstReply) {
+      return `Happy to think this through with you. On “${topic}”, here’s where I’d start:\n\n` +
+        `• **Who is this for?** The user or team with the problem, and how they handle it today.\n` +
+        `• **What does success look like?** One or two outcomes you could measure.\n` +
+        `• **What’s fixed?** Deadlines, budget, tech or compliance limits.${grounded}${lifecycle}\n\n` +
+        `Tell me more, or ask me anything. When you want a document, choose **PRD**, **Epic**, **Roadmap** or another type from **Chat** in the prompt bar and I’ll draft it from this conversation.`;
+    }
+
+    const nudge = hasDrafts
+      ? 'Want me to fold this into the draft? Pick its type in the prompt bar and send.'
+      : 'Keep going, or pick a document type in the prompt bar when you’re ready to turn this into a draft.';
+    return `Got it — “${topic}”. That helps narrow things down.${grounded}\n\n` +
+      `My suggestion: settle the riskiest assumption first, then shape the scope around it. ${nudge}`;
   }
 
   /**

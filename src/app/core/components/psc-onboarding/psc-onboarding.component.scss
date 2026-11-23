@@ -536,127 +536,6 @@ $font:           'Mulish', 'Inter', system-ui, sans-serif;
   gap: 12px;
 }
 
-// Project preview tile
-.land-proj-preview {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  border-radius: $radius-lg;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.1);
-  overflow: hidden;
-}
-
-.land-proj-preview-bar {
-  width: 5px;
-  align-self: stretch;
-  flex-shrink: 0;
-}
-
-.land-proj-preview-body {
-  flex: 1;
-  padding: 12px 14px;
-  text-align: left;
-}
-
-.land-proj-preview-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(255,255,255,.85);
-  font-family: $font;
-}
-
-.land-proj-preview-meta {
-  font-size: 11px;
-  color: rgba(255,255,255,.35);
-  margin-top: 3px;
-  font-family: $font;
-}
-
-.land-proj-preview-badge {
-  margin-right: 14px;
-  padding: 3px 10px;
-  border-radius: $radius-full;
-  background: rgba(156,163,175,.15);
-  color: rgba(255,255,255,.5);
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .4px;
-  font-family: $font;
-}
-
-// Agent pills in wizard
-.land-agents-row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-}
-
-.land-agent-pill {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: $radius-lg;
-  background: rgba(255,255,255,.05);
-  border: 1px solid rgba(255,255,255,.08);
-  transition: all .18s;
-
-  &:hover {
-    background: rgb(var(--psc-primary-rgb) / .1);
-    border-color: rgb(var(--psc-primary-rgb) / .3);
-  }
-}
-
-.land-agent-pill-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: $radius-md;
-  background: rgb(var(--psc-primary-rgb) / .12);
-  color: $primary-mid;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.land-agent-pill-info {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  text-align: left;
-}
-
-.land-agent-pill-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(255,255,255,.85);
-  font-family: $font;
-}
-
-.land-agent-pill-role {
-  font-size: 11px;
-  color: rgba(255,255,255,.35);
-  font-family: $font;
-}
-
-.land-agent-pill-status {
-  padding: 3px 9px;
-  border-radius: $radius-full;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .3px;
-  font-family: $font;
-
-  &[data-status="active"] { background:rgba(5,150,105,.2); color:#6EE7B7; }
-  &[data-status="busy"]   { background:rgba(217,119,6,.2);  color:#FCD34D; }
-  &[data-status="idle"]   { background:rgb(var(--psc-secondary-rgb) / .2);  color:#93C5FD; }
-}
-
-// Integration chips in wizard
 .land-int-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -811,6 +690,55 @@ $font:           'Mulish', 'Inter', system-ui, sans-serif;
   }
 }
 
+
+// ── Prompt bar mock (step 1) ───────────────────────────────────────────────
+.land-prompt-mock {
+  width: 100%;
+  padding: 14px 14px 12px;
+  border-radius: $radius-lg;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgb(var(--psc-primary-rgb) / .35);
+  box-shadow: 0 0 0 4px rgb(var(--psc-primary-rgb) / .08);
+  text-align: left;
+  font-family: $font;
+}
+.land-prompt-text { min-height: 34px; color: rgba(255,255,255,.4); font-size: 13px; }
+.land-prompt-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.land-pm-spacer { flex: 1; }
+.land-pm-btn {
+  display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px;
+  border-radius: $radius-full; border: 1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.7); font-size: 11.5px; font-weight: 700;
+}
+.land-pm-round { width: 28px; padding: 0; justify-content: center; }
+.land-pm-on { color: #fff; background: rgb(var(--psc-primary-rgb) / .22); border-color: rgb(var(--psc-primary-rgb) / .5); }
+.land-pm-send { color: #fff; background: $primary; border-color: transparent; }
+
+// Selected option in the Mode menu preview (step 3)
+.land-template-chip.land-chip-on {
+  color: #fff;
+  background: rgb(var(--psc-primary-rgb) / .22);
+  border-color: rgb(var(--psc-primary-rgb) / .5);
+}
+
+// ── Project cards under the prompt (step 6) ────────────────────────────────
+.land-proj-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; font-family: $font; }
+.land-proj-card {
+  display: flex; align-items: center; gap: 10px; min-width: 0; padding: 12px;
+  border-radius: $radius-md; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+  text-align: left;
+}
+.land-proj-card--add {
+  justify-content: center; border-style: dashed; border-color: rgb(var(--psc-primary-rgb) / .45);
+  color: $primary-mid; font-size: 12.5px; font-weight: 700;
+}
+.land-proj-card-av {
+  flex-shrink: 0; display: grid; place-items: center; width: 32px; height: 32px; border-radius: $radius-sm;
+  color: #fff; font-size: 11px; font-weight: 800;
+}
+.land-proj-card-body { display: flex; flex-direction: column; min-width: 0; }
+.land-proj-card-name { overflow: hidden; color: rgba(255,255,255,.85); font-size: 12.5px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.land-proj-card-meta { color: rgba(255,255,255,.4); font-size: 11px; }
 
 @media (max-width: 1024px) {
   .land-caps-grid { grid-template-columns: repeat(2, 1fr); }

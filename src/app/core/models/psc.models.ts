@@ -14,6 +14,8 @@ export interface Project {
   artifacts: number;
   jiraKey?: string;
   adoProject?: string;
+  /** Organise this project's chat activity into Product Memory automatically (daily, when there are new chats). */
+  memoryAutoUpdate?: boolean;
 }
 
 export interface AiMessage {
