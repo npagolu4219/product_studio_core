@@ -110,15 +110,6 @@
           <h1 id="prompt-title" class="psc-pw-project">{{ wp.name }}</h1>
           <span class="psc-pw-chat" [title]="activeConversation?.title || 'New chat'">{{ activeConversation?.title || 'New chat' }}</span>
         </div>
-        <div class="psc-pw-artifact" *ngIf="!otherTabOpen" (click)="$event.stopPropagation()">
-          <button type="button" class="psc-pw-create" (click)="toggleMenu('artifact', $event)" aria-haspopup="listbox" [attr.aria-expanded]="openMenu === 'artifact'"
-            aria-controls="artifact-menu" [attr.aria-label]="'Artifact to create: ' + selectedArtifactLabel" title="What to create">
-            <lucide-icon [name]="getArtifactIconName(selectedArtifact)" [size]="14"></lucide-icon>
-            <span class="psc-pw-create-label">{{ getArtifactShortLabel(selectedArtifact) }}</span>
-            <lucide-icon name="chevron-down" [size]="13"></lucide-icon>
-          </button>
-          <ng-container *ngIf="projectMode"><ng-container *ngTemplateOutlet="artifactMenuTpl"></ng-container></ng-container>
-        </div>
         <button type="button" class="psc-pw-new" *ngIf="activeConversation || otherTabOpen" (click)="startNewConversation()" aria-label="New chat in this project" title="New chat in project">
           <lucide-icon name="square-pen" [size]="15"></lucide-icon><span>New chat</span>
         </button>
@@ -358,8 +349,8 @@
               <span class="psc-context-count" *ngIf="contextCount">{{ contextCount }}</span>
             </button>
 
-            <!-- Mode: chat, or a document to create -->
-            <button type="button" class="psc-picker psc-picker--artifact" *ngIf="!projectMode" (click)="toggleMenu('artifact', $event)"
+            <!-- Mode (projects only): chat, or a document to create. Outside a project, Home is plain chat. -->
+            <button type="button" class="psc-picker psc-picker--artifact" *ngIf="projectMode" (click)="toggleMenu('artifact', $event)"
               aria-haspopup="listbox" [attr.aria-expanded]="openMenu === 'artifact'" aria-controls="artifact-menu"
               [class.is-chat]="isChatMode(selectedArtifact)"
               [attr.aria-label]="isChatMode(selectedArtifact) ? 'Mode: chat. Choose a document to create' : 'Creating: ' + selectedArtifactLabel"
@@ -401,7 +392,7 @@
         </div>
 
         <!-- Popovers (anchored to the composer so they fit any screen width) -->
-        <ng-container *ngIf="!projectMode"><ng-container *ngTemplateOutlet="artifactMenuTpl"></ng-container></ng-container>
+        <ng-container *ngIf="projectMode"><ng-container *ngTemplateOutlet="artifactMenuTpl"></ng-container></ng-container>
         <div class="psc-popover psc-popover--refine" id="refine-menu" *ngIf="openMenu === 'refine'"
           role="menu" aria-label="Refine prompt" (keydown)="onRefineMenuKeydown($event)">
           <div class="psc-popover-title">Refine prompt <span>for {{ selectedArtifactLabel }}</span></div>
@@ -439,39 +430,14 @@
         </div>
       </div>
 
-      <!-- Under the prompt: project cards only — New project, then existing projects -->
-      <div class="psc-projects-row" *ngIf="!conversationStarted && !projectMode">
-        <div class="psc-projects-head">
-          <span class="psc-projects-label">Projects</span>
-          <a class="psc-projects-all" routerLink="/psc/projects">View all<span *ngIf="totalProjects"> ({{ totalProjects }})</span>
-            <lucide-icon name="arrow-right" [size]="12"></lucide-icon></a>
-        </div>
-        <div class="psc-project-grid" role="list">
-          <button type="button" class="psc-project-add" role="listitem" (click)="newProject()" aria-label="Create a new project">
-            <span class="psc-project-add-icon"><lucide-icon name="plus" [size]="20"></lucide-icon></span>
-            <span class="psc-project-add-label">New project</span>
-          </button>
-          <button type="button" class="psc-project-card" role="listitem" *ngFor="let p of projectCards; let i = index; trackBy: trackById"
-            [style.animation-delay]="((i + 1) * 0.05) + 's'" (click)="toggleProject(p)" [title]="p.description"
-            [class.selected]="p.id === selectedProjectId" [attr.aria-pressed]="p.id === selectedProjectId"
-            [attr.aria-label]="(p.id === selectedProjectId ? 'Selected project ' : 'Chat in project ') + p.name">
-            <span class="psc-project-band" [style.background]="projectGradient(p.id, i)">
-              <span class="psc-project-initials">{{ initials(p.name) }}</span>
-            </span>
-            <span class="psc-project-body">
-              <span class="psc-project-name">{{ p.name }}</span>
-              <span class="psc-project-meta">
-                <ng-container *ngIf="chatCounts[p.id]; else noChats"><lucide-icon name="message-square" [size]="11"></lucide-icon>{{ chatCounts[p.id] }} {{ chatCounts[p.id] === 1 ? 'chat' : 'chats' }}</ng-container>
-                <ng-template #noChats><lucide-icon name="clock" [size]="11"></lucide-icon>{{ p.updatedAt | date:'MMM d' }}</ng-template>
-              </span>
-            </span>
-            <span class="psc-project-check" *ngIf="p.id === selectedProjectId" aria-hidden="true">
-              <lucide-icon name="check" [size]="12"></lucide-icon>
-            </span>
-          </button>
-        </div>
-
+      <!-- Example prompts: fill the prompt bar so a new user can see what to ask -->
+      <div class="psc-examples" *ngIf="!conversationStarted && !projectMode" role="list" aria-label="Example prompts">
+        <button type="button" class="psc-example-pill" role="listitem" *ngFor="let ex of examplePrompts; let i = index"
+          [style.animation-delay]="(i * 0.05) + 's'" (click)="useExample(ex.text)" [title]="ex.text">
+          <lucide-icon [name]="ex.icon" [size]="14"></lucide-icon><span>{{ ex.label }}</span>
+        </button>
       </div>
+
     </section>
   </div>
 

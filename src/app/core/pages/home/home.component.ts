@@ -457,6 +457,21 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     ];
   }
 
+  /** Example prompts under the Home prompt bar (new chats outside a project). */
+  readonly examplePrompts = [
+    { icon: 'lightbulb', label: 'Brainstorm feature ideas', text: 'Help me brainstorm feature ideas to improve onboarding for new users of our product.' },
+    { icon: 'target', label: 'Define success metrics', text: 'What success metrics and KPIs should I track for a new self-serve checkout flow?' },
+    { icon: 'users', label: 'Understand user needs', text: 'What questions should I ask in customer interviews to understand why users churn in their first month?' },
+    { icon: 'list-checks', label: 'Prioritize the backlog', text: 'Help me prioritize these backlog items using RICE: search filters, dark mode, CSV export, SSO, and in-app notifications.' },
+    { icon: 'trending-up', label: 'Analyze a market', text: 'Give me a quick overview of the market for AI-powered project management tools: key players, trends and gaps.' }
+  ];
+
+  useExample(text: string): void {
+    this.promptText = text;
+    this.refineUndo = null;
+    this.focusPrompt(true);
+  }
+
   useStarter(s: { artifactId: string; prompt: string }): void {
     this.projectTab = 'chat';
     this.onArtifactChange(s.artifactId);
@@ -770,12 +785,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     return this.mockData.findProject(this.activeConversation?.projectId);
   }
 
-  /** Cards under the prompt: the selected project is always visible, then the most recent ones (3 in total). */
-  get projectCards(): Project[] {
-    const recent = this.projects.slice(0, 3);
-    const sel = this.selectedProject;
-    return sel && !recent.includes(sel) ? [sel, ...recent.slice(0, 2)] : recent;
-  }
 
 
   /** Project the knowledge picker is scoped to (the open chat's project, or the one selected for a new chat). */
@@ -992,11 +1001,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.focusPrompt(true);
   }
 
-  /** Project card click: select it, or clear it when it's already selected. */
-  toggleProject(project: Project): void {
-    this.selectProject(this.selectedProjectId === project.id ? null : project.id);
-  }
-
   openChat(c: Conversation): void {
     this.router.navigate(['/psc', 'home', c.artifactId, c.id]);
   }
@@ -1167,6 +1171,11 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
 
     // Unknown project in ?project= → drop it.
     const projectId = conversation ? conversation.projectId ?? null : state.projectId;
+    // Creating documents is project-only: a new chat outside a project is always plain chat (/psc/home).
+    if (!conversation && !projectId && artifactId && !isChatMode(artifactId)) {
+      this.router.navigate(['/psc', 'home'], { replaceUrl: true, queryParamsHandling: 'preserve' });
+      return;
+    }
     if (!conversation && projectId && !this.mockData.findProject(projectId)) {
       this.router.navigate([], { relativeTo: this.route, queryParams: { project: null, kickoff: null }, queryParamsHandling: 'merge', replaceUrl: true });
       return;
@@ -1206,6 +1215,8 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       this.selectedContextIds = [...conversation.contextIds];
       this.attachments = [...(conversation.attachments ?? [])];
     }
+    // Leaving a project on a new chat drops any document type picked there.
+    if (!conversation && !projectId) this.selectedArtifact = DEFAULT_ARTIFACT_ID;
 
     // "Use in chat" from Product Memory: ground the new chat in that item (on top of the project defaults).
     if (!conversation && contextId) {

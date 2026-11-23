@@ -38,17 +38,17 @@ export class PscOnboardingComponent implements OnInit {
 
   readonly setupSteps: SetupStep[] = [
     { kind: 'chat', icon: 'message-circle', title: 'Start with a conversation',
-      desc: 'Type anything into the prompt bar: a question, a rough idea or a problem. You don’t need a template. New chats start in Chat mode, so you just get a reply.' },
+      desc: 'Type anything into the prompt bar: a question, a rough idea or a problem. You don’t need a template. Home is for conversation, so you just get a reply.' },
     { kind: 'context', icon: 'layers', title: 'Ground it in your context',
       desc: 'Use + in the prompt bar to attach files or pull in Jira issues, Confluence pages, Azure DevOps items, product modules and Product Memory. Answers and drafts then use your real context.' },
     { kind: 'create', icon: 'sparkles', title: 'Turn it into a document',
-      desc: 'When you’re ready, open Chat in the prompt bar and pick a document type. Your next message drafts it from everything said so far.' },
+      desc: 'Documents are created inside a project. Open or start one, pick a document type from Mode in the prompt bar, and your next message drafts it from the project’s context and the chat so far.' },
     { kind: 'canvas', icon: 'file-text', title: 'Refine it on the canvas',
       desc: 'Each draft appears as a card in the chat. Open it to read, edit, compare versions and see its history, or keep asking for changes in the chat.' },
     { kind: 'share', icon: 'share-2', title: 'Share, export or push',
       desc: 'From the canvas toolbar, share a draft for review, publish it, or export it. Exports can go to a file or straight into your delivery tools.' },
     { kind: 'projects', icon: 'folder-open', title: 'Keep work together in projects',
-      desc: 'A project keeps its chats, documents, lifecycle and context in one place. Start one from the New project card under the prompt, or move any chat into a project later.' }
+      desc: 'A project keeps its chats, documents, lifecycle and context in one place. Start one from Projects in the sidebar, or pick one with the Project button in the prompt bar. Documents are created inside projects.' }
   ];
 
   /** What the Mode menu offers: Chat first, then a few of the documents it can create. */
