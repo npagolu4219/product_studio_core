@@ -202,6 +202,21 @@ export class PscMockDataService {
     return project;
   }
 
+  /** Updates a project in the shared store (and its persisted copy, if it was created in the app). */
+  updateProject(id: string, patch: Partial<Omit<Project, 'id'>>): Project | undefined {
+    const i = this.projects.findIndex(p => p.id === id);
+    if (i < 0) return undefined;
+    const project: Project = { ...this.projects[i], ...patch, updatedAt: new Date().toISOString().split('T')[0] };
+    this.projects[i] = project;
+    try {
+      const created: Project[] = JSON.parse(localStorage.getItem(this.createdKey) || '[]');
+      if (Array.isArray(created) && created.some(c => c.id === id)) {
+        localStorage.setItem(this.createdKey, JSON.stringify(created.map(c => (c.id === id ? project : c))));
+      }
+    } catch { /* keep in memory only */ }
+    return project;
+  }
+
   /** Synchronous lookup, for places that only need a project's name/visuals. */
   findProject(id: string | null | undefined): Project | undefined {
     return id ? this.projects.find(p => p.id === id) : undefined;

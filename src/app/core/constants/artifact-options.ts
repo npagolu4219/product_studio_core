@@ -26,7 +26,19 @@ export const ARTIFACT_OPTIONS: ArtifactOption[] = [
   { id: 'ideation', iconName: 'rocket', icon: '🚀', label: 'Ideation', shortLabel: 'Ideation' }
 ];
 
-export const DEFAULT_ARTIFACT_ID = 'prd';
+/** Plain conversation: Product Studio replies in chat and creates no document until the user picks one. */
+export const CHAT_ARTIFACT_ID = 'chat';
+export const CHAT_OPTION: ArtifactOption = { id: CHAT_ARTIFACT_ID, iconName: 'message-circle', icon: '💬', label: 'Chat', shortLabel: 'Chat' };
+
+/** What the Home prompt bar can do: just chat, or create one of the artifacts. */
+export const COMPOSER_OPTIONS: ArtifactOption[] = [CHAT_OPTION, ...ARTIFACT_OPTIONS];
+
+/** New chats start as a plain conversation — a first-time user shouldn't get a PRD for "hi". */
+export const DEFAULT_ARTIFACT_ID = CHAT_ARTIFACT_ID;
+
+export function isChatMode(id: string | null | undefined): boolean {
+  return id === CHAT_ARTIFACT_ID;
+}
 
 const ARTIFACT_TYPE_ALIASES: Record<string, Artifact['type']> = {
   market: 'market-research',
@@ -34,12 +46,12 @@ const ARTIFACT_TYPE_ALIASES: Record<string, Artifact['type']> = {
 };
 
 export function isArtifactOptionId(id: string | null | undefined): id is string {
-  return !!id && ARTIFACT_OPTIONS.some(option => option.id === id);
+  return !!id && COMPOSER_OPTIONS.some(option => option.id === id);
 }
 
 export function getArtifactOption(id: string | null | undefined): ArtifactOption | undefined {
   if (!id) return undefined;
-  return ARTIFACT_OPTIONS.find(option => option.id === id || toArtifactType(option.id) === id);
+  return COMPOSER_OPTIONS.find(option => option.id === id || toArtifactType(option.id) === id);
 }
 
 export function getArtifactLabel(id: string | null | undefined): string {

@@ -10,12 +10,16 @@ import { EvaluationCadence, PdlcMetric, PdlcPhaseId, Project, ProjectLifecycle, 
 import { EVALUATION_CADENCES, METRIC_SUGGESTIONS, PDLC_ORDER, PDLC_PHASES, REVIEW_WINDOWS, pdlcPhase } from '../../constants/pdlc';
 import { ProjectLifecycleService } from '../../services/project-lifecycle.service';
 import { CURRENT_USER } from '../../constants/current-user';
-import { initials, projectGradient } from '../../constants/project-visuals';
+import { PROJECT_COLORS, initials, projectGradient, setProjectColor } from '../../constants/project-visuals';
 import { ContextAttachment, ContextSourcesService } from '../../services/context-sources.service';
 import { ProductMemoryService } from '../../services/product-memory.service';
 import { SourceType } from '../../models/product-memory.models';
 
 type LinkType = 'jira' | 'confluence' | 'ado' | 'github' | 'sharepoint';
+
+/** New project flow: 1) create (title, description, Product Memory) → 2) optional setup of the new project. */
+type ModalPhase = 'create' | 'setup';
+type SetupSection = 'team' | 'integrations' | 'context' | 'lifecycle';
 
 /** A source linked in the wizard's Context step. */
 interface ContextLink { id: string; type: LinkType; value: string; }
@@ -23,6 +27,9 @@ interface ContextLink { id: string; type: LinkType; value: string; }
 interface NewProjectForm {
   name: string;
   description: string;
+  /** Index into PROJECT_COLORS; null = the automatic colour. */
+  colorIndex: number | null;
+  memoryAutoUpdate: boolean;
   team: string[];
   integrations: string[];
   /** Context step: what every chat in the project starts grounded in. */
@@ -57,13 +64,23 @@ export class ProjectHomeComponent implements OnInit, OnDestroy {
 
   // Modal state
   showModal = false;
-  currentStep = 0;
+  phase: ModalPhase = 'create';
   creating = false;
-  showSuccess = false;
-  private successTimer = 0;
+  /** The project made in the create step; setup edits it. */
+  created: Project | null = null;
+  /** Setup section currently expanded (one at a time). */
+  openSection: SetupSection | null = null;
+  colorMenuOpen = false;
   teamSearch = '';
 
-  readonly steps = ['Details', 'Integrations', 'Context', 'Lifecycle', 'Review'];
+  readonly descriptionMax = 1000;
+  readonly projectColors = PROJECT_COLORS;
+  readonly setupSections: { id: SetupSection; icon: string; title: string; desc: string }[] = [
+    { id: 'team', icon: 'users', title: 'Team', desc: 'Who works on this project' },
+    { id: 'integrations', icon: 'git-merge', title: 'Integrations', desc: 'Tools to sync, import from and publish to' },
+    { id: 'context', icon: 'layers', title: 'Context', desc: 'Brief, modules, linked sources and files every chat starts with' },
+    { id: 'lifecycle', icon: 'route', title: 'Lifecycle & evaluation', desc: 'Phases, where you start, and how success is measured' }
+  ];
 
   form: NewProjectForm = this.emptyForm();
 
@@ -304,7 +321,10 @@ export class ProjectHomeComponent implements OnInit, OnDestroy {
   // ── Modal lifecycle ──────────────────────────────────────────────────────
   openModal(): void {
     this.form = this.emptyForm();
-    this.currentStep = 0;
+    this.phase = 'create';
+    this.created = null;
+    this.openSection = null;
+    this.colorMenuOpen = false;
     this.teamSearch = '';
     this.moduleDraft = '';
     this.linkDraft = '';
@@ -313,9 +333,12 @@ export class ProjectHomeComponent implements OnInit, OnDestroy {
     document.body.style.overflow = 'hidden';
   }
 
+  /** Closing during setup keeps the project (it already exists) with whatever was set up so far left unsaved. */
   closeModal(): void {
     this.showModal = false;
+    this.colorMenuOpen = false;
     document.body.style.overflow = '';
+    this.projects = [...this.mockData.projects];
   }
 
   onBackdropClick(e: Event): void {
@@ -324,21 +347,98 @@ export class ProjectHomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ── Step navigation ──────────────────────────────────────────────────────
-  goToStep(i: number): void { this.currentStep = i; }
-
-  nextStep(): void {
-    if (this.currentStep < this.steps.length - 1) this.currentStep++;
+  // ── Step 1: create ───────────────────────────────────────────────────────
+  get canCreate(): boolean {
+    return !!this.form.name.trim() && !this.creating;
   }
 
-  prevStep(): void {
-    if (this.currentStep > 0) this.currentStep--;
+  get previewGradient(): string {
+    return this.form.colorIndex !== null ? PROJECT_COLORS[this.form.colorIndex] : PROJECT_COLORS[0];
   }
 
-  /** Details needs a name (≥3 chars) and description (≥10 chars); later steps are optional. */
-  canProceed(): boolean {
-    if (this.currentStep === 0) return this.form.name.trim().length >= 3 && this.form.description.trim().length >= 10;
-    return true;
+  pickColor(i: number | null): void {
+    this.form.colorIndex = i;
+    this.colorMenuOpen = false;
+  }
+
+  /** Creates the project straight away (title is all it needs), then moves on to optional setup. */
+  createProject(): void {
+    if (!this.canCreate) return;
+    this.creating = true;
+
+    setTimeout(() => {
+      const today = new Date().toISOString().split('T')[0];
+      const project = this.mockData.addProject({
+        name: this.form.name.trim(),
+        description: this.form.description.trim(),
+        status: 'active',
+        owner: CURRENT_USER.name,
+        team: [CURRENT_USER.name],
+        createdAt: today,
+        updatedAt: today,
+        tags: [],
+        progress: 0,
+        integrations: [],
+        aiAgents: 0,
+        artifacts: 0,
+        memoryAutoUpdate: this.form.memoryAutoUpdate
+      });
+      if (this.form.colorIndex !== null) setProjectColor(project.id, this.form.colorIndex);
+      // A usable default lifecycle from the start, so skipping setup still gives the project its phases.
+      this.saveLifecycle(project.id);
+
+      this.created = project;
+      this.projects = [...this.mockData.projects];
+      this.creating = false;
+      this.phase = 'setup';
+    }, 500);
+  }
+
+  // ── Step 2: set up the new project (all optional) ────────────────────────
+  toggleSection(id: SetupSection): void {
+    this.openSection = this.openSection === id ? null : id;
+  }
+
+  sectionSummary(id: SetupSection): string {
+    const f = this.form;
+    switch (id) {
+      case 'team': return f.team.length ? `${f.team.length} member${f.team.length === 1 ? '' : 's'}` : 'Just you';
+      case 'integrations': return f.integrations.length ? this.availableIntegrations.filter(i => f.integrations.includes(i.type)).map(i => i.name).join(', ') : 'None yet';
+      case 'context': return this.contextCount ? `${this.contextCount} item${this.contextCount === 1 ? '' : 's'}` : 'None yet';
+      case 'lifecycle': return `${this.lifecycleSummary} · ${f.lifecycle.metrics.length} metric${f.lifecycle.metrics.length === 1 ? '' : 's'}`;
+    }
+  }
+
+  sectionDone(id: SetupSection): boolean {
+    const f = this.form;
+    return id === 'team' ? f.team.length > 0 : id === 'integrations' ? f.integrations.length > 0 : id === 'context' ? this.contextCount > 0 : true;
+  }
+
+  /** Saves the setup choices to the project, then opens its first chat. */
+  finishSetup(): void {
+    const p = this.created;
+    if (!p) return;
+    this.mockData.updateProject(p.id, {
+      team: this.form.team.length ? [...new Set([CURRENT_USER.name, ...this.form.team])] : [CURRENT_USER.name],
+      integrations: [...this.form.integrations]
+    });
+    this.saveContext(p.id);
+    this.saveLifecycle(p.id);
+    this.openCreated(true);
+  }
+
+  /** Skip setup: the project already exists with a default lifecycle — go straight to it. */
+  skipSetup(): void {
+    this.openCreated(false);
+  }
+
+  /** Home, scoped to the new project. After setup, the prompt is pre-filled to draft the starting phase's first deliverable. */
+  private openCreated(kickoff: boolean): void {
+    const p = this.created;
+    this.closeModal();
+    if (!p) return;
+    const first = this.firstDeliverable.artifactId;
+    this.router.navigate(['/psc', 'home', ...(kickoff ? [first] : [])], { queryParams: { project: p.id, ...(kickoff ? { kickoff: 1 } : {}) } });
   }
 
   /** The first chat drafts the starting phase's first AI deliverable (e.g. Discover → market research, Define → goals). */
@@ -346,9 +446,6 @@ export class ProjectHomeComponent implements OnInit, OnDestroy {
     const d = pdlcPhase(this.form.lifecycle.current).deliverables.find(x => x.artifactId);
     return d ? { label: d.label, artifactId: d.artifactId! } : { label: 'a PRD', artifactId: 'prd' };
   }
-
-
-
 
   // ── Team ─────────────────────────────────────────────────────────────────
   isTeamSelected(name: string): boolean { return this.form.team.includes(name); }
@@ -374,45 +471,6 @@ export class ProjectHomeComponent implements OnInit, OnDestroy {
 
 
 
-  // ── Create ───────────────────────────────────────────────────────────────
-  createProject(): void {
-    if (!this.form.name.trim()) return;
-    this.creating = true;
-
-    setTimeout(() => {
-      const newProject = this.mockData.addProject({
-        name: this.form.name.trim(),
-        description: this.form.description.trim(),
-        status: 'active',
-        owner: CURRENT_USER.name,
-        team: this.form.team.length ? this.form.team : [CURRENT_USER.name],
-        createdAt: new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0],
-        tags: [],
-        progress: 0,
-        integrations: this.form.integrations,
-        aiAgents: 0,
-        artifacts: 0
-      });
-
-      this.saveContext(newProject.id);
-      this.saveLifecycle(newProject.id);
-
-      // Shared store (persisted), so the new project shows up on Home, Analytics etc.
-      this.projects = [...this.mockData.projects];
-      this.creating = false;
-      this.closeModal();
-      this.showSuccess = true;
-
-      // Land on Home with a chat scoped to the new project, ready to send — drafting the starting phase's first deliverable.
-      const firstChat = this.firstDeliverable.artifactId;
-      this.successTimer = window.setTimeout(() => {
-        this.showSuccess = false;
-        this.router.navigate(['/psc', 'home', firstChat], { queryParams: { project: newProject.id, kickoff: 1 } });
-      }, 2000);
-    }, 1200);
-  }
-
   /** "Open" a project → Home with the chat scoped to that project (its knowledge, its chats). */
   openProject(project: Project): void {
     this.router.navigate(['/psc', 'home'], { queryParams: { project: project.id } });
@@ -420,11 +478,11 @@ export class ProjectHomeComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
+    if (this.colorMenuOpen) { this.colorMenuOpen = false; return; }
     if (this.showModal && !this.creating) this.closeModal();
   }
 
   ngOnDestroy(): void {
-    window.clearTimeout(this.successTimer);
     document.body.style.overflow = '';
   }
 
@@ -435,7 +493,7 @@ export class ProjectHomeComponent implements OnInit, OnDestroy {
   private emptyForm(): NewProjectForm {
     this.metricDraft = { name: '', baseline: '', target: '' };
     return {
-      name: '', description: '', team: [], integrations: [], brief: '', modules: [], links: [], files: [],
+      name: '', description: '', colorIndex: null, memoryAutoUpdate: false, team: [], integrations: [], brief: '', modules: [], links: [], files: [],
       lifecycle: {
         phases: [...PDLC_ORDER],
         current: 'discover',

@@ -1,5 +1,6 @@
 <div class="psc-landing" role="dialog" aria-modal="false" aria-labelledby="onboarding-title">
 
+  <!-- Welcome -->
   <div class="land-welcome" *ngIf="setupStep === 0">
     <div class="land-orb land-orb--1"></div>
     <div class="land-orb land-orb--2"></div>
@@ -12,7 +13,7 @@
       </div>
       <div class="land-headline">
         <h1 id="onboarding-title">Welcome to <span class="land-brand">Product Studio</span></h1>
-        <p class="land-sub">Your AI-powered product development workspace. Generate PRDs, epics, user stories and competitive analyses — in seconds, not days.</p>
+        <p class="land-sub">Talk through an idea, then turn it into PRDs, epics, user stories, research and roadmaps grounded in your team’s context.</p>
       </div>
       <div class="land-caps-grid">
         <div class="land-cap-card" *ngFor="let c of capabilities; let i = index" [style.animation-delay]="(i * 0.07) + 's'">
@@ -26,131 +27,139 @@
       <div class="land-cta-row">
         <button type="button" class="land-btn-primary" (click)="startSetup()">
           <lucide-icon name="chevron-right" [size]="16"></lucide-icon>
-          Get Started
+          Show me around
         </button>
-        <button type="button" class="land-btn-ghost" (click)="skipSetup()">Skip setup — take me to the prompt</button>
+        <button type="button" class="land-btn-ghost" (click)="skipSetup()">Skip, take me to the prompt</button>
       </div>
       <div class="land-proof">
-        <div class="land-proof-stat"><span class="land-proof-val">340h</span><span class="land-proof-label">avg hours saved / project</span></div>
+        <div class="land-proof-stat"><span class="land-proof-val">{{ setupSteps.length }}</span><span class="land-proof-label">quick steps to get started</span></div>
         <div class="land-proof-divider"></div>
-        <div class="land-proof-stat"><span class="land-proof-val">98%</span><span class="land-proof-label">artifact accuracy rate</span></div>
+        <div class="land-proof-stat"><span class="land-proof-val">{{ documentTypeCount }}</span><span class="land-proof-label">document types</span></div>
         <div class="land-proof-divider"></div>
-        <div class="land-proof-stat"><span class="land-proof-val">6</span><span class="land-proof-label">specialised AI agents</span></div>
+        <div class="land-proof-stat"><span class="land-proof-val">{{ integrationCount }}</span><span class="land-proof-label">tool integrations</span></div>
         <div class="land-proof-divider"></div>
-        <div class="land-proof-stat"><span class="land-proof-val">7+</span><span class="land-proof-label">tool integrations</span></div>
+        <div class="land-proof-stat"><span class="land-proof-val">{{ exportCount }}</span><span class="land-proof-label">ways to export or push</span></div>
       </div>
     </div>
   </div>
 
-  <div class="land-setup" *ngIf="setupStep > 0">
+  <!-- Walkthrough -->
+  <div class="land-setup" *ngIf="setupStep > 0 && currentStep as s">
     <div class="land-orb land-orb--1"></div>
     <div class="land-orb land-orb--2"></div>
     <div class="land-setup-inner">
       <div class="land-progress-wrap">
         <div class="land-progress-track">
-          <div class="land-progress-fill" [style.width]="((setupStep - 1) / setupSteps.length * 100) + '%'"></div>
+          <div class="land-progress-fill" [style.width]="(setupStep / setupSteps.length * 100) + '%'"></div>
         </div>
         <span class="land-progress-label">Step {{ setupStep }} of {{ setupSteps.length }}</span>
       </div>
-      <div class="land-step-dots">
-        <div class="land-step-dot" *ngFor="let s of setupSteps; let i = index"
-             [class.active]="setupStep === i + 1" [class.done]="setupStep > i + 1">
+      <div class="land-step-dots" role="list" aria-label="Steps">
+        <div class="land-step-dot" role="listitem" *ngFor="let st of setupSteps; let i = index"
+             [class.active]="setupStep === i + 1" [class.done]="setupStep > i + 1" [title]="st.title"
+             [attr.aria-current]="setupStep === i + 1 ? 'step' : null">
           <lucide-icon *ngIf="setupStep > i + 1" name="check" [size]="10" color="white"></lucide-icon>
           <span *ngIf="setupStep <= i + 1">{{ i + 1 }}</span>
         </div>
       </div>
-      <div class="land-step-card" *ngFor="let s of setupSteps; let i = index" [class.visible]="setupStep === i + 1">
-        <ng-container *ngIf="setupStep === i + 1">
-          <div class="land-step-icon"><lucide-icon [name]="s.icon" [size]="28"></lucide-icon></div>
-          <h2 class="land-step-title">{{ s.title }}</h2>
-          <p class="land-step-desc">{{ s.desc }}</p>
-          <div class="land-step-preview" *ngIf="i === 0">
-            <div class="land-proj-preview">
-              <div class="land-proj-preview-bar" style="background:linear-gradient(135deg,#7C3AED,#2563EB)"></div>
-              <div class="land-proj-preview-body">
-                <div class="land-proj-preview-name">My First Project</div>
-                <div class="land-proj-preview-meta">AI-powered · 0 artifacts · 0% complete</div>
-              </div>
-              <div class="land-proj-preview-badge">Draft</div>
-            </div>
-            <p class="land-step-hint">Create and manage projects from the <strong>Projects</strong> section in the left nav.</p>
-          </div>
-          <div class="land-step-preview" *ngIf="i === 1">
-            <div class="land-agents-row">
-              <div class="land-agent-pill" *ngFor="let a of agents.slice(0,4)">
-                <div class="land-agent-pill-avatar">{{ a.avatar }}</div>
-                <div class="land-agent-pill-info">
-                  <span class="land-agent-pill-name">{{ a.name }}</span>
-                  <span class="land-agent-pill-role">{{ a.role }}</span>
-                </div>
-                <span class="land-agent-pill-status" [attr.data-status]="a.status">{{ a.status }}</span>
+
+      <!-- Re-created per step so each one animates in -->
+      <div class="land-step-card visible" aria-live="polite" *ngFor="let _ of [setupStep]">
+        <div class="land-step-icon"><lucide-icon [name]="s.icon" [size]="28"></lucide-icon></div>
+        <h2 class="land-step-title" id="onboarding-title">{{ s.title }}</h2>
+        <p class="land-step-desc">{{ s.desc }}</p>
+
+        <div class="land-step-preview" [ngSwitch]="s.kind">
+
+          <!-- 1. The Home prompt bar, as it first appears -->
+          <ng-container *ngSwitchCase="'chat'">
+            <div class="land-prompt-mock" aria-hidden="true">
+              <div class="land-prompt-text">Ask anything, or describe an idea you’re working on…</div>
+              <div class="land-prompt-row">
+                <span class="land-pm-btn land-pm-round"><lucide-icon name="plus" [size]="13"></lucide-icon></span>
+                <span class="land-pm-btn land-pm-on"><lucide-icon name="message-circle" [size]="13"></lucide-icon>Chat<lucide-icon name="chevron-down" [size]="11"></lucide-icon></span>
+                <span class="land-pm-btn"><lucide-icon name="folder-open" [size]="13"></lucide-icon>Project</span>
+                <span class="land-pm-spacer"></span>
+                <span class="land-pm-btn land-pm-round"><lucide-icon name="mic" [size]="13"></lucide-icon></span>
+                <span class="land-pm-btn land-pm-round land-pm-send"><lucide-icon name="arrow-up" [size]="13"></lucide-icon></span>
               </div>
             </div>
-            <p class="land-step-hint">Agents are pre-configured. Each agent picks up prompts that match its skills.</p>
-          </div>
-          <div class="land-step-preview" *ngIf="i === 2">
+            <p class="land-step-hint">Press <strong>Enter</strong> to send and <strong>Shift + Enter</strong> for a new line. Once you’ve typed something, <strong>Refine</strong> can tidy up your prompt.</p>
+          </ng-container>
+
+          <!-- 2. The + menu's sources -->
+          <ng-container *ngSwitchCase="'context'">
             <div class="land-int-grid">
-              <div class="land-int-chip"><lucide-icon name="trello" [size]="14"></lucide-icon><span>Jira</span><span class="land-int-status connected">Connected</span></div>
-              <div class="land-int-chip"><lucide-icon name="git-merge" [size]="14"></lucide-icon><span>Azure DevOps</span><span class="land-int-status connected">Connected</span></div>
-              <div class="land-int-chip"><lucide-icon name="github" [size]="14"></lucide-icon><span>GitHub</span><span class="land-int-status connected">Connected</span></div>
-              <div class="land-int-chip"><lucide-icon name="figma" [size]="14"></lucide-icon><span>Figma</span><span class="land-int-status disconnected">Not connected</span></div>
+              <div class="land-int-chip"><lucide-icon name="file-down" [size]="14"></lucide-icon><span>Files</span><span class="land-int-status connected">Ready</span></div>
+              <div class="land-int-chip"><lucide-icon name="brain-circuit" [size]="14"></lucide-icon><span>Product Memory</span><span class="land-int-status connected">Ready</span></div>
+              <div class="land-int-chip" *ngFor="let t of contextTools">
+                <lucide-icon [name]="integrationIcon(t.type)" [size]="14"></lucide-icon><span>{{ t.name }}</span>
+                <span class="land-int-status" [class.connected]="t.status === 'connected'" [class.disconnected]="t.status !== 'connected'">{{ t.status === 'connected' ? 'Connected' : 'Not connected' }}</span>
+              </div>
             </div>
-            <p class="land-step-hint">Manage integrations and field mappings from the <strong>Integrations</strong> page.</p>
-          </div>
-          <div class="land-step-preview" *ngIf="i === 3">
+            <p class="land-step-hint">Everything you add shows as a removable chip under the prompt. Connect more tools on the <strong>Integrations</strong> page.</p>
+          </ng-container>
+
+          <!-- 3. The Mode menu -->
+          <ng-container *ngSwitchCase="'create'">
+            <div class="land-template-grid">
+              <div class="land-template-chip" *ngFor="let o of modeOptions; let first = first" [class.land-chip-on]="first">
+                <lucide-icon [name]="o.iconName" [size]="14"></lucide-icon><span>{{ o.shortLabel }}</span>
+              </div>
+            </div>
+            <p class="land-step-hint">There are {{ documentTypeCount }} types, including features, acceptance criteria, competitor analysis, goals &amp; OKRs and scope. The button changes to <strong>Create · PRD</strong> (or whichever type you picked) so you always know what you’ll get.</p>
+          </ng-container>
+
+          <!-- 4. Canvas -->
+          <ng-container *ngSwitchCase="'canvas'">
             <div class="land-workspace-tour">
               <div class="land-tour-item">
-                <div class="land-tour-icon"><lucide-icon name="message-square" [size]="16"></lucide-icon></div>
-                <div class="land-tour-text">
-                  <span class="land-tour-label">Chat with agents</span>
-                  <span class="land-tour-hint">Type a prompt and an agent picks it up instantly.</span>
-                </div>
+                <div class="land-tour-icon"><lucide-icon name="pencil" [size]="16"></lucide-icon></div>
+                <div class="land-tour-text"><span class="land-tour-label">View &amp; Edit</span><span class="land-tour-hint">Read the draft or edit it directly.</span></div>
               </div>
               <div class="land-tour-item">
-                <div class="land-tour-icon"><lucide-icon name="timer" [size]="16"></lucide-icon></div>
-                <div class="land-tour-text">
-                  <span class="land-tour-label">Background jobs</span>
-                  <span class="land-tour-hint">Long-running tasks run in the background — no waiting.</span>
-                </div>
+                <div class="land-tour-icon"><lucide-icon name="history" [size]="16"></lucide-icon></div>
+                <div class="land-tour-text"><span class="land-tour-label">Compare &amp; History</span><span class="land-tour-hint">Every AI change is a new version you can compare or restore.</span></div>
               </div>
               <div class="land-tour-item">
-                <div class="land-tour-icon"><lucide-icon name="layers" [size]="16"></lucide-icon></div>
-                <div class="land-tour-text">
-                  <span class="land-tour-label">Artifact panel</span>
-                  <span class="land-tour-hint">All outputs appear here — editable, versioned and exportable.</span>
-                </div>
+                <div class="land-tour-icon"><lucide-icon name="wand-sparkles" [size]="16"></lucide-icon></div>
+                <div class="land-tour-text"><span class="land-tour-label">Ask AI to refine</span><span class="land-tour-hint">Ask for changes in the chat. The draft updates on the canvas.</span></div>
               </div>
             </div>
-            <p class="land-step-hint">Every prompt you send becomes a saved chat in the <strong>Chats</strong> panel.</p>
-          </div>
-          <div class="land-step-preview" *ngIf="i === 4">
-            <div class="land-template-grid">
-              <div class="land-template-chip"><lucide-icon name="clipboard-list" [size]="14"></lucide-icon><span>PRD</span></div>
-              <div class="land-template-chip"><lucide-icon name="layers" [size]="14"></lucide-icon><span>Epic</span></div>
-              <div class="land-template-chip"><lucide-icon name="sparkles" [size]="14"></lucide-icon><span>User Story</span></div>
-              <div class="land-template-chip"><lucide-icon name="search" [size]="14"></lucide-icon><span>Market Research</span></div>
-              <div class="land-template-chip"><lucide-icon name="target" [size]="14"></lucide-icon><span>OKR Planner</span></div>
-              <div class="land-template-chip"><lucide-icon name="swords" [size]="14"></lucide-icon><span>Competitive Analysis</span></div>
-            </div>
-            <p class="land-step-hint">Pick an artifact in the <strong>Create</strong> menu of the prompt bar, or use <strong>Quick Launch</strong>.</p>
-          </div>
-          <div class="land-step-preview" *ngIf="i === 5">
+            <p class="land-step-hint">Drag the divider to resize the chat and the canvas. Press <strong>Esc</strong> to close the canvas.</p>
+          </ng-container>
+
+          <!-- 5. Share / Publish / Export -->
+          <ng-container *ngSwitchCase="'share'">
             <div class="land-export-row">
-              <div class="land-export-chip"><lucide-icon name="trello" [size]="14"></lucide-icon><span>Push to Jira</span></div>
-              <div class="land-export-chip"><lucide-icon name="git-merge" [size]="14"></lucide-icon><span>Sync to ADO</span></div>
-              <div class="land-export-chip"><lucide-icon name="file-text" [size]="14"></lucide-icon><span>Export Markdown</span></div>
-              <div class="land-export-chip"><lucide-icon name="download" [size]="14"></lucide-icon><span>Download PDF</span></div>
+              <div class="land-export-chip" *ngFor="let e of exportOptions"><lucide-icon [name]="e.icon" [size]="14"></lucide-icon><span>{{ e.label }}</span></div>
             </div>
-            <p class="land-step-hint">Open any draft to view, edit, compare versions, then <strong>Share</strong>, <strong>Publish</strong> or <strong>Export</strong> it.</p>
-          </div>
-          <div class="land-step-actions">
-            <button type="button" class="land-btn-ghost land-btn-sm" (click)="skipSetup()">Skip all</button>
-            <button type="button" class="land-btn-primary" (click)="nextStep()">
-              {{ setupStep < setupSteps.length ? 'Next' : 'Start creating' }}
-              <lucide-icon name="chevron-right" [size]="14"></lucide-icon>
-            </button>
-          </div>
-        </ng-container>
+            <p class="land-step-hint"><strong>Share</strong> and <strong>Publish</strong> are on the canvas toolbar. <strong>Export</strong> is under <strong>More actions</strong> (⋯). Everything you create is also saved in the <strong>Repository</strong>.</p>
+          </ng-container>
+
+          <!-- 6. Project cards under the prompt -->
+          <ng-container *ngSwitchCase="'projects'">
+            <div class="land-proj-cards" aria-hidden="true">
+              <div class="land-proj-card land-proj-card--add"><lucide-icon name="plus" [size]="16"></lucide-icon><span>New project</span></div>
+              <div class="land-proj-card">
+                <span class="land-proj-card-av" style="background:linear-gradient(135deg,#7C3AED,#2563EB)">MP</span>
+                <span class="land-proj-card-body"><span class="land-proj-card-name">My first project</span><span class="land-proj-card-meta">0 chats</span></span>
+              </div>
+            </div>
+            <p class="land-step-hint">Your chats are listed in the sidebar under <strong>Chats</strong>, grouped by project. Drag a chat onto a project to move it, or press <strong>⌘K</strong> to search everything.</p>
+          </ng-container>
+        </div>
+
+        <div class="land-step-actions">
+          <button type="button" class="land-btn-ghost land-btn-sm" *ngIf="setupStep > 1" (click)="prevStep()">
+            <lucide-icon name="chevron-left" [size]="14"></lucide-icon>Back
+          </button>
+          <button type="button" class="land-btn-ghost land-btn-sm" (click)="skipSetup()">Skip</button>
+          <button type="button" class="land-btn-primary" (click)="nextStep()">
+            {{ setupStep < setupSteps.length ? 'Next' : 'Start chatting' }}
+            <lucide-icon name="chevron-right" [size]="14"></lucide-icon>
+          </button>
+        </div>
       </div>
     </div>
   </div>
