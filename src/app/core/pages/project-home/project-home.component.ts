@@ -361,7 +361,7 @@ export class ProjectHomeComponent implements OnInit, OnDestroy {
     this.colorMenuOpen = false;
   }
 
-  /** Creates the project straight away (title is all it needs), then moves on to optional setup. */
+  /** Creates the project from its title and description, then opens it. Team, tools, context and lifecycle are set up later inside the project. */
   createProject(): void {
     if (!this.canCreate) return;
     this.creating = true;
@@ -390,7 +390,8 @@ export class ProjectHomeComponent implements OnInit, OnDestroy {
       this.created = project;
       this.projects = [...this.mockData.projects];
       this.creating = false;
-      this.phase = 'setup';
+      // Straight into the project: its workspace opens on a new chat.
+      this.openCreated(false);
     }, 500);
   }
 

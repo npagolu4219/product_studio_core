@@ -7,7 +7,7 @@ import { combineLatest, map, of, switchMap } from 'rxjs';
 import { LucideAngularModule } from 'lucide-angular';
 import { PscMockDataService } from '../../services/psc-mock-data.service';
 import { ConversationService } from '../../services/conversation.service';
-import { AiMessage, Artifact, Conversation, PdlcPhaseId, Project, ProjectLifecycle } from '../../models/psc.models';
+import { AiMessage, Artifact, Conversation, PdlcPhaseId, Project, ProjectLifecycle, TeamMember } from '../../models/psc.models';
 import { PDLC_PHASES, PdlcDeliverable, PdlcPhase, pdlcPhase } from '../../constants/pdlc';
 import { ProjectLifecycleService } from '../../services/project-lifecycle.service';
 import { KnowledgeKind, KnowledgeRef } from '../../models/product-memory.models';
@@ -24,7 +24,6 @@ import { PscOnboardingComponent, hasSeenOnboarding } from '../../components/psc-
 import { initials, projectGradient } from '../../constants/project-visuals';
 import {
   COMPOSER_OPTIONS,
-  DEFAULT_ARTIFACT_ID,
   getArtifactIconName,
   getArtifactLabel,
   getArtifactOption,
@@ -32,10 +31,13 @@ import {
   isArtifactOptionId,
   isChatMode
 } from '../../constants/artifact-options';
+import { GOLDEN_WORKFLOWS, GoldenWorkflow, getWorkflow, workflowStepIndex, workflowSummary } from '../../constants/golden-workflows';
 
-type PromptMenu = 'project' | 'artifact' | 'context' | 'refine' | 'move';
+type PromptMenu = 'project' | 'artifact' | 'context' | 'refine' | 'move' | 'team';
+/** One row in the Golden workflow menu: chat only, a workflow, or a single document. */
+interface ModeEntry { kind: 'chat' | 'workflow' | 'doc'; id: string; label: string; desc?: string; icon: string; }
 /** Tabs in a project's header. The left panel holds only the chat history. */
-export type ProjectTab = 'chat' | 'lifecycle' | 'context' | 'documents';
+export type ProjectTab = 'chat' | 'context' | 'documents';
 /** A document drafted in one of the project's chats (latest version per chat + type). */
 interface ProjectDocument { artifact: Artifact; chat: Conversation; }
 /** Screen inside the Add context popover: the source list, or one source's picker. */
@@ -71,7 +73,7 @@ interface RouteState {
     PscOnboardingComponent
   ],
   templateUrl: './home.component.html',
-  styleUrls: ['./home.component.scss', './home-project-workspace.scss']
+  styleUrls: ['./home.component.scss', './home-project-workspace.scss', './home-prompt-bar.scss', './home-landing.scss']
 })
 export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   @ViewChild('messageList') private messageList?: ElementRef<HTMLElement>;
@@ -88,18 +90,145 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   messages: AiMessage[] = [];
   activeConversation: Conversation | null = null;
   promptText = '';
-  selectedArtifact = DEFAULT_ARTIFACT_ID;
+  /** New chats start on the first golden workflow's first document (there is no chat-only mode). */
+  selectedArtifact = GOLDEN_WORKFLOWS[0].steps[0];
   selectedContextIds: string[] = [];
   /** Project the current chat belongs to (null = not tied to a project). */
   selectedProjectId: string | null = null;
   isListening = false;
   isTyping = false;
-  voiceMessage = '';
+  /**
+   * Short status line under the prompt bar. Clears itself after 4 s, except the "choose a project" prompt,
+   * which stays until a project is picked.
+   */
+  private feedbackText = '';
+  private feedbackTimer = 0;
+  get voiceMessage(): string {
+    return this.feedbackText;
+  }
+  set voiceMessage(text: string) {
+    this.feedbackText = text;
+    window.clearTimeout(this.feedbackTimer);
+    if (text && !this.sendAfterProject) this.feedbackTimer = window.setTimeout(() => (this.feedbackText = ''), 4000);
+  }
+  /** Errors read as errors; everything else is a neutral note. */
+  get feedbackIsError(): boolean {
+    return /couldn’t|not supported/i.test(this.feedbackText);
+  }
   showOnboarding = !hasSeenOnboarding();
   isResizing = false;
 
   /** Chat first, then the documents it can create. */
   readonly artifactOptions = COMPOSER_OPTIONS;
+
+  // ── Golden workflow picker ──
+  /** Golden workflow the next message follows (null = chat only, or a single document). */
+  selectedWorkflowId: string | null = GOLDEN_WORKFLOWS[0].id;
+  readonly menuEntries: ModeEntry[] = [
+    ...GOLDEN_WORKFLOWS.map(w => ({ kind: 'workflow' as const, id: w.id, label: w.label, desc: workflowSummary(w), icon: w.icon })),
+    ...COMPOSER_OPTIONS.filter(o => !isChatMode(o.id)).map(o => ({ kind: 'doc' as const, id: o.id, label: o.label, icon: o.iconName }))
+  ];
+
+  get activeWorkflow(): GoldenWorkflow | undefined {
+    return getWorkflow(this.selectedWorkflowId);
+  }
+
+  /** 0-based step the next message drafts, in the active workflow. */
+  get workflowStep(): number {
+    const w = this.activeWorkflow;
+    return w ? Math.max(0, w.steps.indexOf(this.selectedArtifact)) : 0;
+  }
+
+  get pickerCaption(): string {
+    return this.activeWorkflow ? 'Golden workflow' : 'Single document';
+  }
+
+  get pickerValue(): string {
+    const w = this.activeWorkflow;
+    if (w) return `${w.label} · ${this.workflowStep + 1}/${w.steps.length}`;
+    return isChatMode(this.selectedArtifact) ? 'Chat only' : getArtifactShortLabel(this.selectedArtifact);
+  }
+
+  get pickerIcon(): string {
+    return this.activeWorkflow?.icon ?? getArtifactIconName(this.selectedArtifact);
+  }
+
+  get pickerTitle(): string {
+    const w = this.activeWorkflow;
+    if (w) return `${w.label}: ${workflowSummary(w)}. Next: ${getArtifactShortLabel(this.selectedArtifact)}`;
+    return isChatMode(this.selectedArtifact) ? 'Chat only. Pick a golden workflow to draft documents' : `Drafting a ${this.selectedArtifactLabel}`;
+  }
+
+  isEntrySelected(e: ModeEntry): boolean {
+    if (e.kind === 'workflow') return this.selectedWorkflowId === e.id;
+    return !this.selectedWorkflowId && this.selectedArtifact === e.id;
+  }
+
+  selectEntry(e: ModeEntry): void {
+    if (e.kind === 'workflow') this.selectWorkflow(e.id);
+    else this.selectArtifact(e.id);
+  }
+
+  selectWorkflow(id: string): void {
+    const w = getWorkflow(id);
+    if (!w) return;
+    this.selectedWorkflowId = id;
+    const c = this.activeConversation;
+    const step = c ? w.steps[workflowStepIndex(w, c.messages.flatMap(m => m.artifacts || []))] : w.steps[0];
+    if (c) this.conversations.setWorkflow(c.id, id);
+    this.onArtifactChange(step);
+    this.openMenu = null;
+    this.focusPrompt();
+  }
+
+  /**
+   * What a new chat drafts: the document in the URL (/psc/home/<id>), keeping the workflow when it's one of its steps,
+   * otherwise the default golden workflow. Chat-only is no longer offered.
+   */
+  private applyNewChatSelection(artifactId: string | null | undefined): void {
+    if (artifactId && !isChatMode(artifactId)) {
+      if (!this.activeWorkflow?.steps.includes(artifactId)) this.selectedWorkflowId = null;
+      this.selectedArtifact = artifactId;
+      return;
+    }
+    const def = GOLDEN_WORKFLOWS[0];
+    this.selectedWorkflowId = def.id;
+    this.selectedArtifact = def.steps[0];
+  }
+
+  /** Reply footer for a workflow step: what was drafted and what comes next. */
+  private workflowNote(): string | undefined {
+    const w = this.activeWorkflow;
+    const idx = w ? w.steps.indexOf(this.selectedArtifact) : -1;
+    if (!w || idx === -1) return undefined;
+    const drafted = new Set((this.activeConversation?.messages ?? []).flatMap(m => m.artifacts || []).map(a => getArtifactOption(a.type)?.id ?? a.type));
+    drafted.add(this.selectedArtifact);
+    const next = w.steps.find(s => !drafted.has(s));
+    return next
+      ? `**${w.label}** · step ${idx + 1} of ${w.steps.length}. Send your next message (even just “next”) to draft the **${getArtifactLabel(next).toLowerCase()}**.`
+      : `**${w.label}** · all ${w.steps.length} documents are drafted. Ask for changes to any of them here.`;
+  }
+
+  // ── Team collaboration: invite project members to this chat ──
+  private newChatCollaborators: string[] = [];
+
+  /** People who can be invited: the team from Integrations › Team Configurator (everyone but you). */
+  teamMembers: TeamMember[] = [];
+
+  get collaborators(): string[] {
+    return this.activeConversation ? this.activeConversation.collaborators ?? [] : this.newChatCollaborators;
+  }
+
+  isCollaborator(name: string): boolean {
+    return this.collaborators.includes(name);
+  }
+
+  toggleCollaborator(name: string): void {
+    const next = this.isCollaborator(name) ? this.collaborators.filter(n => n !== name) : [...this.collaborators, name];
+    if (this.activeConversation) this.conversations.setCollaborators(this.activeConversation.id, next);
+    else this.newChatCollaborators = next;
+    this.voiceMessage = next.includes(name) ? `${name} can now see and contribute to this chat.` : `${name} was removed from this chat.`;
+  }
   readonly isChatMode = isChatMode;
   readonly getArtifactIconName = getArtifactIconName;
   readonly getArtifactLabel = getArtifactLabel;
@@ -188,17 +317,18 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   /** Panel shown over the chat/canvas (from the rail or, on small screens, the header button). */
   panelOverlay = false;
 
+  /** Projects have no left chat-history panel: chats are listed in the main sidebar. */
   get panelDocked(): boolean {
-    return this.projectMode && this.projectPanelOpen && !this.canvasOpen;
+    return false;
   }
 
   get showProjectPanel(): boolean {
-    return this.projectMode && (this.panelDocked || this.panelOverlay);
+    return false;
   }
 
   /** Slim rail with the project's chats / lifecycle / context, whenever the panel isn't docked. */
   get showProjectRail(): boolean {
-    return this.projectMode && !this.panelDocked;
+    return false; // no slim rail in projects: reopen chats from the header button
   }
 
   toggleProjectPanel(): void {
@@ -216,14 +346,13 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     }
   }
 
-  // ── Project tabs: Chat · Lifecycle · Context · Documents ──
+  // ── Project tabs: Chat · Context · Documents ──
   projectTab: ProjectTab = 'chat';
 
   get projectTabs(): { id: ProjectTab; label: string; icon: string; badge?: string }[] {
     const docs = this.projectDocuments.length;
     return [
       { id: 'chat', label: 'Chat', icon: 'message-square' },
-      { id: 'lifecycle', label: 'Lifecycle', icon: this.lifecyclePhase?.icon ?? 'route', badge: this.workspaceLifecycle ? `${this.lifecycleIndex}/${this.lifecycleTrack.length}` : undefined },
       { id: 'context', label: 'Context', icon: 'layers', badge: this.contextCount ? String(this.contextCount) : undefined },
       { id: 'documents', label: 'Documents', icon: 'file-text', badge: docs ? String(docs) : undefined }
     ];
@@ -457,19 +586,9 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     ];
   }
 
-  /** Example prompts under the Home prompt bar (new chats outside a project). */
-  readonly examplePrompts = [
-    { icon: 'lightbulb', label: 'Brainstorm feature ideas', text: 'Help me brainstorm feature ideas to improve onboarding for new users of our product.' },
-    { icon: 'target', label: 'Define success metrics', text: 'What success metrics and KPIs should I track for a new self-serve checkout flow?' },
-    { icon: 'users', label: 'Understand user needs', text: 'What questions should I ask in customer interviews to understand why users churn in their first month?' },
-    { icon: 'list-checks', label: 'Prioritize the backlog', text: 'Help me prioritize these backlog items using RICE: search filters, dark mode, CSV export, SSO, and in-app notifications.' },
-    { icon: 'trending-up', label: 'Analyze a market', text: 'Give me a quick overview of the market for AI-powered project management tools: key players, trends and gaps.' }
-  ];
-
-  useExample(text: string): void {
-    this.promptText = text;
-    this.refineUndo = null;
-    this.focusPrompt(true);
+  /** The Home landing shows projects only; the prompt bar appears inside a project (or an older chat). */
+  get showComposer(): boolean {
+    return this.projectMode || this.conversationStarted;
   }
 
   useStarter(s: { artifactId: string; prompt: string }): void {
@@ -521,10 +640,22 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.mockData.getTeamMembers().pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(list => (this.teamMembers = list.filter(m => m.name !== CURRENT_USER.name)));
     this.conversations.conversations$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(list => {
       const counts: Record<string, number> = {};
-      for (const c of list) if (c.projectId) counts[c.projectId] = (counts[c.projectId] ?? 0) + 1;
+      const docs: Record<string, number> = {};
+      const active: Record<string, string> = {};
+      for (const c of list) {
+        if (!c.projectId) continue;
+        counts[c.projectId] = (counts[c.projectId] ?? 0) + 1;
+        // Documents: one per chat + type (versions don't count twice).
+        docs[c.projectId] = (docs[c.projectId] ?? 0) + new Set(c.messages.flatMap(m => (m.artifacts || []).map(a => a.type))).size;
+        if (!active[c.projectId] || c.updatedAt > active[c.projectId]) active[c.projectId] = c.updatedAt;
+      }
       this.chatCounts = counts;
+      this.docCounts = docs;
+      this.lastChatAt = active;
       this.allChats = list;
     });
 
@@ -554,6 +685,8 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    window.clearTimeout(this.autoRefineTimer);
+    window.clearTimeout(this.feedbackTimer);
     this.canvas.close();
   }
 
@@ -575,9 +708,9 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       this.knowledgeQuery = '';
       this.knowledgeFilter = 'all';
     }
-    if (this.openMenu === 'context' || this.openMenu === 'project') this.placePopover(menu === 'context' && this.projectMode ? '.psc-pp-context-anchor' : '.psc-prompt-composer');
+    if (this.openMenu === 'context' || this.openMenu === 'project' || this.openMenu === 'team' || this.openMenu === 'refine') this.placePopover(menu === 'context' && this.panelContextMenu ? '.psc-pp-context-anchor' : '.psc-prompt-composer');
     if (this.openMenu === 'artifact') {
-      this.artifactMenuIndex = Math.max(0, this.artifactOptions.findIndex(o => o.id === this.selectedArtifact));
+      this.artifactMenuIndex = Math.max(0, this.menuEntries.findIndex(e => this.isEntrySelected(e)));
       setTimeout(() => this.focusArtifactOption());
     }
     if (this.openMenu === 'refine') {
@@ -592,9 +725,14 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   /** Position of the context menu when opened from the project panel (fixed, so the panel's scroll can't clip it). */
   panelPopoverStyle: Record<string, string> | null = null;
 
+  /** The context menu is opened from the project's Context tab (otherwise from the prompt bar's Add Context). */
+  get panelContextMenu(): boolean {
+    return this.projectMode && this.projectTab === 'context';
+  }
+
   /** Keep the Context tab's menu attached to "Add" while the tab scrolls. */
   onPanelScroll(): void {
-    if (this.openMenu === 'context' && this.projectMode) this.placePopover('.psc-pp-context-anchor');
+    if (this.openMenu === 'context' && this.panelContextMenu) this.placePopover('.psc-pp-context-anchor');
   }
 
   private placePopover(anchor = '.psc-prompt-composer'): void {
@@ -657,6 +795,7 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   undoRefine(): void {
     if (!this.refineUndo) return;
+    this.autoRefineSkip = this.refineUndo.previous; // don't auto-refine straight back
     this.promptText = this.refineUndo.previous;
     this.refineUndo = null;
     this.focusPrompt(true);
@@ -667,6 +806,41 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.promptText = value;
     if (this.refineUndo && value !== this.refineUndo.refined) this.refineUndo = null;
     this.autoResizePrompt();
+    this.scheduleAutoRefine();
+  }
+
+  // ── Auto refine while typing: once you pause, the prompt is improved in place (Undo restores yours) ──
+  private autoRefineTimer = 0;
+  autoRefining = false;
+  /** Text we must not auto-refine again: the last result, or what Undo restored. */
+  private autoRefineSkip = '';
+
+  private scheduleAutoRefine(delayMs = 1000): void {
+    window.clearTimeout(this.autoRefineTimer);
+    const text = this.promptText.trim();
+    if (!this.autoRefine || text.length < 12 || this.isRefining || this.isTyping || text === this.autoRefineSkip.trim()) return;
+    this.autoRefineTimer = window.setTimeout(() => this.runAutoRefine(), delayMs);
+  }
+
+  private runAutoRefine(): void {
+    const previous = this.promptText;
+    const text = previous.trim();
+    if (!this.autoRefine || !text || this.isRefining || text === this.autoRefineSkip.trim()) return;
+    this.autoRefining = true;
+    this.refiner.refine(text, 'improve', { artifactId: this.selectedArtifact, contextNames: this.contextLabels })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: refined => {
+          this.autoRefining = false;
+          // Kept typing meanwhile (or sent it): leave their text alone; the next pause refines it.
+          if (this.promptText !== previous) return;
+          this.autoRefineSkip = refined;
+          this.promptText = refined;
+          this.refineUndo = { previous, refined, label: 'Auto refine' };
+          this.focusPrompt(true);
+        },
+        error: () => { this.autoRefining = false; }
+      });
   }
 
   /** Grows the prompt textarea with its content (capped in CSS via max-height), shrinks back when cleared. */
@@ -705,20 +879,25 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   selectArtifact(id: string): void {
+    // Chat only or a single document: leaves any golden workflow.
+    if (this.selectedWorkflowId) {
+      this.selectedWorkflowId = null;
+      if (this.activeConversation) this.conversations.setWorkflow(this.activeConversation.id, null);
+    }
     this.onArtifactChange(id);
     this.openMenu = null;
     this.focusPrompt();
   }
 
   onArtifactMenuKeydown(event: KeyboardEvent): void {
-    const last = this.artifactOptions.length - 1;
+    const last = this.menuEntries.length - 1;
     const keys: Record<string, () => void> = {
       ArrowDown: () => (this.artifactMenuIndex = this.artifactMenuIndex >= last ? 0 : this.artifactMenuIndex + 1),
       ArrowUp: () => (this.artifactMenuIndex = this.artifactMenuIndex <= 0 ? last : this.artifactMenuIndex - 1),
       Home: () => (this.artifactMenuIndex = 0),
       End: () => (this.artifactMenuIndex = last),
-      Enter: () => this.selectArtifact(this.artifactOptions[this.artifactMenuIndex].id),
-      ' ': () => this.selectArtifact(this.artifactOptions[this.artifactMenuIndex].id)
+      Enter: () => this.selectEntry(this.menuEntries[this.artifactMenuIndex]),
+      ' ': () => this.selectEntry(this.menuEntries[this.artifactMenuIndex])
     };
     const action = keys[event.key];
     if (!action) return;
@@ -774,6 +953,89 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   get totalProjects(): number {
     return this.mockData.projects.length;
+  }
+
+  // ── Home landing: summary and a searchable project grid ──
+  docCounts: Record<string, number> = {};
+  /** Latest chat activity per project (ISO). */
+  private lastChatAt: Record<string, string> = {};
+  landingQuery = '';
+  landingSort: 'recent' | 'name' | 'chats' = 'recent';
+  readonly landingSorts = [
+    { id: 'recent' as const, label: 'Recently active' },
+    { id: 'name' as const, label: 'Name (A–Z)' },
+    { id: 'chats' as const, label: 'Most chats' }
+  ];
+  readonly statusMeta: Record<Project['status'], { label: string; tone: string }> = {
+    active: { label: 'Active', tone: 'green' },
+    paused: { label: 'Paused', tone: 'amber' },
+    draft: { label: 'Draft', tone: 'gray' },
+    completed: { label: 'Completed', tone: 'blue' }
+  };
+
+  readonly todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+
+  /** Last activity: the newest of the project's own update and its chats. */
+  lastActive(p: Project): string {
+    const chat = this.lastChatAt[p.id];
+    return chat && chat > p.updatedAt ? chat : p.updatedAt;
+  }
+
+  get landingStats(): { projects: number; chats: number; docs: number } {
+    const ids = new Set(this.mockData.projects.map(p => p.id));
+    let chats = 0, docs = 0;
+    for (const id of ids) { chats += this.chatCounts[id] ?? 0; docs += this.docCounts[id] ?? 0; }
+    return { projects: ids.size, chats, docs };
+  }
+
+  get landingProjects(): Project[] {
+    const q = this.landingQuery.trim().toLowerCase();
+    const list = this.mockData.projects.filter(p =>
+      (!q || p.name.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q) || p.tags.some(t => t.toLowerCase().includes(q))));
+    const by = this.landingSort;
+    return list.sort((a, b) =>
+      by === 'name' ? a.name.localeCompare(b.name)
+        : by === 'chats' ? (this.chatCounts[b.id] ?? 0) - (this.chatCounts[a.id] ?? 0) || this.lastActive(b).localeCompare(this.lastActive(a))
+          : this.lastActive(b).localeCompare(this.lastActive(a)));
+  }
+
+  /** Latest chat in a project, for the card's Resume action. */
+  latestChat(p: Project): Conversation | undefined {
+    return this.allChats.filter(c => c.projectId === p.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+  }
+
+  projectPhase(p: Project): string | null {
+    const lc = this.lifecycles.get(p.id);
+    return lc ? pdlcPhase(lc.current).label : null;
+  }
+
+  clearLandingFilters(): void {
+    this.landingQuery = '';
+  }
+
+  /** "just now", "12 min ago", "3 h ago", "Yesterday", "4 days ago", "12 Nov". */
+  relativeTime(iso: string): string {
+    const t = new Date(iso.length <= 10 ? iso + 'T12:00:00' : iso).getTime();
+    const mins = Math.round((Date.now() - t) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins} min ago`;
+    const hours = Math.round(mins / 60);
+    if (hours < 24 && iso.length > 10) return `${hours} h ago`;
+    const days = Math.floor(mins / 1440);
+    if (days <= 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days} days ago`;
+    return new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  }
+
+  /** "/" jumps to the project search on the Home landing. */
+  @HostListener('document:keydown', ['$event'])
+  onSlash(e: KeyboardEvent): void {
+    if (e.key !== '/' || this.projectMode || this.conversationStarted) return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault();
+    this.homeRoot?.nativeElement.querySelector<HTMLInputElement>('#landing-search')?.focus();
   }
 
   get selectedProject(): Project | undefined {
@@ -996,7 +1258,16 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   /** Scope the new chat to a project (or clear it). Reflected in the URL as ?project=<id>. */
   selectProject(id: string | null): void {
     this.openMenu = null;
-    if (this.activeConversation) return; // a chat's project is fixed once it has started
+    if (!id) return; // every chat belongs to a project
+    if (this.activeConversation) {
+      // An older chat without a project: file it under the one picked, then send what was typed.
+      if (!this.activeConversation.projectId) {
+        this.organizer.move(this.activeConversation.id, id);
+        if (this.sendAfterProject) setTimeout(() => this.sendPrompt());
+      }
+      return;
+    }
+    if (this.sendAfterProject) this.carryContext = { contextIds: [...this.selectedContextIds], attachments: [...this.attachments] };
     this.router.navigate([], { relativeTo: this.route, queryParams: { project: id }, queryParamsHandling: 'merge', replaceUrl: true });
     this.focusPrompt(true);
   }
@@ -1005,7 +1276,13 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.router.navigate(['/psc', 'home', c.artifactId, c.id]);
   }
 
-  /** Opens the New Project wizard on the Projects page. */
+  /** Open a project's workspace: its chat history on the left, a new chat ready on the right. */
+  openProject(p: Project): void {
+    this.sendAfterProject = false;
+    this.router.navigate(['/psc', 'home'], { queryParams: { project: p.id } });
+  }
+
+  /** Opens the New Project form on the Projects page. */
   newProject(): void {
     this.router.navigate(['/psc', 'projects'], { queryParams: { new: 1 } });
   }
@@ -1028,16 +1305,24 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   // ── Resizable chat panel (canvas mode) ──
+  /** Chat share of the width while the preview is open: 20% chat · 80% preview by default (drag to adjust, 15–50%). */
+  chatPct = 20;
+
+  private setChatPct(pct: number): void {
+    this.chatPct = Math.min(50, Math.max(15, Math.round(pct * 10) / 10));
+  }
+
   startResize(event: MouseEvent): void {
     event.preventDefault();
-    this.dragStart = { x: event.clientX, width: this.canvas.layout().chatWidth };
+    this.dragStart = { x: event.clientX, width: this.chatPct };
     this.isResizing = true;
   }
 
   @HostListener('document:mousemove', ['$event'])
   onResize(event: MouseEvent): void {
     if (!this.dragStart) return;
-    this.canvas.setChatWidth(this.dragStart.width + event.clientX - this.dragStart.x);
+    const total = this.homeRoot?.nativeElement.getBoundingClientRect().width || window.innerWidth;
+    this.setChatPct(this.dragStart.width + ((event.clientX - this.dragStart.x) / total) * 100);
   }
 
   @HostListener('document:mouseup')
@@ -1045,12 +1330,11 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     if (!this.dragStart) return;
     this.dragStart = null;
     this.isResizing = false;
-    this.canvas.setChatWidth(this.canvas.layout().chatWidth, true);
   }
 
   /** Keyboard resize for the drag handle (←/→). */
   nudgeChatWidth(delta: number): void {
-    this.canvas.setChatWidth(this.canvas.layout().chatWidth + delta, true);
+    this.setChatPct(this.chatPct + delta);
   }
 
   toggleContext(id: string, checked: boolean): void {
@@ -1082,15 +1366,63 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     recognition.start();
   }
 
+  /** Auto refine: improve every prompt before it's sent (remembered per browser). */
+  autoRefine = (() => { try { return localStorage.getItem('psc.prompt.auto-refine') === '1'; } catch { return false; } })();
+
+  toggleAutoRefine(): void {
+    this.autoRefine = !this.autoRefine;
+    try { localStorage.setItem('psc.prompt.auto-refine', this.autoRefine ? '1' : '0'); } catch { /* ignore */ }
+    this.voiceMessage = this.autoRefine ? 'Auto refine is on. Your prompt is improved when you pause typing.' : 'Auto refine is off.';
+    if (this.autoRefine) this.scheduleAutoRefine(300);
+    else window.clearTimeout(this.autoRefineTimer);
+  }
+
+  /** Set when Send was pressed without a project: the prompt is sent once one is picked. */
+  sendAfterProject = false;
+  private carryContext: { contextIds: string[]; attachments: ContextAttachment[] } | null = null;
+
   sendPrompt(): void {
     const prompt = this.promptText.trim();
     if (!prompt || this.isTyping || this.isRefining) return;
+
+    // Every chat belongs to a project: ask for one first, then send.
+    const hasProject = this.activeConversation ? !!this.activeConversation.projectId : !!this.selectedProjectId;
+    if (!hasProject) {
+      this.sendAfterProject = true;
+      this.voiceMessage = 'Choose a project for this chat. Your message is sent as soon as you pick one.';
+      if (this.openMenu !== 'project') this.toggleMenu('project');
+      return;
+    }
+    this.sendAfterProject = false;
+
+    // Auto refine: improve the prompt first (unless it was just refined), then send it.
+    window.clearTimeout(this.autoRefineTimer);
+    if (this.autoRefine && this.refineUndo?.refined !== this.promptText && this.promptText.trim() !== this.autoRefineSkip.trim()) {
+      this.isRefining = true;
+      this.refiner.refine(prompt, 'improve', { artifactId: this.selectedArtifact, contextNames: this.contextLabels })
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: refined => {
+            this.isRefining = false;
+            this.promptText = refined;
+            this.refineUndo = { previous: prompt, refined, label: 'Auto refine' };
+            this.sendPrompt();
+          },
+          error: () => {
+            this.isRefining = false;
+            this.promptText = prompt;
+            this.refineUndo = { previous: prompt, refined: prompt, label: 'Auto refine' };
+            this.sendPrompt();
+          }
+        });
+      return;
+    }
 
     const contextNames = this.contextLabels;
     const lc = this.workspaceLifecycle;
     // Only when the chat keeps its lifecycle context (the PM can remove it).
     const lifecycle = lc && this.attachments.some(a => a.kind === 'pdlc') ? this.lifecycles.summary(lc) : undefined;
-    const options = { artifactId: this.selectedArtifact, contextNames, lifecycle };
+    const options = { artifactId: this.selectedArtifact, contextNames, lifecycle, workflowNote: this.workflowNote() };
 
     this.clearPrompt();
     this.refineUndo = null;
@@ -1107,8 +1439,11 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       ...options,
       contextIds: this.selectedContextIds,
       attachments: this.attachments,
-      projectId: this.selectedProjectId ?? undefined
+      projectId: this.selectedProjectId ?? undefined,
+      workflowId: this.selectedWorkflowId ?? undefined,
+      collaborators: this.newChatCollaborators
     });
+    this.newChatCollaborators = [];
     this.router.navigate(['/psc', 'home', conversation.artifactId, conversation.id]);
   }
 
@@ -1171,11 +1506,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
 
     // Unknown project in ?project= → drop it.
     const projectId = conversation ? conversation.projectId ?? null : state.projectId;
-    // Creating documents is project-only: a new chat outside a project is always plain chat (/psc/home).
-    if (!conversation && !projectId && artifactId && !isChatMode(artifactId)) {
-      this.router.navigate(['/psc', 'home'], { replaceUrl: true, queryParamsHandling: 'preserve' });
-      return;
-    }
     if (!conversation && projectId && !this.mockData.findProject(projectId)) {
       this.router.navigate([], { relativeTo: this.route, queryParams: { project: null, kickoff: null }, queryParamsHandling: 'merge', replaceUrl: true });
       return;
@@ -1199,24 +1529,31 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       this.refineUndo = null;
       this.autoResizePrompt();
       this.voiceMessage = '';
+      this.newChatCollaborators = [];
+      this.selectedWorkflowId = conversation?.workflowId ?? null;
       if (conversation) {
         this.selectedArtifact = conversation.artifactId;
         this.selectedContextIds = [...conversation.contextIds];
         this.attachments = [...(conversation.attachments ?? [])];
       } else {
-        this.selectedArtifact = artifactId || DEFAULT_ARTIFACT_ID;
+        this.applyNewChatSelection(artifactId);
         this.resetContextSelection();
       }
     } else if (!conversation) {
-      if (artifactId) this.selectedArtifact = artifactId;
-      if (projectChanged) this.resetContextSelection();
+      this.applyNewChatSelection(artifactId);
+      if (projectChanged) { this.resetContextSelection(); this.newChatCollaborators = []; }
     } else if (projectChanged) {
       // The open chat was moved into (or out of) a project: pick up its new context.
       this.selectedContextIds = [...conversation.contextIds];
       this.attachments = [...(conversation.attachments ?? [])];
     }
-    // Leaving a project on a new chat drops any document type picked there.
-    if (!conversation && !projectId) this.selectedArtifact = DEFAULT_ARTIFACT_ID;
+
+    // Golden workflow chats: the next message drafts the first step without a draft yet.
+    const wf = getWorkflow(conversation?.workflowId);
+    if (conversation && wf && !pending) {
+      this.selectedWorkflowId = wf.id;
+      this.selectedArtifact = wf.steps[workflowStepIndex(wf, conversation.messages.flatMap(m => m.artifacts || []))];
+    }
 
     // "Use in chat" from Product Memory: ground the new chat in that item (on top of the project defaults).
     if (!conversation && contextId) {
@@ -1233,6 +1570,17 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       this.refineUndo = null;
       this.focusPrompt(true);
       this.router.navigate([], { relativeTo: this.route, queryParams: { prompt: null }, queryParamsHandling: 'merge', replaceUrl: true });
+    }
+
+    // Send was pressed before a project was picked: keep what was added on Home, then send it in the project.
+    if (!conversation && this.sendAfterProject && this.selectedProjectId) {
+      const carry = this.carryContext;
+      this.carryContext = null;
+      if (carry) {
+        this.selectedContextIds = [...new Set([...this.selectedContextIds, ...carry.contextIds])];
+        this.attachments = [...this.attachments, ...carry.attachments.filter(a => !this.attachments.some(x => x.id === a.id))];
+      }
+      setTimeout(() => this.sendPrompt());
     }
 
     // Arriving from the New Project wizard: pre-fill a first prompt for the project, ready to send.
@@ -1258,6 +1606,17 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
         this.seenArtifactIds = new Set(all.map(a => a.id));
         this.router.navigate([], { relativeTo: this.route, queryParams: { artifact: newer.id }, queryParamsHandling: 'merge', replaceUrl: true });
         this.canvas.showToast('success', `Updated to v${newer.version} by the AI — see what changed in Compare`);
+        return;
+      }
+    }
+    // A reply just drafted a document → open it in the preview straight away.
+    // (The reply lands while the chat is still marked pending, so don't wait for pending to clear.)
+    if (conversation && !openArtifactId && !switched) {
+      const fresh = conversation.messages.flatMap(m => m.artifacts || []).filter(a => !this.seenArtifactIds.has(a.id));
+      const latest = fresh[fresh.length - 1];
+      if (latest) {
+        this.seenArtifactIds = new Set(conversation.messages.flatMap(m => (m.artifacts || []).map(a => a.id)));
+        this.router.navigate([], { relativeTo: this.route, queryParams: { artifact: latest.id }, queryParamsHandling: 'merge', replaceUrl: true });
         return;
       }
     }

@@ -299,9 +299,6 @@
     <div class="psc-chat-menu-empty" *ngIf="!chatMenuTargets.length">No matching project</div>
   </div>
   <div class="psc-chat-menu-sep"></div>
-  <button type="button" role="menuitem" class="psc-chat-menu-item" *ngIf="m.conv.projectId" (click)="moveChat(m.conv, null)">
-    <lucide-icon name="folder-output" [size]="14"></lucide-icon><span class="psc-chat-menu-label">Remove from project</span>
-  </button>
   <button type="button" role="menuitem" class="psc-chat-menu-item danger" (click)="deleteConversation(m.conv, $event); closeChatMenu()">
     <lucide-icon name="trash-2" [size]="14"></lucide-icon><span class="psc-chat-menu-label">Delete chat</span>
   </button>

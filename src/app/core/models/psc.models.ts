@@ -191,6 +191,10 @@ export interface Conversation {
   contextIds: string[];
   /** Jira / Confluence / Azure DevOps / module / file context added via "Add context". */
   attachments?: ContextAttachment[];
+  /** Golden workflow this chat follows (each message drafts its next document). */
+  workflowId?: string;
+  /** Project members invited to collaborate on this chat. */
+  collaborators?: string[];
   messages: AiMessage[];
   createdAt: string;
   updatedAt: string;

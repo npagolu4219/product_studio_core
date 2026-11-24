@@ -1547,7 +1547,7 @@ $brand-grad:     var(--psc-gradient-brand);
 }
 
 // Footer: step dots · Cancel/Skip · primary
-.np-foot { display: flex; align-items: center; gap: 10px; margin-top: 22px; }
+.np-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 22px; }
 .np-dots { display: flex; align-items: center; gap: 6px; margin-right: auto; }
 .np-dots span { width: 8px; height: 8px; background: $border-strong; border-radius: $radius-full; transition: width .2s; }
 .np-dots span.on { width: 24px; background: $text-1; }

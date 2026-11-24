@@ -30,7 +30,8 @@ export class ChatOrganizerService {
 
   move(conversationId: string, projectId: string | null): void {
     const c = this.conversations.getConversation(conversationId);
-    if (!c || (c.projectId ?? null) === projectId) return;
+    // Every chat belongs to a project: it can move between projects but not out of one.
+    if (!c || !projectId || (c.projectId ?? null) === projectId) return;
     const before = { projectId: c.projectId ?? null, contextIds: [...c.contextIds], attachments: [...(c.attachments ?? [])] };
     const project = this.data.findProject(projectId);
 

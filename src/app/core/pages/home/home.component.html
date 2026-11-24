@@ -2,109 +2,35 @@
 <app-psc-onboarding *ngIf="onboardingVisible" (completed)="completeOnboarding()"></app-psc-onboarding>
 
 <main #homeRoot class="psc-home psc-animate-in" *ngIf="!onboardingVisible"
-  [class.has-conversation]="conversationStarted" [class.docked]="docked" [class.project-mode]="projectMode" [class.panel-open]="panelDocked" [class.with-rail]="showProjectRail" [class.with-canvas]="canvasOpen" [class.resizing]="isResizing">
+  [class.has-conversation]="conversationStarted" [class.docked]="docked" [class.project-mode]="projectMode" [class.panel-open]="panelDocked" [class.with-rail]="showProjectRail" [class.with-canvas]="canvasOpen" [class.resizing]="isResizing" [class.is-landing]="!conversationStarted && !projectMode">
 
-  <!-- Project rail: the chat panel collapsed (while a document is open, or when hidden) -->
-  <nav class="psc-project-rail" *ngIf="showProjectRail && workspaceProject as wp" aria-label="Project chats">
-    <button type="button" class="psc-pr-av" [style.background]="projectGradient(wp.id, 0)" (click)="openProjectPanel()" [title]="wp.name + ': show chats'" [attr.aria-label]="'Show ' + wp.name + ' chats'">{{ initials(wp.name) }}</button>
-    <button type="button" class="psc-pr-btn" (click)="openProjectPanel()" title="Show chats" aria-label="Show chat history" [attr.aria-expanded]="showProjectPanel">
-      <lucide-icon name="panel-left-open" [size]="17"></lucide-icon>
-    </button>
-    <span class="psc-pr-sep" aria-hidden="true"></span>
-    <button type="button" class="psc-pr-btn" (click)="startNewConversation()" title="New chat in project" aria-label="New chat in project">
-      <lucide-icon name="square-pen" [size]="17"></lucide-icon>
-    </button>
-    <button type="button" class="psc-pr-btn" (click)="openProjectPanel()" [title]="workspaceChats.length + ' chats in ' + wp.name" [attr.aria-label]="'Chats (' + workspaceChats.length + ')'">
-      <lucide-icon name="message-square" [size]="17"></lucide-icon><span class="psc-pr-badge" *ngIf="workspaceChats.length">{{ workspaceChats.length }}</span>
-    </button>
-  </nav>
-
-  <!-- Project chat history (only chats; lifecycle, context and documents are tabs in the header) -->
-  <aside class="psc-project-panel" *ngIf="showProjectPanel && workspaceProject as wp" [class.overlay]="panelOverlay" aria-label="Project chat history">
-    <div class="psc-pp-head">
-      <span class="psc-mini-av psc-mini-av--lg" [style.background]="projectGradient(wp.id, 0)">{{ initials(wp.name) }}</span>
-      <span class="psc-pp-head-text">
-        <span class="psc-pp-name" [title]="wp.name">{{ wp.name }}</span>
-        <small>{{ workspaceChats.length }} {{ workspaceChats.length === 1 ? 'chat' : 'chats' }}</small>
-      </span>
-      <button type="button" class="psc-pp-icon" (click)="toggleProjectPanel()" [attr.aria-label]="panelOverlay ? 'Close chat history' : 'Hide chat history'" [title]="panelOverlay ? 'Close' : 'Collapse panel'">
-        <lucide-icon name="panel-left-close" [size]="16"></lucide-icon>
-      </button>
-    </div>
-
-    <button type="button" class="psc-pp-new" (click)="startNewConversation(); closeMenus()" [class.current]="!activeConversation">
-      <lucide-icon name="square-pen" [size]="15"></lucide-icon>New chat
-    </button>
-
-    <label class="psc-pp-search" *ngIf="workspaceChats.length > 3 || chatQuery">
-      <lucide-icon name="search" [size]="14"></lucide-icon>
-      <span class="psc-sr-only">Search chats</span>
-      <input type="search" [(ngModel)]="chatQuery" placeholder="Search chats" (keydown.escape)="chatQuery = ''" />
-      <button type="button" *ngIf="chatQuery" (click)="chatQuery = ''" aria-label="Clear search"><lucide-icon name="x" [size]="12"></lucide-icon></button>
-    </label>
-
-    <div class="psc-pp-history">
-      <section class="psc-pp-section" *ngFor="let g of chatGroups; trackBy: trackByLabel" [attr.aria-label]="g.label">
-        <div class="psc-pp-title">{{ g.label }}</div>
-        <div class="psc-pp-chat-row" *ngFor="let c of g.chats; trackBy: trackById" [class.active]="c.id === activeConversation?.id"
-          [class.editing]="renamingChatId === c.id || confirmDeleteChatId === c.id">
-
-          <!-- Rename in place -->
-          <div class="psc-pp-rename" *ngIf="renamingChatId === c.id; else chatOrConfirm">
-            <input [id]="'pp-rename-' + c.id" [(ngModel)]="renameDraft" maxlength="80" aria-label="Chat name"
-              (keydown.enter)="commitRenameChat()" (keydown.escape)="cancelChatEdit()" (blur)="commitRenameChat()" />
-          </div>
-
-          <ng-template #chatOrConfirm>
-            <!-- Confirm delete -->
-            <div class="psc-pp-confirm" *ngIf="confirmDeleteChatId === c.id; else chatItem" role="alertdialog" [attr.aria-label]="'Delete ' + c.title + '?'">
-              <span>Delete this chat?</span>
-              <button type="button" class="danger" (click)="deleteChat(c, $event)">Delete</button>
-              <button type="button" (click)="cancelChatEdit()">Cancel</button>
-            </div>
-          </ng-template>
-
-          <ng-template #chatItem>
-            <button type="button" class="psc-pp-chat" (click)="openWorkspaceChat(c)" (dblclick)="startRenameChat(c, $event)"
-              [class.active]="c.id === activeConversation?.id" [attr.aria-current]="c.id === activeConversation?.id ? 'page' : null" [title]="c.title">
-              <lucide-icon [name]="getArtifactIconName(c.artifactId)" [size]="14"></lucide-icon>
-              <span class="psc-pp-chat-text">
-                <span class="psc-pp-chat-title">{{ c.title }}</span>
-                <small>{{ getArtifactShortLabel(c.artifactId) }} · {{ c.updatedAt | date:'MMM d' }}</small>
-              </span>
-            </button>
-            <span class="psc-pp-chat-actions">
-              <button type="button" (click)="startRenameChat(c, $event)" [attr.aria-label]="'Rename ' + c.title" title="Rename"><lucide-icon name="pencil" [size]="13"></lucide-icon></button>
-              <button type="button" (click)="askDeleteChat(c, $event)" [attr.aria-label]="'Delete ' + c.title" title="Delete"><lucide-icon name="trash-2" [size]="13"></lucide-icon></button>
-            </span>
-          </ng-template>
-        </div>
-      </section>
-      <p class="psc-pp-empty" *ngIf="!workspaceChats.length">No chats yet. Ask anything to start the first one.</p>
-      <p class="psc-pp-empty" *ngIf="workspaceChats.length && !chatGroups.length">No chats match “{{ chatQuery }}”.</p>
-    </div>
-
-    <div class="psc-pp-foot">
-      <a [routerLink]="['/psc', 'projects']"><lucide-icon name="folder-open" [size]="13"></lucide-icon>All projects</a>
-      <button type="button" (click)="leaveProject()"><lucide-icon name="log-out" [size]="13"></lucide-icon>Leave project</button>
-    </div>
-  </aside>
-  <div class="psc-pp-backdrop" *ngIf="showProjectPanel" [class.overlay]="panelOverlay" (click)="toggleProjectPanel()" aria-hidden="true"></div>
+  <!-- Landing backdrop (decorative): soft aurora glow and a fading dot grid -->
+  <div class="psc-landing-bg" *ngIf="!conversationStarted && !projectMode" aria-hidden="true">
+    <span class="psc-aurora psc-aurora--1"></span>
+    <span class="psc-aurora psc-aurora--2"></span>
+    <span class="psc-aurora psc-aurora--3"></span>
+    <span class="psc-landing-grid"></span>
+  </div>
 
   <!-- Chat column (full width, or left pane when the canvas is open) -->
   <div class="psc-chat-column" [class.collapsed]="canvasOpen && canvas.layout().chatCollapsed"
-    [style.width.px]="canvasOpen ? canvas.layout().chatWidth : null">
+    [style.width.%]="canvasOpen ? chatPct : null">
     <section class="psc-prompt-workspace" [class.in-conversation]="conversationStarted" [class.docked]="docked" aria-labelledby="prompt-title">
-      <header class="psc-prompt-heading" *ngIf="!conversationStarted && !projectMode">
+      <header class="psc-prompt-heading psc-landing-head" *ngIf="!conversationStarted && !projectMode">
+        <span class="psc-landing-date">{{ todayLabel }}</span>
         <h1 id="prompt-title">{{ greeting }}, <span class="psc-greeting-name">{{ userName }}</span>{{ ' ' }}<span class="psc-wave" aria-hidden="true">👋</span></h1>
-        <p *ngIf="!selectedProject">Start a conversation about anything you’re working on. When you’re ready, turn it into a PRD, epic, roadmap or research.</p>
-        <p *ngIf="selectedProject as sp">Working in <strong>{{ sp.name }}</strong> — I’ll use its context, and everything you create is saved to this project.</p>
+        <p>Open a project to continue its chats, or start a new one. Every chat and document lives in a project.</p>
+        <ul class="psc-landing-stats" aria-label="Your workspace">
+          <li><lucide-icon name="folder-open" [size]="14"></lucide-icon><strong>{{ landingStats.projects }}</strong> {{ landingStats.projects === 1 ? 'project' : 'projects' }}</li>
+          <li><lucide-icon name="message-square" [size]="14"></lucide-icon><strong>{{ landingStats.chats }}</strong> {{ landingStats.chats === 1 ? 'chat' : 'chats' }}</li>
+          <li><lucide-icon name="file-text" [size]="14"></lucide-icon><strong>{{ landingStats.docs }}</strong> {{ landingStats.docs === 1 ? 'document' : 'documents' }}</li>
+        </ul>
       </header>
 
       <!-- Project workspace header: project name, this chat, what to create; tabs underneath -->
       <header class="psc-pw-head" *ngIf="projectMode && workspaceProject as wp">
-        <button type="button" class="psc-pp-icon psc-pw-panel-btn" *ngIf="!showProjectPanel" (click)="openProjectPanel()" aria-label="Show chat history" title="Chats">
-          <lucide-icon name="panel-left-open" [size]="17"></lucide-icon>
+        <button type="button" class="psc-pp-icon psc-pw-panel-btn" (click)="leaveProject()" aria-label="Back to all projects" title="All projects">
+          <lucide-icon name="arrow-left" [size]="17"></lucide-icon>
         </button>
         <div class="psc-pw-titles">
           <h1 id="prompt-title" class="psc-pw-project">{{ wp.name }}</h1>
@@ -115,68 +41,12 @@
         </button>
       </header>
       <nav class="psc-pw-tabs" *ngIf="projectMode" role="tablist" aria-label="Project">
-        <button type="button" role="tab" class="psc-pw-tab" *ngFor="let t of projectTabs; let i = index; trackBy: trackById" [id]="'pw-tab-' + t.id"
+        <button type="button" role="tab" class="psc-pw-tab" [attr.title]="t.label" *ngFor="let t of projectTabs; let i = index; trackBy: trackById" [id]="'pw-tab-' + t.id"
           [attr.aria-selected]="projectTab === t.id" [attr.aria-controls]="'pw-panel-' + t.id" [tabindex]="projectTab === t.id ? 0 : -1"
           [class.active]="projectTab === t.id" (click)="setProjectTab(t.id)" (keydown)="onTabKeydown($event, i)">
-          <lucide-icon [name]="t.icon" [size]="14"></lucide-icon>{{ t.label }}<span class="psc-pw-tab-badge" *ngIf="t.badge">{{ t.badge }}</span>
+          <lucide-icon [name]="t.icon" [size]="14"></lucide-icon><span class="psc-pw-tab-label">{{ t.label }}</span><span class="psc-pw-tab-badge" *ngIf="t.badge">{{ t.badge }}</span>
         </button>
       </nav>
-
-      <!-- Lifecycle tab: end-to-end PDLC — where the project is, its exit gate, deliverables, and how it's evaluated -->
-      <div class="psc-pw-tabpanel" id="pw-panel-lifecycle" role="tabpanel" aria-labelledby="pw-tab-lifecycle" *ngIf="projectMode && projectTab === 'lifecycle'">
-        <ng-container *ngIf="workspaceLifecycle as lc; else noLifecycle">
-          <section class="psc-pw-card psc-pp-lifecycle" aria-labelledby="pp-lifecycle">
-      <h2 class="psc-pw-card-title" id="pp-lifecycle">Lifecycle <span>Phase {{ lifecycleIndex }} of {{ lifecycleTrack.length }}</span></h2>
-      <ol class="psc-pl-track" aria-label="Lifecycle phases">
-        <li *ngFor="let t of lifecycleTrack; trackBy: trackById" [attr.data-state]="t.state" [title]="t.label + (t.state === 'done' ? ' — done' : t.state === 'current' ? ' — current phase' : '') + (targetFor(t.id) ? ' · target ' + (targetFor(t.id) | date:'MMM d') : '')">
-          <span class="psc-pl-dot"><lucide-icon [name]="t.state === 'done' ? 'check' : t.icon" [size]="11"></lucide-icon></span>
-          <span class="psc-pl-label">{{ t.label }}</span>
-        </li>
-      </ol>
-      <div class="psc-pl-now" *ngIf="lifecyclePhase as ph">
-        <div class="psc-pl-now-head">
-          <span class="psc-pl-now-icon"><lucide-icon [name]="ph.icon" [size]="14"></lucide-icon></span>
-          <span class="psc-pl-now-text"><strong>{{ ph.label }}</strong><small>{{ ph.summary }}{{ targetFor(ph.id) ? ' · due ' + (targetFor(ph.id) | date:'MMM d') : '' }}</small></span>
-        </div>
-        <div class="psc-pl-deliverables">
-          <ng-container *ngFor="let d of ph.deliverables">
-            <button type="button" *ngIf="d.artifactId; else trackedOnly" (click)="startDeliverable(d)" [title]="'Draft ' + d.label + ' in a new chat'">
-              <lucide-icon [name]="getArtifactIconName(d.artifactId)" [size]="12"></lucide-icon>{{ d.label }}
-            </button>
-            <ng-template #trackedOnly><span title="Tracked in your tools">{{ d.label }}</span></ng-template>
-          </ng-container>
-        </div>
-        <div class="psc-pl-gate"><lucide-icon name="flag" [size]="12"></lucide-icon><span><b>Exit gate:</b> {{ ph.gate }}</span></div>
-        <button type="button" class="psc-pl-advance" *ngIf="nextPhase as np" (click)="advancePhase()">
-          <lucide-icon name="circle-check" [size]="13"></lucide-icon>Gate met — move to {{ np.label }}
-        </button>
-        <div class="psc-pl-iterate" *ngIf="!nextPhase">
-          <span>Iterate:</span>
-          <button type="button" *ngFor="let t of lifecycleTrack.slice(0, -1).slice(0, 3)" (click)="restartFrom(t.id)">{{ t.label }}</button>
-        </div>
-        <p class="psc-pl-note" *ngIf="lifecycleNote" role="status">{{ lifecycleNote }}</p>
-      </div>
-
-      <div class="psc-pl-eval">
-        <div class="psc-pl-eval-head"><lucide-icon name="chart-line" [size]="13"></lucide-icon>Evaluation<small>{{ lc.evaluation.cadence === 'biweekly' ? 'every 2 weeks' : lc.evaluation.cadence }} · {{ lc.evaluation.reviewAfterDays }}-day review</small></div>
-        <div class="psc-pl-metric" *ngFor="let m of lc.evaluation.metrics.slice(0, 4); trackBy: trackById" [title]="m.name + ': ' + (m.baseline ? m.baseline + ' → ' : '') + m.target">
-          <span>{{ m.name }}</span><b>{{ m.baseline ? m.baseline + ' → ' : '' }}{{ m.target }}</b>
-        </div>
-        <p class="psc-pp-empty" *ngIf="!lc.evaluation.metrics.length">No success metrics yet.</p>
-        <p class="psc-pl-criteria" *ngIf="lc.evaluation.criteria">{{ lc.evaluation.criteria }}</p>
-      </div>
-    </section>
-
-        </ng-container>
-        <ng-template #noLifecycle>
-          <div class="psc-pw-card psc-pw-blank">
-            <lucide-icon name="route" [size]="22"></lucide-icon>
-            <h2>No lifecycle yet</h2>
-            <p>Plan phases, exit gates and success metrics so every chat knows where the project stands.</p>
-            <a class="psc-pw-blank-btn" [routerLink]="['/psc', 'projects']">Set it up in Projects</a>
-          </div>
-        </ng-template>
-      </div>
 
       <!-- Context tab: what every chat in this project is grounded in -->
       <div class="psc-pw-tabpanel" id="pw-panel-context" role="tabpanel" aria-labelledby="pw-tab-context" *ngIf="projectMode && projectTab === 'context'" (scroll)="onPanelScroll()">
@@ -299,7 +169,8 @@
         </div>
       </div>
 
-      <div class="psc-prompt-composer" [class.psc-tab-hidden]="otherTabOpen" (click)="$event.stopPropagation()">
+      <!-- The prompt bar lives in projects (and older chats); the Home landing shows projects only -->
+      <div class="psc-prompt-composer" *ngIf="showComposer" [class.psc-tab-hidden]="otherTabOpen" (click)="$event.stopPropagation()">
         <div class="psc-prompt-input" [class.refining]="isRefining">
           <label class="psc-sr-only" for="product-prompt">Describe your product requirement</label>
           <textarea id="product-prompt" #promptInput [ngModel]="promptText" (ngModelChange)="onPromptChange($event)"
@@ -307,18 +178,14 @@
             [readonly]="isRefining" [attr.aria-busy]="isRefining" aria-describedby="refine-status"
             [placeholder]="conversationStarted ? (projectMode ? 'Reply or ask for changes…' : 'Reply, ask for changes, or pick another artifact…') : promptPlaceholder"></textarea>
 
-          <!-- Refine prompt (top-right) -->
-          <button type="button" class="psc-refine-btn" *ngIf="promptText.trim() || isRefining" (click)="toggleMenu('refine', $event)" [disabled]="!canRefine"
-            aria-haspopup="menu" [attr.aria-expanded]="openMenu === 'refine'" aria-controls="refine-menu"
-            [attr.aria-label]="isRefining ? 'Refining prompt' : 'Refine prompt'"
-            [title]="promptText.trim() ? 'Refine prompt' : 'Type a prompt to refine it'">
-            <lucide-icon [name]="isRefining ? 'loader' : 'wand-sparkles'" [size]="15" [class.psc-spin]="isRefining"></lucide-icon>
-            <span class="psc-refine-btn-label">{{ isRefining ? 'Refining…' : 'Refine' }}</span>
-          </button>
         </div>
 
-        <div class="psc-refine-note" id="refine-status" role="status" aria-live="polite" [class.visible]="refineUndo && !isRefining">
-          <ng-container *ngIf="refineUndo && !isRefining">
+        <div class="psc-refine-note" id="refine-status" role="status" aria-live="polite" [class.visible]="(refineUndo && !isRefining) || autoRefining" [class.working]="autoRefining">
+          <ng-container *ngIf="autoRefining">
+            <lucide-icon name="loader" [size]="13" class="psc-spin"></lucide-icon>
+            <span>Auto refine · improving your prompt…</span>
+          </ng-container>
+          <ng-container *ngIf="refineUndo && !isRefining && !autoRefining">
             <lucide-icon name="check-circle" [size]="13"></lucide-icon>
             <span>Prompt refined · {{ refineUndo.label }}</span>
             <button type="button" class="psc-refine-undo" (click)="undoRefine()">
@@ -341,30 +208,41 @@
         <div class="psc-prompt-controls">
           <div class="psc-prompt-selectors">
             <!-- Add: files, integrations, product modules, knowledge base -->
-            <button type="button" class="psc-chip-btn psc-context-btn" *ngIf="!projectMode" (click)="toggleMenu('context', $event)"
+            <button type="button" class="psc-chip-btn psc-context-btn" (click)="toggleMenu('context', $event)"
               aria-haspopup="dialog" [attr.aria-expanded]="openMenu === 'context'" aria-controls="context-menu"
               [attr.aria-label]="'Add files or context, ' + contextCount + ' added'" title="Add files or context: Jira, Confluence, Azure DevOps, modules, the knowledge base">
               <lucide-icon name="plus" [size]="15"></lucide-icon>
-              <span class="psc-chip-label" *ngIf="contextCount">Context</span>
+              <span class="psc-chip-label">Add Context</span>
               <span class="psc-context-count" *ngIf="contextCount">{{ contextCount }}</span>
             </button>
 
-            <!-- Mode (projects only): chat, or a document to create. Outside a project, Home is plain chat. -->
-            <button type="button" class="psc-picker psc-picker--artifact" *ngIf="projectMode" (click)="toggleMenu('artifact', $event)"
+            <!-- Team collaboration: invite project members to this chat -->
+            <button type="button" class="psc-chip-btn psc-team-btn" *ngIf="projectMode" (click)="toggleMenu('team', $event)"
+              aria-haspopup="dialog" [attr.aria-expanded]="openMenu === 'team'" aria-controls="team-menu"
+              [attr.aria-label]="'Team collaboration, ' + collaborators.length + ' invited'" title="Team collaboration: invite people to this chat">
+              <span class="psc-team-stack" *ngIf="collaborators.length; else teamIcon">
+                <span class="psc-team-av" *ngFor="let n of collaborators.slice(0, 3)" [title]="n">{{ initials(n) }}</span>
+              </span>
+              <ng-template #teamIcon><lucide-icon name="users" [size]="15"></lucide-icon></ng-template>
+              <span class="psc-chip-label">Team Collaboration</span>
+              <span class="psc-context-count" *ngIf="collaborators.length > 3">+{{ collaborators.length - 3 }}</span>
+            </button>
+
+            <!-- Golden workflow: chat only, a standard sequence of documents, or one document -->
+            <button type="button" class="psc-picker psc-picker--artifact" (click)="toggleMenu('artifact', $event)"
               aria-haspopup="listbox" [attr.aria-expanded]="openMenu === 'artifact'" aria-controls="artifact-menu"
-              [class.is-chat]="isChatMode(selectedArtifact)"
-              [attr.aria-label]="isChatMode(selectedArtifact) ? 'Mode: chat. Choose a document to create' : 'Creating: ' + selectedArtifactLabel"
-              [title]="isChatMode(selectedArtifact) ? 'Just chatting — pick a document type to create one' : 'Creating a ' + selectedArtifactLabel">
-              <span class="psc-picker-icon"><lucide-icon [name]="getArtifactIconName(selectedArtifact)" [size]="15"></lucide-icon></span>
+              [class.is-chat]="!activeWorkflow && isChatMode(selectedArtifact)"
+              [attr.aria-label]="'Golden workflow: ' + pickerValue" [title]="pickerTitle">
+              <span class="psc-picker-icon"><lucide-icon [name]="pickerIcon" [size]="15"></lucide-icon></span>
               <span class="psc-picker-text">
-                <span class="psc-picker-caption" *ngIf="!isChatMode(selectedArtifact)">Create</span>
-                <span class="psc-picker-value">{{ isChatMode(selectedArtifact) ? 'Chat' : getArtifactShortLabel(selectedArtifact) }}</span>
+                <span class="psc-picker-caption">{{ pickerCaption }}</span>
+                <span class="psc-picker-value">{{ pickerValue }}</span>
               </span>
               <lucide-icon class="psc-picker-chevron" name="chevron-down" [size]="14"></lucide-icon>
             </button>
 
-            <!-- Project (new chats only — a chat's project is fixed once started) -->
-            <button type="button" class="psc-chip-btn psc-project-chip" *ngIf="!activeConversation && !projectMode" [class.set]="selectedProject"
+            <!-- Project (Home only): every chat belongs to one, so sending asks for it if none is picked -->
+            <button type="button" class="psc-chip-btn psc-project-chip" *ngIf="!projectMode" [class.set]="selectedProject"
               (click)="toggleMenu('project', $event)" aria-haspopup="listbox" [attr.aria-expanded]="openMenu === 'project'" aria-controls="project-menu"
               [attr.aria-label]="'Project: ' + (selectedProject?.name || 'none')" [title]="selectedProject ? 'Project: ' + selectedProject.name : 'Add to a project'">
               <span class="psc-mini-av" *ngIf="selectedProject as sp" [style.background]="projectGradient(sp.id, 0)">{{ initials(sp.name) }}</span>
@@ -372,18 +250,25 @@
               <span class="psc-chip-label">{{ selectedProject?.name || 'Project' }}</span>
               <lucide-icon *ngIf="!selectedProject" class="psc-chip-plus" name="plus" [size]="13"></lucide-icon>
             </button>
-            <!-- Inside a project the composer keeps a quick file attach (its context lives in the panel) -->
-            <button type="button" class="psc-icon-btn psc-attach-btn" *ngIf="projectMode" (click)="pickFiles($event)" aria-label="Attach a file as context" title="Attach a file">
-              <lucide-icon name="paperclip" [size]="17"></lucide-icon>
-            </button>
             <input #fileInput type="file" multiple hidden accept=".pdf,.doc,.docx,.md,.txt,.csv,.xlsx,.pptx,.json,.png,.jpg"
               (change)="onFilesPicked($event)" aria-hidden="true" tabindex="-1" />
           </div>
 
           <div class="psc-prompt-actions">
-            <button type="button" class="psc-icon-btn psc-voice-button" [class.listening]="isListening" (click)="startVoiceInput()"
-              [attr.aria-label]="isListening ? 'Listening for voice input' : 'Start voice input'" [attr.title]="isListening ? 'Listening…' : 'Voice input'">
-              <lucide-icon [name]="isListening ? 'audio-lines' : 'mic'" [size]="17"></lucide-icon>
+            <!-- Auto refine: every prompt is improved before it's sent -->
+            <button type="button" class="psc-auto-refine" role="switch" [attr.aria-checked]="autoRefine" [class.on]="autoRefine" (click)="toggleAutoRefine()"
+              [title]="autoRefine ? 'Auto refine is on: your prompt is improved when you pause typing' : 'Auto refine is off'">
+              <span class="psc-auto-refine-track" aria-hidden="true"><span></span></span>
+              <span class="psc-chip-label">{{ autoRefining ? 'Refining…' : 'Auto refine' }}</span>
+            </button>
+            <!-- Refine: rewrite the prompt (dropdown of refine styles) -->
+            <button type="button" class="psc-chip-btn psc-refine-chip" (click)="toggleMenu('refine', $event)" [disabled]="!canRefine"
+              aria-haspopup="menu" [attr.aria-expanded]="openMenu === 'refine'" aria-controls="refine-menu"
+              [attr.aria-label]="isRefining ? 'Refining prompt' : 'Refine prompt'"
+              [title]="promptText.trim() ? 'Refine prompt' : 'Type a prompt to refine it'">
+              <lucide-icon [name]="isRefining ? 'loader' : 'wand-sparkles'" [size]="15" [class.psc-spin]="isRefining"></lucide-icon>
+              <span class="psc-chip-label">{{ isRefining ? 'Refining…' : 'Refine' }}</span>
+              <lucide-icon class="psc-picker-chevron" name="chevron-down" [size]="13"></lucide-icon>
             </button>
             <button type="button" class="psc-start-button" [disabled]="!promptText.trim() || isTyping || isRefining" (click)="sendPrompt()" aria-label="Send prompt" title="Send (Enter)">
               <lucide-icon [name]="isTyping ? 'loader' : 'arrow-up'" [size]="18" [class.psc-spin]="isTyping"></lucide-icon>
@@ -392,8 +277,8 @@
         </div>
 
         <!-- Popovers (anchored to the composer so they fit any screen width) -->
-        <ng-container *ngIf="projectMode"><ng-container *ngTemplateOutlet="artifactMenuTpl"></ng-container></ng-container>
-        <div class="psc-popover psc-popover--refine" id="refine-menu" *ngIf="openMenu === 'refine'"
+        <ng-container *ngTemplateOutlet="artifactMenuTpl"></ng-container>
+        <div class="psc-popover psc-popover--refine" id="refine-menu" [class.psc-popover--up]="popoverUp" *ngIf="openMenu === 'refine'"
           role="menu" aria-label="Refine prompt" (keydown)="onRefineMenuKeydown($event)">
           <div class="psc-popover-title">Refine prompt <span>for {{ selectedArtifactLabel }}</span></div>
           <button type="button" class="psc-popover-option" *ngFor="let option of refineOptions; let i = index"
@@ -404,15 +289,22 @@
           </button>
         </div>
 
-        <ng-container *ngIf="!projectMode"><ng-container *ngTemplateOutlet="contextMenuTpl"></ng-container></ng-container>
+        <ng-container *ngIf="!projectMode || projectTab === 'chat'"><ng-container *ngTemplateOutlet="contextMenuTpl"></ng-container></ng-container>
+
+        <div class="psc-popover psc-popover--team" id="team-menu" [class.psc-popover--up]="popoverUp" [style.max-height.px]="popoverMaxHeight"
+          *ngIf="openMenu === 'team'" role="dialog" aria-label="Team collaboration">
+          <div class="psc-popover-title">Team collaboration <span>{{ activeConversation ? 'invite people to this chat' : 'invite people to the new chat' }}</span></div>
+          <button type="button" class="psc-popover-option" role="menuitemcheckbox" *ngFor="let m of teamMembers; trackBy: trackById" [attr.aria-checked]="isCollaborator(m.name)"
+            [class.selected]="isCollaborator(m.name)" (click)="toggleCollaborator(m.name)">
+            <span class="psc-team-av psc-team-av--lg">{{ m.avatar }}</span>
+            <span class="psc-popover-option-label">{{ m.name }}<small>{{ m.role }} · {{ isCollaborator(m.name) ? 'Invited' : m.availability + '% available' }}</small></span>
+            <lucide-icon *ngIf="isCollaborator(m.name)" class="psc-popover-check" name="check" [size]="15"></lucide-icon>
+          </button>
+          <p class="psc-team-empty" *ngIf="!teamMembers.length">No team members yet. Add people in <a routerLink="/psc/integrations">Integrations › Team Configurator</a>.</p>
+        </div>
 
         <div class="psc-popover psc-popover--project" id="project-menu" [class.psc-popover--up]="popoverUp" [style.max-height.px]="popoverMaxHeight" *ngIf="openMenu === 'project'" role="listbox" aria-label="Project">
-          <div class="psc-popover-title">Project <span>scopes context &amp; saves artifacts</span></div>
-          <button type="button" class="psc-popover-option" role="option" [attr.aria-selected]="!selectedProjectId" [class.selected]="!selectedProjectId" (click)="selectProject(null)">
-            <span class="psc-popover-option-icon"><lucide-icon name="message-square" [size]="14"></lucide-icon></span>
-            <span class="psc-popover-option-label">No project<small>A general chat</small></span>
-            <lucide-icon *ngIf="!selectedProjectId" class="psc-popover-check" name="check" [size]="15"></lucide-icon>
-          </button>
+          <div class="psc-popover-title">{{ sendAfterProject ? 'Choose a project for this chat' : 'Project' }} <span>every chat is saved to a project</span></div>
           <button type="button" class="psc-popover-option" role="option" *ngFor="let p of projects; let i = index; trackBy: trackById"
             [attr.aria-selected]="p.id === selectedProjectId" [class.selected]="p.id === selectedProjectId" (click)="selectProject(p.id)">
             <span class="psc-mini-av psc-mini-av--lg" [style.background]="projectGradient(p.id, i)">{{ initials(p.name) }}</span>
@@ -425,27 +317,92 @@
           </button>
         </div>
 
-        <div class="psc-prompt-feedback" aria-live="polite" *ngIf="voiceMessage || isListening">
-          {{ isListening ? 'Listening…' : voiceMessage }}
+        <div class="psc-prompt-feedback" aria-live="polite" *ngIf="voiceMessage || isListening" [class.is-error]="feedbackIsError">
+          <lucide-icon [name]="feedbackIsError ? 'circle-alert' : 'info'" [size]="12"></lucide-icon>{{ isListening ? 'Listening…' : voiceMessage }}
         </div>
       </div>
 
-      <!-- Example prompts: fill the prompt bar so a new user can see what to ask -->
-      <div class="psc-examples" *ngIf="!conversationStarted && !projectMode" role="list" aria-label="Example prompts">
-        <button type="button" class="psc-example-pill" role="listitem" *ngFor="let ex of examplePrompts; let i = index"
-          [style.animation-delay]="(i * 0.05) + 's'" (click)="useExample(ex.text)" [title]="ex.text">
-          <lucide-icon [name]="ex.icon" [size]="14"></lucide-icon><span>{{ ex.label }}</span>
-        </button>
-      </div>
+      <!-- Home landing: find or create a project -->
+      <div class="psc-landing" *ngIf="!conversationStarted && !projectMode">
 
+        <!-- Separator between the greeting and the projects -->
+        <div class="psc-l-sep" role="separator"><span class="psc-l-sep-dot"></span></div>
+
+        <!-- Toolbar: search, sort, new -->
+        <div class="psc-l-toolbar">
+          <h2 class="psc-l-title">Your projects<span class="psc-l-count">{{ landingProjects.length }}</span></h2>
+          <div class="psc-l-search">
+            <lucide-icon name="search" [size]="15"></lucide-icon>
+            <label class="psc-sr-only" for="landing-search">Search projects</label>
+            <input id="landing-search" type="search" [(ngModel)]="landingQuery" placeholder="Search projects" autocomplete="off" (keydown.escape)="landingQuery = ''">
+            <kbd *ngIf="!landingQuery" aria-hidden="true">/</kbd>
+          </div>
+          <label class="psc-sr-only" for="landing-sort">Sort projects</label>
+          <select id="landing-sort" class="psc-l-sort" [(ngModel)]="landingSort">
+            <option *ngFor="let o of landingSorts" [value]="o.id">{{ o.label }}</option>
+          </select>
+          <span class="psc-l-vsep" aria-hidden="true"></span>
+          <button type="button" class="psc-l-btn psc-l-btn--primary psc-l-new" (click)="newProject()">
+            <lucide-icon name="plus" [size]="15"></lucide-icon>New project
+          </button>
+        </div>
+
+        <!-- Project cards -->
+        <div class="psc-l-grid" role="list" *ngIf="landingProjects.length; else noProjects">
+          <article class="psc-l-card" role="listitem" *ngFor="let p of landingProjects; let i = index; trackBy: trackById"
+            [style.animation-delay]="(i * 0.04) + 's'">
+            <button type="button" class="psc-l-card-main" (click)="openProject(p)"
+              [attr.aria-label]="'Open ' + p.name + ', ' + (chatCounts[p.id] || 0) + ' chats'">
+              <span class="psc-l-card-top">
+                <span class="psc-l-av" [style.background]="projectGradient(p.id, i)">{{ initials(p.name) }}</span>
+                <span class="psc-l-status" [attr.data-tone]="statusMeta[p.status].tone">{{ statusMeta[p.status].label }}</span>
+              </span>
+              <span class="psc-l-name">{{ p.name }}</span>
+              <span class="psc-l-desc">{{ p.description || 'No description yet.' }}</span>
+              <span class="psc-l-meta">
+                <span><lucide-icon name="message-square" [size]="12"></lucide-icon>{{ chatCounts[p.id] || 0 }} {{ chatCounts[p.id] === 1 ? 'chat' : 'chats' }}</span>
+                <span><lucide-icon name="file-text" [size]="12"></lucide-icon>{{ docCounts[p.id] || 0 }} {{ docCounts[p.id] === 1 ? 'doc' : 'docs' }}</span>
+                <span *ngIf="projectPhase(p) as ph"><lucide-icon name="route" [size]="12"></lucide-icon>{{ ph }}</span>
+              </span>
+            </button>
+            <footer class="psc-l-card-foot">
+              <span class="psc-l-team" [attr.aria-label]="p.team.length + ' members'">
+                <span class="psc-l-team-av" *ngFor="let m of p.team.slice(0, 4)" [title]="m">{{ initials(m) }}</span>
+                <span class="psc-l-team-more" *ngIf="p.team.length > 4">+{{ p.team.length - 4 }}</span>
+              </span>
+              <span class="psc-l-updated" [title]="'Last activity ' + (lastActive(p) | date:'medium')">{{ relativeTime(lastActive(p)) }}</span>
+              <button type="button" class="psc-l-resume" *ngIf="latestChat(p) as lc" (click)="openChat(lc)" [title]="'Resume: ' + lc.title"
+                [attr.aria-label]="'Resume latest chat in ' + p.name">
+                <lucide-icon name="history" [size]="13"></lucide-icon>Resume
+              </button>
+            </footer>
+          </article>
+        </div>
+
+        <ng-template #noProjects>
+          <div class="psc-l-empty">
+            <lucide-icon name="search-x" [size]="22"></lucide-icon>
+            <ng-container *ngIf="totalProjects; else firstProject">
+              <strong>No projects match</strong>
+              <span>Try another name.</span>
+              <button type="button" class="psc-l-btn psc-l-btn--ghost" (click)="clearLandingFilters()">Clear search</button>
+            </ng-container>
+            <ng-template #firstProject>
+              <strong>No projects yet</strong>
+              <span>Create your first project to start chatting.</span>
+              <button type="button" class="psc-l-btn psc-l-btn--primary" (click)="newProject()"><lucide-icon name="plus" [size]="14"></lucide-icon>New project</button>
+            </ng-template>
+          </div>
+        </ng-template>
+      </div>
     </section>
   </div>
 
   <!-- Resize handle between chat and canvas -->
   <div class="psc-resize-handle" *ngIf="canvasOpen && !canvas.layout().chatCollapsed" [class.active]="isResizing"
     role="separator" aria-orientation="vertical" aria-label="Resize conversation panel" tabindex="0"
-    [attr.aria-valuenow]="canvas.layout().chatWidth"
-    (mousedown)="startResize($event)" (keydown.arrowleft)="nudgeChatWidth(-24)" (keydown.arrowright)="nudgeChatWidth(24)">
+    aria-valuemin="15" aria-valuemax="50" [attr.aria-valuenow]="chatPct"
+    (mousedown)="startResize($event)" (keydown.arrowleft)="nudgeChatWidth(-2)" (keydown.arrowright)="nudgeChatWidth(2)">
     <span class="psc-resize-grip"><span></span><span></span><span></span></span>
   </div>
 
@@ -460,24 +417,25 @@
 <!-- Shared popovers: shown in the composer on Home, or in the project header / panel inside a project -->
 <ng-template #artifactMenuTpl>
         <div class="psc-popover psc-popover--artifact" id="artifact-menu" *ngIf="openMenu === 'artifact'"
-          role="listbox" aria-label="Chat or create a document" (keydown)="onArtifactMenuKeydown($event)">
-          <div class="psc-popover-title">Mode</div>
-          <ng-container *ngFor="let option of artifactOptions; let i = index">
+          role="listbox" aria-label="Golden workflow" (keydown)="onArtifactMenuKeydown($event)">
+          <div class="psc-popover-title">Golden workflow <span>each message drafts the next document</span></div>
+          <ng-container *ngFor="let e of menuEntries; let i = index">
+          <div class="psc-popover-divider" *ngIf="e.kind === 'workflow' && menuEntries[i - 1]?.kind !== 'workflow'" role="presentation">Workflows</div>
+          <div class="psc-popover-divider" *ngIf="e.kind === 'doc' && menuEntries[i - 1]?.kind !== 'doc'" role="presentation">Or a single document</div>
           <button type="button" class="psc-popover-option"
-            [id]="'artifact-option-' + i" role="option" [attr.aria-selected]="option.id === selectedArtifact"
-            [tabindex]="i === artifactMenuIndex ? 0 : -1" [class.active]="i === artifactMenuIndex" [class.selected]="option.id === selectedArtifact"
-            (mouseenter)="artifactMenuIndex = i" (click)="selectArtifact(option.id)">
-            <span class="psc-popover-option-icon"><lucide-icon [name]="option.iconName" [size]="15"></lucide-icon></span>
-            <span class="psc-popover-option-label">{{ option.label }}<small *ngIf="isChatMode(option.id)">Talk it through. No document yet</small></span>
-            <lucide-icon *ngIf="option.id === selectedArtifact" class="psc-popover-check" name="check" [size]="15"></lucide-icon>
+            [id]="'artifact-option-' + i" role="option" [attr.aria-selected]="isEntrySelected(e)"
+            [tabindex]="i === artifactMenuIndex ? 0 : -1" [class.active]="i === artifactMenuIndex" [class.selected]="isEntrySelected(e)"
+            (mouseenter)="artifactMenuIndex = i" (click)="selectEntry(e)">
+            <span class="psc-popover-option-icon"><lucide-icon [name]="e.icon" [size]="15"></lucide-icon></span>
+            <span class="psc-popover-option-label">{{ e.label }}<small *ngIf="e.desc">{{ e.desc }}</small></span>
+            <lucide-icon *ngIf="isEntrySelected(e)" class="psc-popover-check" name="check" [size]="15"></lucide-icon>
           </button>
-          <div class="psc-popover-divider" *ngIf="isChatMode(option.id)" role="presentation">Create a document</div>
           </ng-container>
         </div>
 </ng-template>
 
 <ng-template #contextMenuTpl>
-        <div class="psc-popover psc-popover--knowledge psc-popover--context" id="context-menu" [class.psc-popover--up]="popoverUp" [style.max-height.px]="popoverMaxHeight" [ngStyle]="projectMode ? panelPopoverStyle : null"
+        <div class="psc-popover psc-popover--knowledge psc-popover--context" id="context-menu" [class.psc-popover--up]="popoverUp" [style.max-height.px]="popoverMaxHeight" [ngStyle]="panelContextMenu ? panelPopoverStyle : null"
           *ngIf="openMenu === 'context'" role="dialog" aria-label="Add context">
 
           <!-- Root: pick a source -->
