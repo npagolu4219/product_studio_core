@@ -29,7 +29,7 @@
           <lucide-icon name="chevron-right" [size]="16"></lucide-icon>
           Show me around
         </button>
-        <button type="button" class="land-btn-ghost" (click)="skipSetup()">Skip, take me to the prompt</button>
+        <button type="button" class="land-btn-ghost" (click)="skipSetup()">Skip, take me to my projects</button>
       </div>
       <div class="land-proof">
         <div class="land-proof-stat"><span class="land-proof-val">{{ setupSteps.length }}</span><span class="land-proof-label">quick steps to get started</span></div>
@@ -76,14 +76,15 @@
             <div class="land-prompt-mock" aria-hidden="true">
               <div class="land-prompt-text">Ask anything, or describe an idea you’re working on…</div>
               <div class="land-prompt-row">
-                <span class="land-pm-btn land-pm-round"><lucide-icon name="plus" [size]="13"></lucide-icon></span>
-                <span class="land-pm-btn"><lucide-icon name="folder-open" [size]="13"></lucide-icon>Project</span>
+                <span class="land-pm-btn"><lucide-icon name="plus" [size]="13"></lucide-icon>Add Context</span>
+                <span class="land-pm-btn"><lucide-icon name="users" [size]="13"></lucide-icon>Team Collaboration</span>
+                <span class="land-pm-btn land-pm-on"><lucide-icon name="route" [size]="13"></lucide-icon>Golden workflow<lucide-icon name="chevron-down" [size]="11"></lucide-icon></span>
                 <span class="land-pm-spacer"></span>
-                <span class="land-pm-btn land-pm-round"><lucide-icon name="mic" [size]="13"></lucide-icon></span>
+                <span class="land-pm-btn"><lucide-icon name="wand-sparkles" [size]="13"></lucide-icon>Refine<lucide-icon name="chevron-down" [size]="11"></lucide-icon></span>
                 <span class="land-pm-btn land-pm-round land-pm-send"><lucide-icon name="arrow-up" [size]="13"></lucide-icon></span>
               </div>
             </div>
-            <p class="land-step-hint">Press <strong>Enter</strong> to send and <strong>Shift + Enter</strong> for a new line. Once you’ve typed something, <strong>Refine</strong> can tidy up your prompt.</p>
+            <p class="land-step-hint">Press <strong>Enter</strong> to send and <strong>Shift + Enter</strong> for a new line. Once you’ve typed something, <strong>Refine</strong> rewrites your prompt in the style you pick. <strong>Team Collaboration</strong> invites project members to the chat.</p>
           </ng-container>
 
           <!-- 2. The + menu's sources -->
@@ -96,17 +97,17 @@
                 <span class="land-int-status" [class.connected]="t.status === 'connected'" [class.disconnected]="t.status !== 'connected'">{{ t.status === 'connected' ? 'Connected' : 'Not connected' }}</span>
               </div>
             </div>
-            <p class="land-step-hint">Everything you add shows as a removable chip under the prompt. Connect more tools on the <strong>Integrations</strong> page.</p>
+            <p class="land-step-hint">Use <strong>Add Context</strong> in the prompt bar. Everything you add shows as a removable chip under the prompt. Connect more tools on the <strong>Integrations</strong> page.</p>
           </ng-container>
 
-          <!-- 3. The Mode menu -->
+          <!-- 3. The Golden workflow menu -->
           <ng-container *ngSwitchCase="'create'">
             <div class="land-template-grid">
               <div class="land-template-chip" *ngFor="let o of modeOptions; let first = first" [class.land-chip-on]="first">
                 <lucide-icon [name]="o.iconName" [size]="14"></lucide-icon><span>{{ o.shortLabel }}</span>
               </div>
             </div>
-            <p class="land-step-hint">There are {{ documentTypeCount }} types, including features, acceptance criteria, competitor analysis, goals &amp; OKRs and scope. The <strong>Mode</strong> picker appears in a project’s prompt bar and changes to <strong>Create · PRD</strong> (or whichever type you picked) so you always know what you’ll get.</p>
+            <p class="land-step-hint">There are {{ documentTypeCount }} types, including features, acceptance criteria, competitor analysis, goals &amp; OKRs and scope. Pick a <strong>golden workflow</strong> such as Idea to delivery (PRD → Epic → User story → Acceptance criteria) and each message drafts the next document, or pick a single document.</p>
           </ng-container>
 
           <!-- 4. Canvas -->
@@ -155,7 +156,7 @@
           </button>
           <button type="button" class="land-btn-ghost land-btn-sm" (click)="skipSetup()">Skip</button>
           <button type="button" class="land-btn-primary" (click)="nextStep()">
-            {{ setupStep < setupSteps.length ? 'Next' : 'Start chatting' }}
+            {{ setupStep < setupSteps.length ? 'Next' : 'Get started' }}
             <lucide-icon name="chevron-right" [size]="14"></lucide-icon>
           </button>
         </div>

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { PscMockDataService } from '../../services/psc-mock-data.service';
 import { Integration } from '../../models/psc.models';
-import { ARTIFACT_OPTIONS, CHAT_OPTION } from '../../constants/artifact-options';
+import { ARTIFACT_OPTIONS } from '../../constants/artifact-options';
 
 export const ONBOARDING_SEEN_KEY = 'psc_dashboard_seen';
 
@@ -20,7 +20,7 @@ const CONTEXT_TOOLS: Integration['type'][] = ['jira', 'confluence', 'ado', 'gith
 
 /**
  * First-visit welcome + a short walkthrough of Home, in the order a new user meets it:
- * chat → add context → create a document → refine on the canvas → share / export → projects.
+ * project → chat → add context → create a document → refine on the canvas → share / export.
  * Each step names the real control on screen, so the tour matches the page it lands on.
  */
 @Component({
@@ -37,22 +37,22 @@ export class PscOnboardingComponent implements OnInit {
   contextTools: Integration[] = [];
 
   readonly setupSteps: SetupStep[] = [
-    { kind: 'chat', icon: 'message-circle', title: 'Start with a conversation',
-      desc: 'Type anything into the prompt bar: a question, a rough idea or a problem. You don’t need a template. Home is for conversation, so you just get a reply.' },
+    { kind: 'projects', icon: 'folder-open', title: 'Start with a project',
+      desc: 'Every chat lives in a project, with its documents, lifecycle and context. Open a project from Home to continue its chats, or create one with just a title and description.' },
+    { kind: 'chat', icon: 'message-circle', title: 'Describe your idea',
+      desc: 'Inside a project, describe what you’re working on in the prompt bar. New chats start on the Idea to delivery workflow, so your first message drafts a PRD.' },
     { kind: 'context', icon: 'layers', title: 'Ground it in your context',
-      desc: 'Use + in the prompt bar to attach files or pull in Jira issues, Confluence pages, Azure DevOps items, product modules and Product Memory. Answers and drafts then use your real context.' },
+      desc: 'Use Add Context in the prompt bar to attach files or pull in Jira issues, Confluence pages, Azure DevOps items, product modules and Product Memory. Answers and drafts then use your real context.' },
     { kind: 'create', icon: 'sparkles', title: 'Turn it into a document',
-      desc: 'Documents are created inside a project. Open or start one, pick a document type from Mode in the prompt bar, and your next message drafts it from the project’s context and the chat so far.' },
+      desc: 'When you’re ready, open Golden workflow in the prompt bar. A workflow drafts its documents in order, one per message, from the project’s context and the chat so far.' },
     { kind: 'canvas', icon: 'file-text', title: 'Refine it on the canvas',
-      desc: 'Each draft appears as a card in the chat. Open it to read, edit, compare versions and see its history, or keep asking for changes in the chat.' },
+      desc: 'When a draft is ready it opens in the preview next to the chat. Read, edit, compare versions and see its history, or keep asking for changes in the chat.' },
     { kind: 'share', icon: 'share-2', title: 'Share, export or push',
       desc: 'From the canvas toolbar, share a draft for review, publish it, or export it. Exports can go to a file or straight into your delivery tools.' },
-    { kind: 'projects', icon: 'folder-open', title: 'Keep work together in projects',
-      desc: 'A project keeps its chats, documents, lifecycle and context in one place. Start one from Projects in the sidebar, or pick one with the Project button in the prompt bar. Documents are created inside projects.' }
   ];
 
-  /** What the Mode menu offers: Chat first, then a few of the documents it can create. */
-  readonly modeOptions = [CHAT_OPTION, ...ARTIFACT_OPTIONS.filter(o => ['prd', 'epic', 'story', 'roadmap', 'market'].includes(o.id))];
+  /** A few of the documents the Golden workflow menu can create. */
+  readonly modeOptions = [...ARTIFACT_OPTIONS.filter(o => ['prd', 'epic', 'story', 'roadmap', 'market'].includes(o.id))];
 
   /** Mirrors the canvas Export panel. */
   readonly exportOptions = [

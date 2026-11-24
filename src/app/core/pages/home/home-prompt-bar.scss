@@ -1,0 +1,83 @@
+// ── Prompt bar: Team collaboration, Golden workflow, Refine ───────────────
+// Buttons, left to right: Add Context · Team Collaboration · Golden workflow … Refine ▾ · Send
+
+.psc-team-btn { gap: 7px; }
+.psc-team-stack { display: inline-flex; align-items: center; }
+.psc-team-av {
+  display: inline-grid; place-items: center; flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: 50%;
+  color: #fff; background: var(--psc-gradient-brand);
+  border: 2px solid var(--psc-surface);
+  font: 800 9px/1 'Mulish', sans-serif; letter-spacing: .2px;
+}
+.psc-team-stack .psc-team-av + .psc-team-av { margin-left: -7px; }
+.psc-team-av--lg { width: 30px; height: 30px; font-size: 11px; border: 0; margin-right: 2px; }
+.psc-popover--team { width: min(320px, calc(100% - 24px)); }
+.psc-team-empty { margin: 4px 8px 8px; color: var(--psc-text-subtle); font-size: 12.5px; line-height: 1.5; }
+
+.psc-refine-chip {
+  color: var(--psc-primary-dark);
+  background: linear-gradient(135deg, rgb(var(--psc-primary-rgb) / .10), rgb(var(--psc-secondary-rgb) / .08));
+  border-color: rgb(var(--psc-primary-rgb) / .22);
+  lucide-icon { color: var(--psc-primary-text); }
+  .psc-picker-chevron { color: var(--psc-text-subtle); }
+  &[aria-expanded='true'] .psc-picker-chevron { transform: rotate(180deg); }
+  &:disabled { opacity: .45; cursor: not-allowed; }
+}
+
+.psc-popover--artifact { width: min(360px, calc(100% - 24px)); max-height: min(440px, 60vh); }
+
+@media (max-width: 720px) {
+  .psc-team-btn .psc-chip-label, .psc-refine-chip .psc-chip-label { display: none; }
+}
+
+// Auto refine switch
+.psc-auto-refine {
+  display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 6px;
+  color: var(--psc-text-body); background: transparent; border: 0; border-radius: 999px;
+  font: 700 12px 'Mulish', sans-serif; white-space: nowrap; cursor: pointer;
+  &:focus-visible { outline: 2px solid rgb(var(--psc-primary-rgb) / .45); outline-offset: 2px; }
+}
+.psc-auto-refine-track {
+  position: relative; flex-shrink: 0; width: 30px; height: 18px; border-radius: 999px;
+  background: var(--prompt-line, #d9d6ea); transition: background .2s ease;
+  span { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .2); transition: transform .2s ease; }
+}
+.psc-auto-refine.on .psc-auto-refine-track { background: var(--psc-gradient-brand); span { transform: translateX(12px); } }
+@media (max-width: 720px) { .psc-auto-refine .psc-chip-label { display: none; } }
+@media (prefers-reduced-motion: reduce) { .psc-auto-refine-track, .psc-auto-refine-track span { transition: none; } }
+
+// ── Compact prompt bar while the preview is open (chat is ~20% wide) ─────
+// Icon-only buttons; the Send row wraps under the tools instead of overlapping them.
+.psc-home.with-canvas {
+  .psc-prompt-controls { flex-wrap: wrap; row-gap: 8px; }
+  .psc-prompt-selectors { flex-wrap: nowrap; gap: 6px; }
+  .psc-prompt-actions { margin-left: auto; gap: 6px; }
+  .psc-chip-btn { padding: 0 9px; }
+  .psc-chip-btn .psc-chip-label,
+  .psc-auto-refine .psc-chip-label,
+  .psc-picker-text,
+  .psc-refine-chip .psc-picker-chevron,
+  .psc-picker-chevron { display: none; }
+  .psc-picker { padding: 2px; min-width: 0; }
+  .psc-team-btn .psc-context-count { display: none; }
+
+  // Tabs: icons + badges only
+  .psc-pw-tab-label { display: none; }
+  .psc-pw-tabs { gap: 2px; }
+}
+.psc-home.with-canvas .psc-auto-refine { padding: 0 2px; flex-shrink: 0; }
+
+// Status line under the prompt bar: neutral by default, red only for errors; fades in.
+.psc-prompt-feedback {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--psc-text-subtle);
+  font-weight: 600;
+  animation: psc-pop .16s ease-out;
+  lucide-icon { flex-shrink: 0; color: var(--psc-primary-text); }
+  &.is-error { color: var(--psc-error); lucide-icon { color: var(--psc-error); } }
+}
+// Auto refine in progress
+.psc-refine-note.working { color: var(--psc-primary-text); }

@@ -11,6 +11,8 @@ export interface SendMessageOptions {
   contextNames: string[];
   /** The project's lifecycle position and evaluation plan ("Define phase (exit gate: …) · evaluated on …"). */
   lifecycle?: string;
+  /** Golden workflow progress, appended to the reply ("Idea to delivery · step 1 of 4 …"). */
+  workflowNote?: string;
 }
 
 const STORAGE_KEY = 'psc.conversations.v1';
@@ -63,7 +65,7 @@ export class ConversationService {
   }
 
   /** Creates a new conversation from the first prompt and starts the AI reply. */
-  startConversation(prompt: string, options: SendMessageOptions & { contextIds: string[]; attachments?: ContextAttachment[]; projectId?: string }): Conversation {
+  startConversation(prompt: string, options: SendMessageOptions & { contextIds: string[]; attachments?: ContextAttachment[]; projectId?: string; workflowId?: string; collaborators?: string[] }): Conversation {
     const now = new Date().toISOString();
     const conversation: Conversation = {
       id: this.createId(),
@@ -72,6 +74,8 @@ export class ConversationService {
       projectId: options.projectId,
       contextIds: options.contextIds,
       attachments: options.attachments?.length ? options.attachments : undefined,
+      workflowId: options.workflowId,
+      collaborators: options.collaborators?.length ? [...options.collaborators] : undefined,
       messages: [],
       createdAt: now,
       updatedAt: now
@@ -136,6 +140,16 @@ export class ConversationService {
     this.update(id, c => ({ ...c, title: trimmed }));
   }
 
+  /** Golden workflow (or none) for this chat. */
+  setWorkflow(id: string, workflowId: string | null): void {
+    this.update(id, c => ({ ...c, workflowId: workflowId ?? undefined }));
+  }
+
+  /** People invited to collaborate on this chat. */
+  setCollaborators(id: string, names: string[]): void {
+    this.update(id, c => ({ ...c, collaborators: names.length ? [...names] : undefined }));
+  }
+
   /** Context grounding a chat changed mid-conversation (Add context / remove) — keep it with the chat. */
   updateContext(id: string, contextIds: string[], attachments: ContextAttachment[]): void {
     this.update(id, c => ({ ...c, contextIds: [...contextIds], attachments: attachments.length ? [...attachments] : undefined }));
@@ -190,6 +204,13 @@ export class ConversationService {
       timestamp: now
     };
 
+    const reply = this.draftReply(conversation, prompt, options, previousArtifacts, isFirstReply, base);
+    if (options.workflowNote && !isChatMode(options.artifactId)) reply.content += `\n\n${options.workflowNote}`;
+    return reply;
+  }
+
+  private draftReply(conversation: Conversation, prompt: string, options: SendMessageOptions, previousArtifacts: Artifact[], isFirstReply: boolean,
+    base: Pick<AiMessage, 'id' | 'role' | 'agentName' | 'agentAvatar' | 'timestamp'>): AiMessage {
     if (isChatMode(options.artifactId)) {
       return { ...base, content: this.chatReply(prompt, options, isFirstReply, previousArtifacts.length > 0) };
     }
