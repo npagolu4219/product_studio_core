@@ -8,7 +8,7 @@ import { isoDay } from './pm-buddy.dates';
 /** Bump when the seed changes so saved demos pick up the new data. v2: KPMG & SFI client engagements. */
 export const BUDDY_STATE_VERSION = 2;
 
-export const ME = 'Karthik';
+export const ME = 'Pramod';
 
 export const STAKEHOLDERS = ['Mahesh', 'Priya', 'Marcus', 'Anita', 'Rachel', 'Tom', 'Design team', 'Engineering', 'InfoSec', 'Legal',
   // Client stakeholders

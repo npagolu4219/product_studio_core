@@ -7,7 +7,8 @@ import { combineLatest, map, of, switchMap } from 'rxjs';
 import { LucideAngularModule } from 'lucide-angular';
 import { PscMockDataService } from '../../services/psc-mock-data.service';
 import { ConversationService } from '../../services/conversation.service';
-import { AiMessage, Artifact, Conversation, PdlcPhaseId, Project, ProjectLifecycle, TeamMember } from '../../models/psc.models';
+import { AiMessage, Artifact, Conversation, PdlcPhaseId, Project, ProjectLifecycle, Team, TeamMember } from '../../models/psc.models';
+import { TeamsService } from '../../services/teams.service';
 import { PDLC_PHASES, PdlcDeliverable, PdlcPhase, pdlcPhase } from '../../constants/pdlc';
 import { ProjectLifecycleService } from '../../services/project-lifecycle.service';
 import { KnowledgeKind, KnowledgeRef } from '../../models/product-memory.models';
@@ -20,7 +21,6 @@ import { CURRENT_USER } from '../../constants/current-user';
 import { ArtifactCanvasComponent } from '../../components/artifact-canvas/artifact-canvas.component';
 import { ArtifactToolbarComponent } from '../../components/artifact-toolbar/artifact-toolbar.component';
 import { ActivityWatchComponent } from '../../components/activity-watch/activity-watch.component';
-import { PscOnboardingComponent, hasSeenOnboarding } from '../../components/psc-onboarding/psc-onboarding.component';
 import { initials, projectGradient } from '../../constants/project-visuals';
 import {
   COMPOSER_OPTIONS,
@@ -69,8 +69,7 @@ interface RouteState {
     RouterLink,
     ArtifactCanvasComponent,
     ArtifactToolbarComponent,
-    ActivityWatchComponent,
-    PscOnboardingComponent
+    ActivityWatchComponent
   ],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss', './home-project-workspace.scss', './home-prompt-bar.scss', './home-landing.scss']
@@ -115,7 +114,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   get feedbackIsError(): boolean {
     return /couldn’t|not supported/i.test(this.feedbackText);
   }
-  showOnboarding = !hasSeenOnboarding();
   isResizing = false;
 
   /** Chat first, then the documents it can create. */
@@ -209,11 +207,59 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       : `**${w.label}** · all ${w.steps.length} documents are drafted. Ask for changes to any of them here.`;
   }
 
-  // ── Team collaboration: invite project members to this chat ──
+  // ── Team collaboration: teams assigned to the project, plus teams and people added to this chat ──
+  private readonly teamsSvc = inject(TeamsService);
   private newChatCollaborators: string[] = [];
+  private newChatTeamIds: string[] = [];
 
-  /** People who can be invited: the team from Integrations › Team Configurator (everyone but you). */
-  teamMembers: TeamMember[] = [];
+  /** People who can be invited individually (everyone but you), from the Teams page. */
+  get teamMembers(): TeamMember[] {
+    return this.teamsSvc.members().filter(m => m.name !== CURRENT_USER.name);
+  }
+
+  /** Teams assigned to this project: they're always part of its chats. */
+  get projectTeams(): Team[] {
+    return this.teamsSvc.teamsForProject(this.workspaceProject?.id);
+  }
+
+  get otherTeams(): Team[] {
+    const onProject = new Set(this.projectTeams.map(t => t.id));
+    return this.teamsSvc.teams().filter(t => !onProject.has(t.id));
+  }
+
+  private get chatTeamIds(): string[] {
+    return this.activeConversation ? this.activeConversation.teamIds ?? [] : this.newChatTeamIds;
+  }
+
+  isTeamOn(t: Team): boolean {
+    return this.projectTeams.some(p => p.id === t.id) || this.chatTeamIds.includes(t.id);
+  }
+
+  /** Add or remove a team for this chat (project teams are fixed; change them on the Teams page). */
+  toggleTeam(t: Team): void {
+    if (this.projectTeams.some(p => p.id === t.id)) return;
+    const on = this.chatTeamIds.includes(t.id);
+    const next = on ? this.chatTeamIds.filter(id => id !== t.id) : [...this.chatTeamIds, t.id];
+    if (this.activeConversation) this.conversations.setTeams(this.activeConversation.id, next);
+    else this.newChatTeamIds = next;
+    this.voiceMessage = on ? `${t.name} was removed from this chat.` : `${t.name} (${t.memberIds.length} ${t.memberIds.length === 1 ? 'person' : 'people'}) can now see and contribute to this chat.`;
+  }
+
+  /** Teams in this chat: the project's plus any added to the chat. */
+  get activeTeams(): Team[] {
+    return this.teamsSvc.teams().filter(t => this.isTeamOn(t));
+  }
+
+  /** The team a person joins this chat through, if any. */
+  viaTeam(m: TeamMember): Team | undefined {
+    return this.activeTeams.find(t => t.memberIds.includes(m.id));
+  }
+
+  /** Everyone collaborating on this chat (teams + individuals), without you. */
+  get participants(): TeamMember[] {
+    const ids = new Set(this.activeTeams.flatMap(t => t.memberIds));
+    return this.teamMembers.filter(m => ids.has(m.id) || this.isCollaborator(m.name));
+  }
 
   get collaborators(): string[] {
     return this.activeConversation ? this.activeConversation.collaborators ?? [] : this.newChatCollaborators;
@@ -635,13 +681,7 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     return getArtifactLabel(this.selectedArtifact);
   }
 
-  get onboardingVisible(): boolean {
-    return this.showOnboarding && !this.conversationStarted;
-  }
-
   ngOnInit(): void {
-    this.mockData.getTeamMembers().pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(list => (this.teamMembers = list.filter(m => m.name !== CURRENT_USER.name)));
     this.conversations.conversations$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(list => {
       const counts: Record<string, number> = {};
       const docs: Record<string, number> = {};
@@ -909,10 +949,12 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   @HostListener('document:click')
   onDocumentClick(): void {
     this.openMenu = null;
+    this.sortMenuOpen = false;
   }
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
+    if (this.sortMenuOpen) { this.sortMenuOpen = false; return; }
     // Inside a context source, Esc steps back to the source list first.
     if (this.openMenu === 'context' && this.contextView !== 'root') {
       this.contextBack();
@@ -973,6 +1015,17 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     completed: { label: 'Completed', tone: 'blue' }
   };
 
+  /** Search appears once there are more than 10 projects. */
+  get showProjectSearch(): boolean {
+    return this.landingSource.length > 10;
+  }
+
+  sortMenuOpen = false;
+
+  get sortLabel(): string {
+    return this.landingSorts.find(o => o.id === this.landingSort)?.label ?? '';
+  }
+
   readonly todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
 
   /** Last activity: the newest of the project's own update and its chats. */
@@ -981,8 +1034,26 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     return chat && chat > p.updatedAt ? chat : p.updatedAt;
   }
 
+  /** Preview switch: show the landing as a brand-new user with no projects sees it. */
+  previewEmpty = false;
+
+  /** Projects the landing shows (none while previewing the empty state). */
+  private get landingSource(): Project[] {
+    return this.previewEmpty ? [] : this.mockData.projects;
+  }
+
+  get hasProjects(): boolean {
+    return this.landingSource.length > 0;
+  }
+
+  togglePreviewEmpty(): void {
+    this.previewEmpty = !this.previewEmpty;
+    this.landingQuery = '';
+    this.sortMenuOpen = false;
+  }
+
   get landingStats(): { projects: number; chats: number; docs: number } {
-    const ids = new Set(this.mockData.projects.map(p => p.id));
+    const ids = new Set(this.landingSource.map(p => p.id));
     let chats = 0, docs = 0;
     for (const id of ids) { chats += this.chatCounts[id] ?? 0; docs += this.docCounts[id] ?? 0; }
     return { projects: ids.size, chats, docs };
@@ -990,7 +1061,7 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   get landingProjects(): Project[] {
     const q = this.landingQuery.trim().toLowerCase();
-    const list = this.mockData.projects.filter(p =>
+    const list = this.landingSource.filter(p =>
       (!q || p.name.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q) || p.tags.some(t => t.toLowerCase().includes(q))));
     const by = this.landingSort;
     return list.sort((a, b) =>
@@ -1002,6 +1073,10 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   /** Latest chat in a project, for the card's Resume action. */
   latestChat(p: Project): Conversation | undefined {
     return this.allChats.filter(c => c.projectId === p.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+  }
+
+  projectTeamCount(p: Project): number {
+    return this.teamsSvc.teamsForProject(p.id).length;
   }
 
   projectPhase(p: Project): string | null {
@@ -1031,7 +1106,7 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   /** "/" jumps to the project search on the Home landing. */
   @HostListener('document:keydown', ['$event'])
   onSlash(e: KeyboardEvent): void {
-    if (e.key !== '/' || this.projectMode || this.conversationStarted) return;
+    if (e.key !== '/' || this.projectMode || this.conversationStarted || !this.showProjectSearch) return;
     const t = e.target as HTMLElement | null;
     if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
     e.preventDefault();
@@ -1287,11 +1362,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.router.navigate(['/psc', 'projects'], { queryParams: { new: 1 } });
   }
 
-  completeOnboarding(): void {
-    this.showOnboarding = false;
-    this.focusPrompt();
-  }
-
   openArtifact(artifact: Artifact): void {
     this.router.navigate([], { relativeTo: this.route, queryParams: { artifact: artifact.id } });
   }
@@ -1305,11 +1375,11 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   // ── Resizable chat panel (canvas mode) ──
-  /** Chat share of the width while the preview is open: 20% chat · 80% preview by default (drag to adjust, 15–50%). */
-  chatPct = 20;
+  /** Chat share of the width while the preview is open: 40% chat · 60% preview by default (drag to adjust, 25–60%). */
+  chatPct = 40;
 
   private setChatPct(pct: number): void {
-    this.chatPct = Math.min(50, Math.max(15, Math.round(pct * 10) / 10));
+    this.chatPct = Math.min(60, Math.max(25, Math.round(pct * 10) / 10));
   }
 
   startResize(event: MouseEvent): void {
@@ -1441,9 +1511,11 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       attachments: this.attachments,
       projectId: this.selectedProjectId ?? undefined,
       workflowId: this.selectedWorkflowId ?? undefined,
-      collaborators: this.newChatCollaborators
+      collaborators: this.newChatCollaborators,
+      teamIds: this.newChatTeamIds
     });
     this.newChatCollaborators = [];
+    this.newChatTeamIds = [];
     this.router.navigate(['/psc', 'home', conversation.artifactId, conversation.id]);
   }
 
@@ -1530,6 +1602,7 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       this.autoResizePrompt();
       this.voiceMessage = '';
       this.newChatCollaborators = [];
+      this.newChatTeamIds = [];
       this.selectedWorkflowId = conversation?.workflowId ?? null;
       if (conversation) {
         this.selectedArtifact = conversation.artifactId;
@@ -1541,7 +1614,7 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       }
     } else if (!conversation) {
       this.applyNewChatSelection(artifactId);
-      if (projectChanged) { this.resetContextSelection(); this.newChatCollaborators = []; }
+      if (projectChanged) { this.resetContextSelection(); this.newChatCollaborators = []; this.newChatTeamIds = []; }
     } else if (projectChanged) {
       // The open chat was moved into (or out of) a project: pick up its new context.
       this.selectedContextIds = [...conversation.contextIds];

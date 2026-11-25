@@ -49,24 +49,8 @@
 
 // ── Compact prompt bar while the preview is open (chat is ~20% wide) ─────
 // Icon-only buttons; the Send row wraps under the tools instead of overlapping them.
-.psc-home.with-canvas {
-  .psc-prompt-controls { flex-wrap: wrap; row-gap: 8px; }
-  .psc-prompt-selectors { flex-wrap: nowrap; gap: 6px; }
-  .psc-prompt-actions { margin-left: auto; gap: 6px; }
-  .psc-chip-btn { padding: 0 9px; }
-  .psc-chip-btn .psc-chip-label,
-  .psc-auto-refine .psc-chip-label,
-  .psc-picker-text,
-  .psc-refine-chip .psc-picker-chevron,
-  .psc-picker-chevron { display: none; }
-  .psc-picker { padding: 2px; min-width: 0; }
-  .psc-team-btn .psc-context-count { display: none; }
 
-  // Tabs: icons + badges only
-  .psc-pw-tab-label { display: none; }
-  .psc-pw-tabs { gap: 2px; }
-}
-.psc-home.with-canvas .psc-auto-refine { padding: 0 2px; flex-shrink: 0; }
+
 
 // Status line under the prompt bar: neutral by default, red only for errors; fades in.
 .psc-prompt-feedback {
@@ -81,3 +65,57 @@
 }
 // Auto refine in progress
 .psc-refine-note.working { color: var(--psc-primary-text); }
+
+// Team collaboration popover: project teams (fixed), other teams, people
+.psc-popover--team { width: min(360px, calc(100% - 24px)); }
+.psc-team-av--team { border-radius: 9px; background: var(--psc-gradient-accent, var(--psc-gradient-brand)); }
+.psc-team-locked { cursor: default; opacity: .92; }
+.psc-team-locked:hover { background: transparent; }
+.psc-popover--team .psc-popover-option:disabled { cursor: default; opacity: .75; }
+.psc-team-manage {
+  display: flex; align-items: center; gap: 6px; margin: 6px 4px 2px; padding: 8px 10px;
+  color: var(--psc-primary-text); border-top: 1px solid var(--prompt-line);
+  font-size: 12.5px; font-weight: 700; text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+.psc-team-count { color: var(--psc-primary-dark); font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+// ── Chat beside the preview (40% · 60%) ──────────────────────────────────
+// The chat column is a size container: the prompt bar keeps its labels while there's room,
+// and switches to icons (two rows) only when the chat is dragged narrow.
+.psc-home.with-canvas .psc-chat-column { container: chatcol / inline-size; }
+
+@container chatcol (max-width: 460px) {
+  .psc-home.with-canvas {
+    .psc-prompt-controls { flex-wrap: wrap; row-gap: 8px; }
+    .psc-prompt-selectors { flex-wrap: nowrap; gap: 6px; }
+    .psc-prompt-actions { margin-left: auto; gap: 6px; }
+    .psc-chip-btn { padding: 0 9px; }
+    .psc-chip-btn .psc-chip-label,
+    .psc-auto-refine .psc-chip-label,
+    .psc-picker-text,
+    .psc-refine-chip .psc-picker-chevron,
+    .psc-picker-chevron { display: none; }
+    .psc-picker { padding: 2px; min-width: 0; }
+    .psc-team-btn .psc-context-count { display: none; }
+
+    // Tabs: icons + badges only
+    .psc-pw-tab-label { display: none; }
+    .psc-pw-tabs { gap: 2px; }
+  }
+  .psc-home.with-canvas .psc-auto-refine { padding: 0 2px; flex-shrink: 0; }
+  .psc-home.with-canvas {
+    .psc-prompt-selectors { flex-wrap: wrap; min-width: 0; }
+    .psc-prompt-actions { flex-basis: 100%; justify-content: flex-end; }
+    .psc-team-count { display: none; }
+  }
+}
+
+// Medium chat width (e.g. 40% beside the preview): keep labels, but lay the bar out as two tidy rows —
+// Add Context · Team · Golden workflow on top, Auto refine · Refine · Send below on the right.
+@container chatcol (max-width: 760px) {
+  .psc-prompt-controls { flex-wrap: wrap; row-gap: 10px; }
+  .psc-prompt-selectors { flex: 1 1 100%; flex-wrap: nowrap; min-width: 0; }
+  .psc-prompt-actions { flex: 1 1 100%; justify-content: flex-end; }
+  .psc-picker { min-width: 0; }
+}

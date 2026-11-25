@@ -2,7 +2,7 @@
   <div class="psc-page-header">
     <div>
       <h1>Integrations</h1>
-      <p>Your connected tools and team</p>
+      <p>Your connected tools. People and teams are on the <a routerLink="/psc/teams">Teams</a> page.</p>
     </div>
   </div>
 
@@ -64,31 +64,4 @@
     <button class="psc-btn psc-btn-primary" (click)="addMapping()">+ Add Mapping</button>
   </div>
 
-  <!-- Team Configurator -->
-  <div class="psc-team-section">
-    <div class="psc-section-header">
-      <span class="psc-section-title">Team Configurator</span>
-      <button class="psc-btn psc-btn-ghost psc-btn-sm" (click)="addMember()"><lucide-icon name="user-plus" [size]="13"></lucide-icon> Add member</button>
-    </div>
-    <div class="psc-team-grid">
-      <div class="psc-team-card psc-card" *ngFor="let m of teamMembers">
-        <div class="psc-team-avatar">{{ m.avatar }}</div>
-        <div class="psc-team-info">
-          <div class="psc-team-name">{{ m.name }}</div>
-          <div class="psc-team-role">{{ m.role }}</div>
-          <div class="psc-team-skills">
-            <span class="psc-tag" *ngFor="let s of m.skills.slice(0,2)">{{ s }}</span>
-          </div>
-        </div>
-        <div class="psc-team-stats">
-          <svg class="psc-ring" viewBox="0 0 36 36" [attr.aria-label]="m.availability + '% available'" role="img">
-            <circle class="psc-ring-track" cx="18" cy="18" r="15" />
-            <circle class="psc-ring-fill" cx="18" cy="18" r="15" [attr.stroke-dasharray]="ring(m.availability)" />
-            <text x="18" y="21.5" text-anchor="middle">{{ m.availability }}</text>
-          </svg>
-          <span class="psc-team-stories" title="Assigned stories"><lucide-icon name="sticky-note" [size]="12"></lucide-icon>{{ m.assignedStories }}</span>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>

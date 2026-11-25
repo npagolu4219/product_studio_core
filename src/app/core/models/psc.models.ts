@@ -121,6 +121,18 @@ export interface TeamMember {
   assignedStories: number;
 }
 
+/** A named group of people (e.g. "Checkout squad") that can be assigned to projects and added to chats. */
+export interface Team {
+  id: string;
+  name: string;
+  description: string;
+  /** TeamMember ids. */
+  memberIds: string[];
+  /** Projects this team works on: its members collaborate on every chat in them. */
+  projectIds: string[];
+  createdAt: string;
+}
+
 export interface AnalyticsData {
   totalProjects: number;
   activeProjects: number;
@@ -195,6 +207,8 @@ export interface Conversation {
   workflowId?: string;
   /** Project members invited to collaborate on this chat. */
   collaborators?: string[];
+  /** Teams added to this chat (on top of the teams assigned to its project). */
+  teamIds?: string[];
   messages: AiMessage[];
   createdAt: string;
   updatedAt: string;

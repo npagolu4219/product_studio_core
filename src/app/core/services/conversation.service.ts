@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { BehaviorSubject, Observable, map, distinctUntilChanged } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, map, distinctUntilChanged } from 'rxjs';
 import { AiMessage, Artifact, ContextAttachment, Conversation } from '../models/psc.models';
 import { getArtifactLabel, isChatMode, toArtifactType } from '../constants/artifact-options';
 import { buildArtifactContent } from '../constants/artifact-content';
@@ -35,6 +35,8 @@ export class ConversationService {
 
   /** Simulated generation progress (0–100) per conversation id while a reply is pending. */
   readonly generationProgress = signal<Record<string, number>>({});
+  /** Emits a conversation id each time an assistant reply lands in it. */
+  readonly replyArrived = new Subject<string>();
 
   /** All conversations, most recently updated first. */
   readonly conversations$: Observable<Conversation[]> = this.conversationsSubject.pipe(
@@ -65,7 +67,7 @@ export class ConversationService {
   }
 
   /** Creates a new conversation from the first prompt and starts the AI reply. */
-  startConversation(prompt: string, options: SendMessageOptions & { contextIds: string[]; attachments?: ContextAttachment[]; projectId?: string; workflowId?: string; collaborators?: string[] }): Conversation {
+  startConversation(prompt: string, options: SendMessageOptions & { contextIds: string[]; attachments?: ContextAttachment[]; projectId?: string; workflowId?: string; collaborators?: string[]; teamIds?: string[] }): Conversation {
     const now = new Date().toISOString();
     const conversation: Conversation = {
       id: this.createId(),
@@ -76,6 +78,7 @@ export class ConversationService {
       attachments: options.attachments?.length ? options.attachments : undefined,
       workflowId: options.workflowId,
       collaborators: options.collaborators?.length ? [...options.collaborators] : undefined,
+      teamIds: options.teamIds?.length ? [...options.teamIds] : undefined,
       messages: [],
       createdAt: now,
       updatedAt: now
@@ -112,6 +115,7 @@ export class ConversationService {
       }
       this.generationProgress.update(({ [conversationId]: _done, ...rest }) => rest);
       this.setPending(conversationId, false);
+      this.replyArrived.next(conversationId);
     }, RESPONSE_DELAY_MS);
   }
 
@@ -143,6 +147,11 @@ export class ConversationService {
   /** Golden workflow (or none) for this chat. */
   setWorkflow(id: string, workflowId: string | null): void {
     this.update(id, c => ({ ...c, workflowId: workflowId ?? undefined }));
+  }
+
+  /** Teams added to this chat. */
+  setTeams(id: string, teamIds: string[]): void {
+    this.update(id, c => ({ ...c, teamIds: teamIds.length ? [...teamIds] : undefined }));
   }
 
   /** People invited to collaborate on this chat. */

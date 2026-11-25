@@ -48,6 +48,10 @@ export const PSC_ROUTES: Routes = [
         loadComponent: () => import('./core/pages/project-home/project-home.component').then(m => m.ProjectHomeComponent)
       },
       {
+        path: 'teams',
+        loadComponent: () => import('./core/pages/teams/teams.component').then(m => m.TeamsComponent)
+      },
+      {
         path: 'repository',
         loadComponent: () => import('./core/pages/repository/repository.component').then(m => m.RepositoryComponent)
       },
