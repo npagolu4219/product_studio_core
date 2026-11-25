@@ -1,0 +1,247 @@
+<div class="tm-page psc-animate-in">
+  <header class="tm-head">
+    <div>
+      <h1>Teams</h1>
+      <p>Group the people you work with. Assign a team to a project and its members collaborate on every chat there, or add people and teams to a single chat from the prompt bar.</p>
+    </div>
+    <button type="button" class="tm-btn tm-btn--primary" (click)="tab === 'teams' ? openTeam() : openMember()">
+      <lucide-icon [name]="tab === 'teams' ? 'plus' : 'user-plus'" [size]="15"></lucide-icon>{{ tab === 'teams' ? 'Create team' : 'Add person' }}
+    </button>
+  </header>
+
+  <div class="tm-toolbar">
+    <nav class="tm-tabs" role="tablist" aria-label="Teams and people">
+      <button type="button" role="tab" class="tm-tab" [class.on]="tab === 'teams'" [attr.aria-selected]="tab === 'teams'" (click)="setTab('teams')">
+        <lucide-icon name="users" [size]="15"></lucide-icon>Teams<span>{{ teamsSvc.teams().length }}</span>
+      </button>
+      <button type="button" role="tab" class="tm-tab" [class.on]="tab === 'people'" [attr.aria-selected]="tab === 'people'" (click)="setTab('people')">
+        <lucide-icon name="user-plus" [size]="15"></lucide-icon>People<span>{{ teamsSvc.members().length }}</span>
+      </button>
+    </nav>
+    <div class="tm-search">
+      <lucide-icon name="search" [size]="15"></lucide-icon>
+      <label class="tm-sr" for="tm-search">{{ tab === 'teams' ? 'Search teams' : 'Search people' }}</label>
+      <input id="tm-search" type="search" [(ngModel)]="query" [placeholder]="tab === 'teams' ? 'Search teams or members' : 'Search by name, role or skill'" autocomplete="off">
+    </div>
+  </div>
+
+  <!-- ── Teams ─────────────────────────────────────────────── -->
+  <ng-container *ngIf="tab === 'teams'">
+    <div class="tm-grid" *ngIf="filteredTeams.length; else noTeams">
+      <article class="tm-card" *ngFor="let t of filteredTeams; let i = index; trackBy: trackById" [style.animation-delay]="(i * 0.04) + 's'">
+        <div class="tm-card-head">
+          <span class="tm-team-av" [style.background]="projectGradient(t.id, i + 2)">{{ initials(t.name) }}</span>
+          <div class="tm-card-titles">
+            <h2>{{ t.name }}</h2>
+            <span>{{ t.memberIds.length }} {{ t.memberIds.length === 1 ? 'person' : 'people' }} · {{ t.projectIds.length }} {{ t.projectIds.length === 1 ? 'project' : 'projects' }}</span>
+          </div>
+          <button type="button" class="tm-icon-btn" (click)="openTeam(t)" [attr.aria-label]="'Edit ' + t.name" title="Edit team">
+            <lucide-icon name="pencil" [size]="15"></lucide-icon>
+          </button>
+        </div>
+        <p class="tm-desc">{{ t.description || 'No description.' }}</p>
+
+        <div class="tm-section-label">Members</div>
+        <div class="tm-people" *ngIf="teamsSvc.membersOf(t) as ms">
+          <span class="tm-person" *ngFor="let m of ms.slice(0, 6)" [title]="m.name + ' · ' + m.role">{{ m.avatar }}</span>
+          <span class="tm-person tm-person--more" *ngIf="ms.length > 6">+{{ ms.length - 6 }}</span>
+          <span class="tm-muted" *ngIf="!ms.length">No members yet</span>
+        </div>
+
+        <div class="tm-section-label">Projects</div>
+        <div class="tm-projects">
+          <span class="tm-proj" *ngFor="let pid of t.projectIds">
+            <ng-container *ngIf="project(pid) as p">
+              <span class="tm-proj-av" [style.background]="projectGradient(p.id, projectIndex(p.id))">{{ initials(p.name) }}</span>{{ p.name }}
+              <button type="button" (click)="toggleTeamProject(t, p.id)" [attr.aria-label]="'Remove ' + t.name + ' from ' + p.name" title="Remove from project">
+                <lucide-icon name="x" [size]="12"></lucide-icon>
+              </button>
+            </ng-container>
+          </span>
+          <div class="tm-assign" (click)="$event.stopPropagation()">
+            <button type="button" class="tm-assign-btn" (click)="assignMenuFor = assignMenuFor === t.id ? null : t.id"
+              aria-haspopup="menu" [attr.aria-expanded]="assignMenuFor === t.id">
+              <lucide-icon name="plus" [size]="12"></lucide-icon>Assign to project
+            </button>
+            <div class="tm-menu" *ngIf="assignMenuFor === t.id" role="menu" aria-label="Assign to project">
+              <button type="button" role="menuitemcheckbox" class="tm-menu-item" *ngFor="let p of projects; let pi = index"
+                [attr.aria-checked]="t.projectIds.includes(p.id)" (click)="toggleTeamProject(t, p.id)">
+                <span class="tm-proj-av" [style.background]="projectGradient(p.id, pi)">{{ initials(p.name) }}</span>
+                <span class="tm-menu-label">{{ p.name }}</span>
+                <lucide-icon *ngIf="t.projectIds.includes(p.id)" name="check" [size]="14"></lucide-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+    <ng-template #noTeams>
+      <div class="tm-empty">
+        <lucide-icon name="users" [size]="24"></lucide-icon>
+        <strong>{{ query ? 'No teams match' : 'No teams yet' }}</strong>
+        <span>{{ query ? 'Try another name.' : 'Create a team, add people, then assign it to a project.' }}</span>
+        <button type="button" class="tm-btn tm-btn--primary" *ngIf="!query" (click)="openTeam()"><lucide-icon name="plus" [size]="14"></lucide-icon>Create team</button>
+      </div>
+    </ng-template>
+  </ng-container>
+
+  <!-- ── People ────────────────────────────────────────────── -->
+  <ng-container *ngIf="tab === 'people'">
+    <div class="tm-table" role="table" aria-label="People" *ngIf="filteredMembers.length; else noPeople">
+      <div class="tm-row tm-row--head" role="row">
+        <span role="columnheader">Person</span>
+        <span role="columnheader">Skills</span>
+        <span role="columnheader">Teams</span>
+        <span role="columnheader">Availability</span>
+        <span role="columnheader"><span class="tm-sr">Actions</span></span>
+      </div>
+      <div class="tm-row" role="row" *ngFor="let m of filteredMembers; trackBy: trackById">
+        <span class="tm-who" role="cell">
+          <span class="tm-person tm-person--lg">{{ m.avatar }}</span>
+          <span class="tm-who-text"><strong>{{ m.name }}</strong><small>{{ m.role }}<ng-container *ngIf="m.email"> · {{ m.email }}</ng-container></small></span>
+        </span>
+        <span class="tm-skills" role="cell">
+          <span class="tm-tag" *ngFor="let s of m.skills.slice(0, 3)">{{ s }}</span>
+          <span class="tm-muted" *ngIf="!m.skills.length">–</span>
+        </span>
+        <span class="tm-member-teams" role="cell">
+          <span class="tm-tag tm-tag--team" *ngFor="let t of teamsSvc.teamsOf(m.id)">{{ t.name }}</span>
+          <span class="tm-muted" *ngIf="!teamsSvc.teamsOf(m.id).length">No team</span>
+        </span>
+        <span class="tm-avail" role="cell">
+          <svg class="tm-ring" viewBox="0 0 36 36" role="img" [attr.aria-label]="m.availability + '% available'">
+            <circle class="tm-ring-track" cx="18" cy="18" r="15" />
+            <circle class="tm-ring-fill" cx="18" cy="18" r="15" [attr.stroke-dasharray]="ring(m.availability)" />
+          </svg>{{ m.availability }}%
+        </span>
+        <span role="cell">
+          <button type="button" class="tm-icon-btn" (click)="openMember(m)" [attr.aria-label]="'Edit ' + m.name" title="Edit person">
+            <lucide-icon name="pencil" [size]="15"></lucide-icon>
+          </button>
+        </span>
+      </div>
+    </div>
+    <ng-template #noPeople>
+      <div class="tm-empty">
+        <lucide-icon name="user-plus" [size]="24"></lucide-icon>
+        <strong>{{ query ? 'No one matches' : 'No people yet' }}</strong>
+        <span>{{ query ? 'Try another name, role or skill.' : 'Add the people you work with.' }}</span>
+        <button type="button" class="tm-btn tm-btn--primary" *ngIf="!query" (click)="openMember()"><lucide-icon name="user-plus" [size]="14"></lucide-icon>Add person</button>
+      </div>
+    </ng-template>
+  </ng-container>
+</div>
+
+<!-- ── Team dialog ───────────────────────────────────────────── -->
+<div class="tm-backdrop" *ngIf="dialog" (click)="closeDialog()">
+  <form class="tm-dialog" *ngIf="dialog === 'team'" role="dialog" aria-modal="true" aria-labelledby="tm-team-title"
+    (click)="$event.stopPropagation()" (ngSubmit)="saveTeam()">
+    <div class="tm-dialog-head">
+      <h2 id="tm-team-title">{{ editingId ? 'Edit team' : 'Create a team' }}</h2>
+      <button type="button" class="tm-icon-btn" (click)="closeDialog()" aria-label="Close"><lucide-icon name="x" [size]="16"></lucide-icon></button>
+    </div>
+    <div class="tm-dialog-body">
+      <label class="tm-field">
+        <span>Team name</span>
+        <input class="tm-input" name="name" [(ngModel)]="teamForm.name" placeholder="e.g. Checkout squad" maxlength="60" autocomplete="off" required autofocus>
+      </label>
+      <label class="tm-field">
+        <span>Description <em>(optional)</em></span>
+        <textarea class="tm-input" name="description" rows="2" [(ngModel)]="teamForm.description" maxlength="240" placeholder="What this team works on"></textarea>
+      </label>
+
+      <div class="tm-field">
+        <span>Members <em>{{ teamForm.memberIds.length }} selected</em></span>
+        <div class="tm-picker">
+          <div class="tm-picker-search">
+            <lucide-icon name="search" [size]="14"></lucide-icon>
+            <input name="pickerQuery" [(ngModel)]="pickerQuery" placeholder="Search people" autocomplete="off" aria-label="Search people">
+          </div>
+          <div class="tm-picker-list">
+            <button type="button" class="tm-pick" *ngFor="let m of pickerMembers; trackBy: trackById" role="checkbox"
+              [attr.aria-checked]="teamForm.memberIds.includes(m.id)" [class.on]="teamForm.memberIds.includes(m.id)" (click)="toggleFormMember(m.id)">
+              <span class="tm-check"><lucide-icon *ngIf="teamForm.memberIds.includes(m.id)" name="check" [size]="12"></lucide-icon></span>
+              <span class="tm-person">{{ m.avatar }}</span>
+              <span class="tm-pick-text"><strong>{{ m.name }}</strong><small>{{ m.role }}</small></span>
+            </button>
+            <p class="tm-muted tm-pad" *ngIf="!pickerMembers.length">No one matches. Add people on the People tab.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tm-field">
+        <span>Assign to projects <em>members collaborate on every chat in these projects</em></span>
+        <div class="tm-chipset">
+          <button type="button" class="tm-chip" *ngFor="let p of projects; let pi = index" role="checkbox"
+            [attr.aria-checked]="teamForm.projectIds.includes(p.id)" [class.on]="teamForm.projectIds.includes(p.id)" (click)="toggleFormProject(p.id)">
+            <span class="tm-proj-av" [style.background]="projectGradient(p.id, pi)">{{ initials(p.name) }}</span>{{ p.name }}
+            <lucide-icon *ngIf="teamForm.projectIds.includes(p.id)" name="check" [size]="13"></lucide-icon>
+          </button>
+        </div>
+      </div>
+      <p class="tm-error" *ngIf="formError" role="alert">{{ formError }}</p>
+    </div>
+    <div class="tm-dialog-foot">
+      <ng-container *ngIf="editingId">
+        <button type="button" class="tm-btn tm-btn--danger-ghost" *ngIf="!confirmDelete" (click)="confirmDelete = true"><lucide-icon name="trash-2" [size]="14"></lucide-icon>Delete team</button>
+        <span class="tm-confirm" *ngIf="confirmDelete">Delete this team?
+          <button type="button" class="tm-btn tm-btn--danger" (click)="deleteTeam()">Delete</button>
+          <button type="button" class="tm-btn tm-btn--ghost" (click)="confirmDelete = false">Keep</button>
+        </span>
+      </ng-container>
+      <span class="tm-spacer"></span>
+      <button type="button" class="tm-btn tm-btn--ghost" (click)="closeDialog()">Cancel</button>
+      <button type="submit" class="tm-btn tm-btn--primary">{{ editingId ? 'Save' : 'Create team' }}</button>
+    </div>
+  </form>
+
+  <!-- ── Person dialog ──────────────────────────────────────── -->
+  <form class="tm-dialog tm-dialog--sm" *ngIf="dialog === 'member'" role="dialog" aria-modal="true" aria-labelledby="tm-member-title"
+    (click)="$event.stopPropagation()" (ngSubmit)="saveMember()">
+    <div class="tm-dialog-head">
+      <h2 id="tm-member-title">{{ editingId ? 'Edit person' : 'Add a person' }}</h2>
+      <button type="button" class="tm-icon-btn" (click)="closeDialog()" aria-label="Close"><lucide-icon name="x" [size]="16"></lucide-icon></button>
+    </div>
+    <div class="tm-dialog-body">
+      <div class="tm-two">
+        <label class="tm-field">
+          <span>Name</span>
+          <input class="tm-input" name="mname" [(ngModel)]="memberForm.name" placeholder="Full name" maxlength="60" autocomplete="off" required autofocus>
+        </label>
+        <label class="tm-field">
+          <span>Role</span>
+          <input class="tm-input" name="mrole" [(ngModel)]="memberForm.role" placeholder="e.g. UX Designer" maxlength="60" autocomplete="off">
+        </label>
+      </div>
+      <label class="tm-field">
+        <span>Email <em>(optional)</em></span>
+        <input class="tm-input" name="memail" type="email" [(ngModel)]="memberForm.email" placeholder="name@company.com" autocomplete="off">
+      </label>
+      <label class="tm-field">
+        <span>Skills <em>comma separated</em></span>
+        <input class="tm-input" name="mskills" [(ngModel)]="memberForm.skills" placeholder="UX, prototyping, research" autocomplete="off">
+      </label>
+      <label class="tm-field">
+        <span>Availability <em>{{ memberForm.availability }}%</em></span>
+        <input class="tm-range" name="mavail" type="range" min="0" max="100" step="5" [(ngModel)]="memberForm.availability">
+      </label>
+      <p class="tm-muted" *ngIf="editingId && editingMemberTeams.length">In {{ editingMemberTeams.length === 1 ? 'team' : 'teams' }}:
+        <ng-container *ngFor="let t of editingMemberTeams; let last = last">{{ t.name }}{{ last ? '' : ', ' }}</ng-container></p>
+      <p class="tm-error" *ngIf="formError" role="alert">{{ formError }}</p>
+    </div>
+    <div class="tm-dialog-foot">
+      <ng-container *ngIf="editingId">
+        <button type="button" class="tm-btn tm-btn--danger-ghost" *ngIf="!confirmDelete" (click)="confirmDelete = true"><lucide-icon name="trash-2" [size]="14"></lucide-icon>Remove</button>
+        <span class="tm-confirm" *ngIf="confirmDelete">Remove from all teams?
+          <button type="button" class="tm-btn tm-btn--danger" (click)="deleteMember()">Remove</button>
+          <button type="button" class="tm-btn tm-btn--ghost" (click)="confirmDelete = false">Keep</button>
+        </span>
+      </ng-container>
+      <span class="tm-spacer"></span>
+      <button type="button" class="tm-btn tm-btn--ghost" (click)="closeDialog()">Cancel</button>
+      <button type="submit" class="tm-btn tm-btn--primary">{{ editingId ? 'Save' : 'Add person' }}</button>
+    </div>
+  </form>
+</div>
+
+<div class="tm-toast" *ngIf="toast" role="status" aria-live="polite"><lucide-icon name="check-circle" [size]="15"></lucide-icon>{{ toast }}</div>

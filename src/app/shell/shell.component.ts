@@ -102,13 +102,13 @@ export class ShellComponent implements OnInit {
     { route: 'home', label: 'Home', icon: 'house' },
     { route: 'pm-buddy', label: 'PM Buddy', icon: 'bot' },
     { route: 'projects', label: 'Projects', icon: 'folder-open' },
+    { route: 'teams', label: 'Teams', icon: 'users' },
     { route: 'repository', label: 'Repository', icon: 'library' },
     { route: 'intelligence', label: 'Product Intelligence', icon: 'brain-circuit' }
   ];
   /** Secondary destinations behind "More". */
   readonly moreNavItems: NavItem[] = [
     { route: 'jobs', label: 'Background Jobs', icon: 'timer' },
-    { route: 'integrations', label: 'Integrations', icon: 'git-merge' },
     { route: 'analytics', label: 'Analytics', icon: 'bar-chart-3' }
   ];
   readonly navItems: NavItem[] = [...this.mainNavItems, ...this.moreNavItems];
@@ -159,6 +159,8 @@ export class ShellComponent implements OnInit {
   ) {
     // PM Buddy alerts run on every page, not only inside PM Buddy.
     inject(PmBuddyAlertsService).start();
+    // Auto-close the nav when a response is generated in the open chat.
+    this.conversations.replyArrived.pipe(takeUntilDestroyed()).subscribe(id => this.collapseForReply(id));
   }
 
   ngOnInit(): void {
@@ -229,6 +231,19 @@ export class ShellComponent implements OnInit {
   /** Collapsed rail: the chats icon expands the nav so the chat list is visible. */
   showChats(): void {
     if (this.railCollapsed) this.toggleNav();
+  }
+
+  /**
+   * A reply just landed in the chat you're looking at: fold the expanded nav away (animated) so the
+   * conversation and its preview get the room. Not saved as your preference; expand it again any time.
+   */
+  private collapseForReply(conversationId: string): void {
+    if (conversationId !== this.activeConversationId) return;
+    if (this.isDesktop) {
+      if (!this.navCollapsed) this.navCollapsed = true;
+    } else if (this.navOpen) {
+      this.navOpen = false;
+    }
   }
 
   toggleNav(): void {

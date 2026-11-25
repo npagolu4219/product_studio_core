@@ -44,19 +44,7 @@
 .psc-fm-transform { font-size: 11px; color: var(--psc-text-muted); background: rgb(var(--psc-primary-rgb) / 0.06); padding: 2px 8px; border-radius: 4px; }
 
 /* Team */
-.psc-team-section { display: flex; flex-direction: column; gap: 12px; }
 .psc-section-header { display: flex; align-items: center; justify-content: space-between; }
-.psc-team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
-.psc-team-card { display: flex; align-items: center; gap: 12px; padding: 14px; }
-.psc-team-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--psc-gradient-brand); color: white; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.psc-team-info { flex: 1; }
-.psc-team-name { font-size: 13px; font-weight: 700; color: var(--psc-text-primary); }
-.psc-team-role { font-size: 11px; color: var(--psc-text-muted); }
-.psc-team-skills { display: flex; gap: 4px; margin-top: 4px; }
-.psc-team-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.psc-team-avail { display: flex; align-items: center; gap: 6px; }
-.psc-team-avail-pct { font-size: 11px; font-weight: 700; color: var(--psc-success); }
-.psc-team-stories { font-size: 11px; color: var(--psc-text-muted); }
 
 // ── Visual cards (brand tiles, status dots, icon stats) ──
 .psc-int-logo { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 0; box-shadow: 0 4px 10px rgba(0, 0, 0, .12); }
@@ -79,14 +67,9 @@
   &:hover { background: rgb(var(--psc-primary-rgb) / .12); border-color: rgb(var(--psc-primary-rgb) / .3); }
   &:focus-visible { outline: 2px solid rgb(var(--psc-primary-rgb) / .45); outline-offset: 1px; }
 }
-.psc-ring { width: 44px; height: 44px; transform: rotate(-90deg); }
-.psc-ring text { transform: rotate(90deg); transform-origin: 18px 18px; font: 800 9px 'Mulish', sans-serif; fill: var(--psc-text-primary); }
-.psc-ring-track { fill: none; stroke: rgb(var(--psc-primary-rgb) / .1); stroke-width: 4; }
-.psc-ring-fill { fill: none; stroke: var(--psc-primary); stroke-width: 4; stroke-linecap: round; transition: stroke-dasharray .4s ease; }
-.psc-team-stories { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; }
 .psc-section-header .psc-btn { display: inline-flex; align-items: center; gap: 4px; }
 
 @media (max-width: 640px) {
   .psc-integrations { padding: 16px; }
-  .psc-int-grid, .psc-team-grid { grid-template-columns: 1fr; }
+  .psc-int-grid { grid-template-columns: 1fr; }
 }

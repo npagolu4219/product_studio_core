@@ -1,26 +1,25 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { PscMockDataService } from '../../services/psc-mock-data.service';
-import { Integration, TeamMember } from '../../models/psc.models';
+import { Integration } from '../../models/psc.models';
 
 @Component({
   selector: 'app-psc-integrations',
   standalone: true,
-  imports: [CommonModule, DatePipe, LucideAngularModule],
+  imports: [CommonModule, DatePipe, RouterLink, LucideAngularModule],
   templateUrl: './integrations.component.html',
   styleUrl: './integrations.component.scss'
 })
 export class IntegrationsComponent implements OnInit {
   integrations: Integration[] = [];
-  teamMembers: TeamMember[] = [];
   selectedIntegration: Integration | null = null;
 
   constructor(private mockData: PscMockDataService) {}
 
   ngOnInit(): void {
     this.mockData.getIntegrations().subscribe(i => this.integrations = i);
-    this.mockData.getTeamMembers().subscribe(t => this.teamMembers = t);
   }
 
   /** Brand-coloured tile + lucide glyph for each tool (replaces emoji placeholders). */
@@ -38,12 +37,6 @@ export class IntegrationsComponent implements OnInit {
     return this.brands[type] ?? { icon: 'plug', color: '#7C3AED' };
   }
 
-  /** stroke-dasharray for the availability ring (r = 15 → circumference ≈ 94.2). */
-  ring(pct: number): string {
-    const c = 2 * Math.PI * 15;
-    return `${(Math.max(0, Math.min(100, pct)) / 100) * c} ${c}`;
-  }
-
   getStatusClass(status: string): string {
     const map: Record<string, string> = { connected: 'psc-badge-active', disconnected: 'psc-badge-draft', error: 'psc-badge-failed', pending: 'psc-badge-paused' };
     return map[status] || 'psc-badge-draft';
@@ -54,5 +47,4 @@ export class IntegrationsComponent implements OnInit {
   connect(i: Integration): void { i.status = 'connected'; i.lastSync = new Date().toISOString(); }
   reconnect(i: Integration): void { i.status = 'connected'; i.lastSync = new Date().toISOString(); }
   addMapping(): void { alert('Add field mapping (mock)'); }
-  addMember(): void { alert('Add team member (mock)'); }
 }
