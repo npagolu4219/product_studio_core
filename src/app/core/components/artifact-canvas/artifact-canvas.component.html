@@ -73,7 +73,7 @@
           <ng-container *ngTemplateOutlet="docTpl; context: { $implicit: doc(), interactive: !viewingOld() }"></ng-container>
         </article>
 
-        <nav class="cv-outline" *ngIf="doc().sections.length > 2" aria-label="Contents">
+        <nav class="cv-outline" *ngIf="doc().sections.length > 2" aria-label="Contents" data-tour="pv-outline">
           <div class="cv-outline-title">Contents</div>
           <button type="button" *ngFor="let s of doc().sections" [class.active]="activeSection() === s.id" (click)="jumpTo(s.id)" [attr.aria-current]="activeSection() === s.id ? 'true' : null">
             <span class="cv-outline-icon">{{ s.icon }}</span><span>{{ s.heading }}</span>
@@ -274,7 +274,7 @@
     <div class="cv-request" *ngIf="doc.request"><lucide-icon name="message-square-quote" [size]="14"></lucide-icon><span><strong>Request</strong>{{ doc.request }}</span></div>
     <ng-container *ngTemplateOutlet="blocksTpl; context: { $implicit: doc.intro }"></ng-container>
 
-    <section class="cv-section" *ngFor="let s of doc.sections" [id]="s.id" [class.editing]="canvas.sectionEdit()?.section?.id === s.id" [attr.aria-labelledby]="s.id + '-h'">
+    <section class="cv-section" *ngFor="let s of doc.sections; let first = first" [attr.data-tour]="first ? 'pv-section' : null" [id]="s.id" [class.editing]="canvas.sectionEdit()?.section?.id === s.id" [attr.aria-labelledby]="s.id + '-h'">
       <div class="cv-section-head">
         <h2 [id]="s.id + '-h'" tabindex="-1"><span class="cv-section-icon" *ngIf="s.icon" aria-hidden="true">{{ s.icon }}</span>{{ s.heading }}</h2>
         <span class="cv-section-meta" *ngIf="s.meta">{{ s.meta }}</span>

@@ -1,3 +1,4 @@
+import { TourService } from '../../services/tour.service';
 import { Component, ElementRef, HostListener, computed, inject, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -25,7 +26,8 @@ const MORE: MoreItem[] = [
   { id: 'markdown', icon: 'file-down', label: 'Download Markdown' },
   { id: 'pdf', icon: 'printer', label: 'Print / Save as PDF' },
   { id: 'export', icon: 'download', label: 'More export options…', hint: 'Word, Jira, Azure DevOps' },
-  { id: 'chat', icon: 'panel-left', label: 'Toggle conversation', divider: true }
+  { id: 'chat', icon: 'panel-left', label: 'Toggle conversation', divider: true },
+  { id: 'tour', icon: 'compass', label: 'Take the preview tour' }
 ];
 
 @Component({
@@ -37,13 +39,14 @@ const MORE: MoreItem[] = [
 })
 export class ArtifactToolbarComponent {
   readonly canvas = inject(ArtifactCanvasService);
+  private readonly tour = inject(TourService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
   readonly closed = output<void>();
 
   readonly tabs = TABS;
-  readonly more = MORE;
+  readonly more = MORE.filter(m => m.id !== 'tour' || this.tour.enabled);
   readonly statusOptions = STATUS_OPTIONS;
   readonly menu = signal<'doc' | 'status' | 'more' | null>(null);
 
@@ -79,6 +82,7 @@ export class ArtifactToolbarComponent {
     if (id === 'refine') this.canvas.requestRefine();
     else if (id === 'preview' || id === 'export' || id === 'share') this.canvas.setMode(id);
     else if (id === 'chat') this.canvas.toggleChatCollapsed();
+    else if (id === 'tour') this.tour.start('preview');
     else this.canvas.exportAs(id as ExportFormat);
   }
 

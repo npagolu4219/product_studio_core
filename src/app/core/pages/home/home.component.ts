@@ -9,6 +9,8 @@ import { PscMockDataService } from '../../services/psc-mock-data.service';
 import { ConversationService } from '../../services/conversation.service';
 import { AiMessage, Artifact, Conversation, PdlcPhaseId, Project, ProjectLifecycle, Team, TeamMember } from '../../models/psc.models';
 import { TeamsService } from '../../services/teams.service';
+import { TourId, TourService } from '../../services/tour.service';
+import { ClarifyQuestion, ClarifyRequest, clarifyOf, clarifySummary } from '../../constants/clarify-questions';
 import { PDLC_PHASES, PdlcDeliverable, PdlcPhase, pdlcPhase } from '../../constants/pdlc';
 import { ProjectLifecycleService } from '../../services/project-lifecycle.service';
 import { KnowledgeKind, KnowledgeRef } from '../../models/product-memory.models';
@@ -72,7 +74,7 @@ interface RouteState {
     ActivityWatchComponent
   ],
   templateUrl: './home.component.html',
-  styleUrls: ['./home.component.scss', './home-project-workspace.scss', './home-prompt-bar.scss', './home-landing.scss']
+  styleUrls: ['./home.component.scss', './home-project-workspace.scss', './home-prompt-bar.scss', './home-landing.scss', './home-clarify.scss']
 })
 export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   @ViewChild('messageList') private messageList?: ElementRef<HTMLElement>;
@@ -209,6 +211,21 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   // ── Team collaboration: teams assigned to the project, plus teams and people added to this chat ──
   private readonly teamsSvc = inject(TeamsService);
+  readonly tour = inject(TourService);
+  private tourTimer = 0;
+
+  /** First visit to the Home landing or to a project workspace: start that tour once the page has settled. */
+  private queueTour(): void {
+    window.clearTimeout(this.tourTimer);
+    const which = (): TourId | null =>
+      this.canvasOpen ? 'preview' : this.conversationStarted ? null : this.projectMode ? 'project' : 'home';
+    const id = which();
+    if (!id || this.tour.hasSeen(id)) return;
+    // The preview slides in; give it a moment so the spotlight lands on settled controls.
+    this.tourTimer = window.setTimeout(() => {
+      if (which() === id) this.tour.autoStart(id);
+    }, id === 'preview' ? 1200 : 900);
+  }
   private newChatCollaborators: string[] = [];
   private newChatTeamIds: string[] = [];
 
@@ -316,6 +333,12 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     private route: ActivatedRoute,
     private router: Router
   ) {
+    // A tour just closed: if this screen has its own unseen tour (e.g. the preview opened mid-tour), start it next.
+    effect(() => {
+      if (this.tour.active()) return;
+      untracked(() => this.queueTour());
+    });
+
     // Canvas "Ask AI to refine" → pre-fill the chat prompt, targeting the same artifact type so the reply is its next version.
     effect(() => {
       const req = this.canvas.refineRequest();
@@ -721,10 +744,11 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
         }),
         takeUntilDestroyed(this.destroyRef)
       )
-      .subscribe(state => this.applyRouteState(state));
+      .subscribe(state => { this.applyRouteState(state); this.queueTour(); });
   }
 
   ngOnDestroy(): void {
+    window.clearTimeout(this.tourTimer);
     window.clearTimeout(this.autoRefineTimer);
     window.clearTimeout(this.feedbackTimer);
     this.canvas.close();
@@ -1445,6 +1469,88 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.voiceMessage = this.autoRefine ? 'Auto refine is on. Your prompt is improved when you pause typing.' : 'Auto refine is off.';
     if (this.autoRefine) this.scheduleAutoRefine(300);
     else window.clearTimeout(this.autoRefineTimer);
+  }
+
+  // ── Human in the loop: clarifying questions before a draft ──
+  readonly clarifyOf = clarifyOf;
+  /** message id → question id → picked answers (until submitted). */
+  private clarifyPicks: Record<string, Record<string, string[]>> = {};
+  /** message id → question id → typed "Other" answer. */
+  private clarifyOther: Record<string, Record<string, string>> = {};
+  private otherOpen = new Set<string>();
+
+  isPicked(msgId: string, qId: string, option: string): boolean {
+    return !!this.clarifyPicks[msgId]?.[qId]?.includes(option);
+  }
+
+  togglePick(msgId: string, q: ClarifyQuestion, option: string): void {
+    const picks = (this.clarifyPicks[msgId] ??= {});
+    const current = picks[q.id] ?? [];
+    picks[q.id] = current.includes(option)
+      ? current.filter(o => o !== option)
+      : q.multi ? [...current, option] : [option];
+  }
+
+  isOtherOpen(msgId: string, qId: string): boolean {
+    return this.otherOpen.has(`${msgId}:${qId}`);
+  }
+
+  toggleOther(msgId: string, qId: string): void {
+    const key = `${msgId}:${qId}`;
+    if (this.otherOpen.has(key)) {
+      this.otherOpen.delete(key);
+      if (this.clarifyOther[msgId]) delete this.clarifyOther[msgId][qId];
+    } else {
+      this.otherOpen.add(key);
+      setTimeout(() => this.homeRoot?.nativeElement.querySelector<HTMLInputElement>('.psc-clarify-input:last-of-type')?.focus());
+    }
+  }
+
+  otherText(msgId: string, qId: string): string {
+    return this.clarifyOther[msgId]?.[qId] ?? '';
+  }
+
+  setOther(msgId: string, qId: string, text: string): void {
+    (this.clarifyOther[msgId] ??= {})[qId] = text;
+  }
+
+  private clarifyAnswers(msgId: string, c: ClarifyRequest): Record<string, string[]> {
+    const out: Record<string, string[]> = {};
+    for (const q of c.questions) {
+      const picked = [...(this.clarifyPicks[msgId]?.[q.id] ?? [])];
+      const other = this.otherText(msgId, q.id).trim();
+      if (other) picked.push(other);
+      if (picked.length) out[q.id] = picked;
+    }
+    return out;
+  }
+
+  answeredCount(msgId: string, c: ClarifyRequest): number {
+    return Object.keys(this.clarifyAnswers(msgId, c)).length;
+  }
+
+  clarifyLines(c: ClarifyRequest): string[] {
+    return clarifySummary(c).map(l => l.replace(/^• /, ''));
+  }
+
+  /** Generate the draft from the answers (or skip the questions and use defaults). */
+  submitClarify(message: AiMessage, skip = false): void {
+    const c = clarifyOf(message);
+    const conv = this.activeConversation;
+    if (!c || !conv || this.isTyping) return;
+    const lc = this.workspaceLifecycle;
+    const lifecycle = lc && this.attachments.some(a => a.kind === 'pdlc') ? this.lifecycles.summary(lc) : undefined;
+    if (this.selectedArtifact !== c.artifactId) this.selectedArtifact = c.artifactId;
+    const answers = skip ? null : this.clarifyAnswers(message.id, c);
+    this.conversations.answerClarify(conv.id, message.id, answers && Object.keys(answers).length ? answers : null, {
+      artifactId: c.artifactId,
+      contextNames: this.contextLabels,
+      lifecycle,
+      workflowNote: this.workflowNote()
+    });
+    delete this.clarifyPicks[message.id];
+    delete this.clarifyOther[message.id];
+    this.shouldScroll = true;
   }
 
   /** Set when Send was pressed without a project: the prompt is sent once one is picked. */

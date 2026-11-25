@@ -23,6 +23,9 @@
           <li><lucide-icon name="message-square" [size]="14"></lucide-icon><strong>{{ landingStats.chats }}</strong> {{ landingStats.chats === 1 ? 'chat' : 'chats' }}</li>
           <li><lucide-icon name="file-text" [size]="14"></lucide-icon><strong>{{ landingStats.docs }}</strong> {{ landingStats.docs === 1 ? 'document' : 'documents' }}</li>
         </ul>
+        <button type="button" class="psc-tour-link" *ngIf="tour.enabled" (click)="tour.start('home')">
+          <lucide-icon name="compass" [size]="14"></lucide-icon>Take the tour
+        </button>
       </header>
 
       <!-- Project workspace header: project name, this chat, what to create; tabs underneath -->
@@ -38,7 +41,7 @@
           <lucide-icon name="square-pen" [size]="15"></lucide-icon><span>New chat</span>
         </button>
       </header>
-      <nav class="psc-pw-tabs" *ngIf="projectMode" role="tablist" aria-label="Project">
+      <nav class="psc-pw-tabs" *ngIf="projectMode" role="tablist" aria-label="Project" data-tour="pw-tabs">
         <button type="button" role="tab" class="psc-pw-tab" [attr.title]="t.label" *ngFor="let t of projectTabs; let i = index; trackBy: trackById" [id]="'pw-tab-' + t.id"
           [attr.aria-selected]="projectTab === t.id" [attr.aria-controls]="'pw-panel-' + t.id" [tabindex]="projectTab === t.id ? 0 : -1"
           [class.active]="projectTab === t.id" (click)="setProjectTab(t.id)" (keydown)="onTabKeydown($event, i)">
@@ -104,6 +107,7 @@
         <span class="psc-pw-empty-av" [style.background]="projectGradient(wp.id, 0)">{{ initials(wp.name) }}</span>
         <h2>What should we work on in {{ wp.name }}?</h2>
         <p *ngIf="contextCount">This chat uses {{ contextCount }} context item{{ contextCount === 1 ? '' : 's' }}. <button type="button" class="psc-inline-link" (click)="setProjectTab('context')">Review in Context</button></p>
+        <button type="button" class="psc-tour-link" *ngIf="tour.enabled" (click)="tour.start('project')"><lucide-icon name="compass" [size]="14"></lucide-icon>Take the tour</button>
         <p *ngIf="!contextCount">Just start typing, or <button type="button" class="psc-inline-link" (click)="setProjectTab('context')">add context</button> so answers use your Jira, docs and files.</p>
         <div class="psc-pw-starters">
           <button type="button" *ngFor="let st of projectStarters" (click)="useStarter(st)">
@@ -151,6 +155,49 @@
             <div class="psc-message-body">
               <div class="psc-message-author" *ngIf="message.role !== 'user'">{{ message.agentName }}</div>
               <p [innerHTML]="formatMessage(message.content)"></p>
+
+              <!-- Human in the loop: clarifying questions before a draft is generated -->
+              <section class="psc-clarify" *ngIf="clarifyOf(message) as c" [class.done]="c.status !== 'pending'" [attr.aria-label]="'Questions before drafting the ' + getArtifactShortLabel(c.artifactId)">
+                <header class="psc-clarify-head">
+                  <span class="psc-clarify-icon"><lucide-icon [name]="c.status === 'pending' ? 'circle-help' : c.status === 'answered' ? 'check-circle' : 'arrow-right'" [size]="15"></lucide-icon></span>
+                  <strong>{{ c.status === 'pending' ? 'A few questions before I draft the ' + getArtifactShortLabel(c.artifactId) : c.status === 'answered' ? 'Your answers' : 'Questions skipped' }}</strong>
+                  <span class="psc-clarify-count" *ngIf="c.status === 'pending'">{{ answeredCount(message.id, c) }} of {{ c.questions.length }} answered</span>
+                </header>
+
+                <ng-container *ngIf="c.status === 'pending'; else clarifyDone">
+                  <div class="psc-clarify-progress" aria-hidden="true"><span [style.width.%]="(answeredCount(message.id, c) / c.questions.length) * 100"></span></div>
+                  <fieldset class="psc-clarify-q" *ngFor="let q of c.questions; let qi = index">
+                    <legend><span class="psc-clarify-num">{{ qi + 1 }}</span>{{ q.text }}<small *ngIf="q.hint || q.multi">{{ q.hint || 'Pick any' }}</small></legend>
+                    <div class="psc-clarify-opts">
+                      <button type="button" class="psc-clarify-opt" *ngFor="let o of q.options" [class.on]="isPicked(message.id, q.id, o)"
+                        [attr.aria-pressed]="isPicked(message.id, q.id, o)" (click)="togglePick(message.id, q, o)" [disabled]="isTyping">
+                        <lucide-icon *ngIf="isPicked(message.id, q.id, o)" name="check" [size]="12"></lucide-icon>{{ o }}
+                      </button>
+                      <button type="button" class="psc-clarify-opt psc-clarify-opt--other" [class.on]="isOtherOpen(message.id, q.id)"
+                        [attr.aria-expanded]="isOtherOpen(message.id, q.id)" (click)="toggleOther(message.id, q.id)" [disabled]="isTyping">
+                        <lucide-icon name="pencil" [size]="12"></lucide-icon>Other
+                      </button>
+                    </div>
+                    <input class="psc-clarify-input" *ngIf="isOtherOpen(message.id, q.id)" [ngModel]="otherText(message.id, q.id)"
+                      (ngModelChange)="setOther(message.id, q.id, $event)" (keydown.enter)="$event.preventDefault()"
+                      placeholder="Type your own answer" [attr.aria-label]="q.text + ' (your answer)'" maxlength="200">
+                  </fieldset>
+                  <footer class="psc-clarify-foot">
+                    <span class="psc-clarify-tip"><lucide-icon name="message-square" [size]="12"></lucide-icon>Or reply in the chat; I’ll use that as your answer.</span>
+                    <button type="button" class="psc-clarify-skip" (click)="submitClarify(message, true)" [disabled]="isTyping">Skip, use defaults</button>
+                    <button type="button" class="psc-clarify-go" (click)="submitClarify(message)" [disabled]="isTyping">
+                      <lucide-icon name="sparkles" [size]="14"></lucide-icon>Generate {{ getArtifactShortLabel(c.artifactId) }}
+                    </button>
+                  </footer>
+                </ng-container>
+                <ng-template #clarifyDone>
+                  <ul class="psc-clarify-summary" *ngIf="clarifyLines(c).length; else skippedNote">
+                    <li *ngFor="let l of clarifyLines(c)"><lucide-icon name="check" [size]="12"></lucide-icon><span>{{ l }}</span></li>
+                  </ul>
+                  <ng-template #skippedNote><p class="psc-clarify-note">Drafted with sensible defaults. You can still ask for changes in the chat.</p></ng-template>
+                </ng-template>
+              </section>
+
               <div class="psc-generated-artifacts" *ngIf="message.artifacts?.length">
                 <button type="button" class="psc-generated-artifact" *ngFor="let artifact of message.artifacts; trackBy: trackById"
                   [class.open]="isArtifactOpen(artifact)" [attr.aria-pressed]="isArtifactOpen(artifact)"
@@ -169,7 +216,7 @@
 
       <!-- The prompt bar lives in projects (and older chats); the Home landing shows projects only -->
       <div class="psc-prompt-composer" *ngIf="showComposer" [class.psc-tab-hidden]="otherTabOpen" (click)="$event.stopPropagation()">
-        <div class="psc-prompt-input" [class.refining]="isRefining">
+        <div class="psc-prompt-input" [class.refining]="isRefining" data-tour="pb-input">
           <label class="psc-sr-only" for="product-prompt">Describe your product requirement</label>
           <textarea id="product-prompt" #promptInput [ngModel]="promptText" (ngModelChange)="onPromptChange($event)"
             [rows]="docked ? 2 : 3" (keydown.enter)="submitOnEnter($event)" (focus)="closeMenus()"
@@ -206,7 +253,7 @@
         <div class="psc-prompt-controls">
           <div class="psc-prompt-selectors">
             <!-- Add: files, integrations, product modules, knowledge base -->
-            <button type="button" class="psc-chip-btn psc-context-btn" (click)="toggleMenu('context', $event)"
+            <button type="button" class="psc-chip-btn psc-context-btn" data-tour="pb-context" (click)="toggleMenu('context', $event)"
               aria-haspopup="dialog" [attr.aria-expanded]="openMenu === 'context'" aria-controls="context-menu"
               [attr.aria-label]="'Add files or context, ' + contextCount + ' added'" title="Add files or context: Jira, Confluence, Azure DevOps, modules, the knowledge base">
               <lucide-icon name="plus" [size]="15"></lucide-icon>
@@ -215,7 +262,7 @@
             </button>
 
             <!-- Team collaboration: invite project members to this chat -->
-            <button type="button" class="psc-chip-btn psc-team-btn" *ngIf="projectMode" (click)="toggleMenu('team', $event)"
+            <button type="button" class="psc-chip-btn psc-team-btn" *ngIf="projectMode" data-tour="pb-team" (click)="toggleMenu('team', $event)"
               aria-haspopup="dialog" [attr.aria-expanded]="openMenu === 'team'" aria-controls="team-menu"
               [attr.aria-label]="'Team collaboration, ' + participants.length + ' people'" title="Team collaboration: invite people to this chat">
               <span class="psc-team-stack" *ngIf="participants.length; else teamIcon">
@@ -227,7 +274,7 @@
             </button>
 
             <!-- Golden workflow: chat only, a standard sequence of documents, or one document -->
-            <button type="button" class="psc-picker psc-picker--artifact" (click)="toggleMenu('artifact', $event)"
+            <button type="button" class="psc-picker psc-picker--artifact" data-tour="pb-workflow" (click)="toggleMenu('artifact', $event)"
               aria-haspopup="listbox" [attr.aria-expanded]="openMenu === 'artifact'" aria-controls="artifact-menu"
               [class.is-chat]="!activeWorkflow && isChatMode(selectedArtifact)"
               [attr.aria-label]="'Golden workflow: ' + pickerValue" [title]="pickerTitle">
@@ -260,7 +307,7 @@
               <span class="psc-chip-label">{{ autoRefining ? 'Refining…' : 'Auto refine' }}</span>
             </button>
             <!-- Refine: rewrite the prompt (dropdown of refine styles) -->
-            <button type="button" class="psc-chip-btn psc-refine-chip" (click)="toggleMenu('refine', $event)" [disabled]="!canRefine"
+            <button type="button" class="psc-chip-btn psc-refine-chip" data-tour="pb-refine" (click)="toggleMenu('refine', $event)" [disabled]="!canRefine"
               aria-haspopup="menu" [attr.aria-expanded]="openMenu === 'refine'" aria-controls="refine-menu"
               [attr.aria-label]="isRefining ? 'Refining prompt' : 'Refine prompt'"
               [title]="promptText.trim() ? 'Refine prompt' : 'Type a prompt to refine it'">
@@ -268,7 +315,7 @@
               <span class="psc-chip-label">{{ isRefining ? 'Refining…' : 'Refine' }}</span>
               <lucide-icon class="psc-picker-chevron" name="chevron-down" [size]="13"></lucide-icon>
             </button>
-            <button type="button" class="psc-start-button" [disabled]="!promptText.trim() || isTyping || isRefining" (click)="sendPrompt()" aria-label="Send prompt" title="Send (Enter)">
+            <button type="button" class="psc-start-button" data-tour="pb-send" [disabled]="!promptText.trim() || isTyping || isRefining" (click)="sendPrompt()" aria-label="Send prompt" title="Send (Enter)">
               <lucide-icon [name]="isTyping ? 'loader' : 'arrow-up'" [size]="18" [class.psc-spin]="isTyping"></lucide-icon>
             </button>
           </div>
@@ -364,7 +411,7 @@
             <input id="landing-search" type="search" [(ngModel)]="landingQuery" placeholder="Search projects" autocomplete="off" (keydown.escape)="landingQuery = ''">
             <kbd *ngIf="!landingQuery" aria-hidden="true">/</kbd>
           </div>
-          <div class="psc-l-sortwrap" *ngIf="hasProjects" (click)="$event.stopPropagation()">
+          <div class="psc-l-sortwrap" *ngIf="hasProjects" data-tour="landing-sort" (click)="$event.stopPropagation()">
             <button type="button" class="psc-l-sort-btn" (click)="sortMenuOpen = !sortMenuOpen" aria-haspopup="menu" [attr.aria-expanded]="sortMenuOpen"
               [attr.aria-label]="'Sort projects: ' + sortLabel" [title]="'Sort: ' + sortLabel">
               <lucide-icon name="arrow-up-down" [size]="16"></lucide-icon>
@@ -409,12 +456,12 @@
         </section>
 
         <div class="psc-l-grid" role="list" *ngIf="hasProjects && (landingProjects.length || !landingQuery); else noMatch">
-          <button type="button" class="psc-l-add" role="listitem" (click)="newProject()" *ngIf="!landingQuery">
+          <button type="button" class="psc-l-add" role="listitem" data-tour="landing-new-project" (click)="newProject()" *ngIf="!landingQuery">
             <span class="psc-l-add-icon"><lucide-icon name="plus" [size]="22"></lucide-icon></span>
             <strong>New project</strong>
             <span>Start with a title and description</span>
           </button>
-          <article class="psc-l-card" role="listitem" *ngFor="let p of landingProjects; let i = index; trackBy: trackById"
+          <article class="psc-l-card" role="listitem" [attr.data-tour]="i === 0 ? 'landing-project' : null" *ngFor="let p of landingProjects; let i = index; trackBy: trackById"
             [style.animation-delay]="(i * 0.04) + 's'">
             <button type="button" class="psc-l-card-main" (click)="openProject(p)"
               [attr.aria-label]="'Open ' + p.name + ', ' + (chatCounts[p.id] || 0) + ' chats'">
@@ -458,7 +505,7 @@
   </div>
 
   <!-- Resize handle between chat and canvas -->
-  <div class="psc-resize-handle" *ngIf="canvasOpen && !canvas.layout().chatCollapsed" [class.active]="isResizing"
+  <div class="psc-resize-handle" data-tour="pv-resize" *ngIf="canvasOpen && !canvas.layout().chatCollapsed" [class.active]="isResizing"
     role="separator" aria-orientation="vertical" aria-label="Resize conversation panel" tabindex="0"
     aria-valuemin="25" aria-valuemax="60" [attr.aria-valuenow]="chatPct"
     (mousedown)="startResize($event)" (keydown.arrowleft)="nudgeChatWidth(-2)" (keydown.arrowright)="nudgeChatWidth(2)">

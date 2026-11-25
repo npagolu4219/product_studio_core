@@ -510,3 +510,21 @@
   .psc-l-preview span:last-child { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .psc-l-first { animation: none; } }
+
+// "Take the tour" (replays the first-time tour)
+.psc-tour-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 5px 12px;
+  color: var(--psc-primary-text);
+  background: transparent;
+  border: 1px dashed rgb(var(--psc-primary-rgb) / .35);
+  border-radius: 999px;
+  font: 700 12.5px 'Mulish', sans-serif;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+  &:hover { background: rgb(var(--psc-primary-rgb) / .07); border-color: rgb(var(--psc-primary-rgb) / .55); }
+  &:focus-visible { outline: 2px solid rgb(var(--psc-primary-rgb) / .5); outline-offset: 2px; }
+}

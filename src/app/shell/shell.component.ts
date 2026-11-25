@@ -1,3 +1,4 @@
+import { PscTourComponent } from '../core/components/psc-tour/psc-tour.component';
 import { Component, DestroyRef, ElementRef, HostListener, OnInit, ViewChild, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, DatePipe } from '@angular/common';
@@ -62,7 +63,7 @@ const TABLET_QUERY = '(min-width: 768px) and (max-width: 1099.98px)';
 @Component({
   selector: 'app-psc-shell',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, DatePipe, FormsModule, LucideAngularModule, PscIllustrationComponent, PscThemeCustomizerComponent],
+  imports: [CommonModule, RouterOutlet, DatePipe, FormsModule, LucideAngularModule, PscIllustrationComponent, PscThemeCustomizerComponent, PscTourComponent],
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.scss'
 })
