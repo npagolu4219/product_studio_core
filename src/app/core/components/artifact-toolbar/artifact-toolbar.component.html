@@ -6,7 +6,7 @@
   </button>
 
   <!-- Document switcher -->
-  <div class="tb-anchor">
+  <div class="tb-anchor" data-tour="pv-doc">
     <button type="button" class="tb-doc" (click)="toggleMenu('doc', $event)" aria-haspopup="menu" [attr.aria-expanded]="menu() === 'doc'"
       [title]="artifact.title + ' — switch document'">
       <span class="tb-doc-icon"><lucide-icon [name]="iconName()" [size]="13"></lucide-icon></span>
@@ -27,7 +27,7 @@
   </div>
 
   <!-- Status -->
-  <div class="tb-anchor tb-status-wrap">
+  <div class="tb-anchor tb-status-wrap" data-tour="pv-status">
     <button type="button" class="tb-status" [attr.data-status]="artifact.status" (click)="toggleMenu('status', $event)"
       aria-haspopup="menu" [attr.aria-expanded]="menu() === 'status'" [attr.aria-label]="'Status: ' + canvas.statusLabel(artifact.status) + '. Change status'">
       <span class="tb-status-dot"></span>{{ canvas.statusLabel(artifact.status) }}
@@ -44,7 +44,7 @@
   </div>
 
   <!-- Primary tabs -->
-  <div class="tb-tabs" role="tablist" aria-label="Canvas view">
+  <div class="tb-tabs" role="tablist" aria-label="Canvas view" data-tour="pv-modes">
     <button type="button" class="tb-tab" *ngFor="let t of tabs" role="tab" [attr.aria-selected]="canvas.mode() === t.id"
       [class.active]="canvas.mode() === t.id" (click)="setMode(t.id)" [title]="t.label + (t.shortcut ? ' (' + t.shortcut + ')' : '')">
       <lucide-icon [name]="t.icon" [size]="14"></lucide-icon><span class="tb-label">{{ t.label }}</span>
@@ -54,7 +54,7 @@
 
   <span class="tb-spacer"></span>
 
-  <button type="button" class="tb-btn" [class.active]="canvas.mode() === 'share'" (click)="setMode('share')" title="Share">
+  <button type="button" class="tb-btn" data-tour="pv-share" [class.active]="canvas.mode() === 'share'" (click)="setMode('share')" title="Share">
     <lucide-icon name="share-2" [size]="14"></lucide-icon><span class="tb-label">Share</span>
   </button>
   <button type="button" class="tb-btn tb-btn--primary" [class.done]="artifact.status === 'published'" (click)="setMode('publish')"
@@ -63,7 +63,7 @@
     <span class="tb-label">{{ artifact.status === 'published' ? 'Published' : 'Publish' }}</span>
   </button>
 
-  <div class="tb-anchor">
+  <div class="tb-anchor" data-tour="pv-more">
     <button type="button" class="tb-icon" (click)="toggleMenu('more', $event)" aria-haspopup="menu" [attr.aria-expanded]="menu() === 'more'" aria-label="More actions" title="More actions">
       <lucide-icon name="ellipsis" [size]="16"></lucide-icon>
     </button>

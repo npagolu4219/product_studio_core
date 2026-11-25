@@ -1,5 +1,5 @@
 <div class="watch" [class.expanded]="canvas.layout().watchExpanded" [class.has-activity]="busy()">
-  <button type="button" class="watch-bar" (click)="canvas.toggleWatch()" [attr.aria-expanded]="canvas.layout().watchExpanded">
+  <button type="button" class="watch-bar" data-tour="pv-activity" (click)="canvas.toggleWatch()" [attr.aria-expanded]="canvas.layout().watchExpanded">
     <div class="watch-bar-left">
       <div class="watch-indicator" [class.active]="busy()"></div>
       <span class="watch-label">Activity</span>

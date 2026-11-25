@@ -34,7 +34,7 @@
 
     <!-- Section 1: primary destinations + More -->
     <div class="psc-rail-items psc-rail-section" role="list">
-      <button type="button" class="psc-rail-item" role="listitem" *ngFor="let item of mainNavItems" [class.active]="activeRoute === item.route"
+      <button type="button" class="psc-rail-item" role="listitem" *ngFor="let item of mainNavItems" [attr.data-tour]="'nav-' + item.route" [class.active]="activeRoute === item.route"
         [attr.aria-current]="activeRoute === item.route ? 'page' : null" (click)="navigate(item.route)"
         [attr.title]="railCollapsed ? item.label : null" [attr.aria-label]="item.label">
         <lucide-icon [name]="item.icon" [size]="20"></lucide-icon>
@@ -60,7 +60,7 @@
     </div>
 
     <!-- Section 2: chats -->
-    <section class="psc-rail-chats" aria-label="Chats">
+    <section class="psc-rail-chats" aria-label="Chats" data-tour="nav-chats">
       <ng-container *ngIf="!railCollapsed; else collapsedChats">
         <div class="psc-chats-header">
           <span class="psc-chats-title">Chats</span>
@@ -213,6 +213,9 @@
   <main class="psc-main">
     <router-outlet></router-outlet>
   </main>
+
+  <!-- First-time product tours (Home and project workspace) -->
+  <app-psc-tour></app-psc-tour>
 
   <!-- Notification Panel -->
   <div class="psc-notification-panel" [class.open]="notificationsOpen" role="dialog" aria-label="Notifications" [attr.aria-hidden]="!notificationsOpen">

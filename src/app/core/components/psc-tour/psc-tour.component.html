@@ -1,0 +1,48 @@
+<ng-container *ngIf="tour.step() as step">
+  <div class="tr-root">
+    <!-- Blocks the page while the tour is open; the spotlight's shadow does the dimming -->
+    <div class="tr-block" [class.tr-dim]="!spot" aria-hidden="true"></div>
+    <div class="tr-spot" *ngIf="spot" aria-hidden="true"
+      [style.top.px]="spot.top" [style.left.px]="spot.left" [style.width.px]="spot.width" [style.height.px]="spot.height">
+      <span class="tr-pulse"></span>
+    </div>
+
+    <section #card class="tr-card" role="dialog" aria-modal="true" aria-labelledby="tr-title" aria-describedby="tr-body" tabindex="-1"
+      [attr.data-side]="side" [class.settling]="settling"
+      [style.top.px]="cardPos.top" [style.left.px]="cardPos.left">
+      <span class="tr-arrow" *ngIf="spot" aria-hidden="true"
+        [style.left.px]="side === 'top' || side === 'bottom' ? arrow : null"
+        [style.top.px]="side === 'left' || side === 'right' ? arrow : null"></span>
+
+      <header class="tr-head">
+        <span class="tr-icon"><lucide-icon [name]="step.icon" [size]="18"></lucide-icon></span>
+        <span class="tr-count">{{ index + 1 }} of {{ total }}</span>
+        <button type="button" class="tr-close" (click)="tour.finish()" aria-label="Close tour" title="Close (Esc)">
+          <lucide-icon name="x" [size]="16"></lucide-icon>
+        </button>
+      </header>
+
+      <div class="tr-progress" aria-hidden="true"><span [style.width.%]="((index + 1) / total) * 100"></span></div>
+
+      <h3 class="tr-title" id="tr-title">{{ step.title }}</h3>
+      <p class="tr-body" id="tr-body">{{ step.body }}</p>
+
+      <footer class="tr-foot">
+        <div class="tr-dots" role="group" aria-label="Tour steps">
+          <button type="button" class="tr-dot" *ngFor="let _ of tour.active()!.steps; let i = index"
+            [class.on]="i === index" [class.done]="i < index" (click)="tour.goTo(i)"
+            [attr.aria-label]="'Go to step ' + (i + 1)" [attr.aria-current]="i === index ? 'step' : null"></button>
+        </div>
+        <button type="button" class="tr-btn tr-btn--ghost" *ngIf="index === 0" (click)="tour.finish()">Skip</button>
+        <button type="button" class="tr-btn tr-btn--ghost" *ngIf="index > 0" (click)="tour.prev()">
+          <lucide-icon name="chevron-left" [size]="14"></lucide-icon>Back
+        </button>
+        <button type="button" class="tr-btn tr-btn--primary" (click)="tour.next()">
+          {{ isLast ? 'Finish' : index === 0 ? 'Show me' : 'Next' }}
+          <lucide-icon *ngIf="!isLast" name="chevron-right" [size]="14"></lucide-icon>
+        </button>
+      </footer>
+      <p class="tr-keys" aria-hidden="true"><kbd>←</kbd><kbd>→</kbd> to move · <kbd>Esc</kbd> to close</p>
+    </section>
+  </div>
+</ng-container>

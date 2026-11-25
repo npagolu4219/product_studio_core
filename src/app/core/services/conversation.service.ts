@@ -4,6 +4,7 @@ import { BehaviorSubject, Observable, Subject, map, distinctUntilChanged } from 
 import { AiMessage, Artifact, ContextAttachment, Conversation } from '../models/psc.models';
 import { getArtifactLabel, isChatMode, toArtifactType } from '../constants/artifact-options';
 import { buildArtifactContent } from '../constants/artifact-content';
+import { ClarifyRequest, clarifyOf, clarifyQuestionsFor, clarifySummary } from '../constants/clarify-questions';
 
 export interface SendMessageOptions {
   artifactId: string;
@@ -13,6 +14,12 @@ export interface SendMessageOptions {
   lifecycle?: string;
   /** Golden workflow progress, appended to the reply ("Idea to delivery · step 1 of 4 …"). */
   workflowNote?: string;
+  /** Draft straight away, without asking clarifying questions first. */
+  skipClarify?: boolean;
+  /** Build the draft from this request (the original ask plus clarifying answers) instead of the message text. */
+  draftPrompt?: string;
+  /** Answer lines to echo in the reply ("Using your answers: …"). */
+  answerLines?: string[];
 }
 
 const STORAGE_KEY = 'psc.conversations.v1';
@@ -92,6 +99,20 @@ export class ConversationService {
   sendMessage(conversationId: string, prompt: string, options: SendMessageOptions): void {
     const text = prompt.trim();
     if (!text || this.isPending(conversationId)) return;
+
+    // Questions are waiting and the user typed instead of using the card: treat the message as the answer.
+    const waiting = this.pendingClarify(conversationId);
+    if (waiting && !options.skipClarify) {
+      const { message, clarify } = waiting;
+      this.setClarify(conversationId, message.id, { ...clarify, status: 'answered', note: text });
+      options = {
+        ...options,
+        artifactId: clarify.artifactId,
+        skipClarify: true,
+        draftPrompt: `${clarify.prompt}\n\nAdditional details: ${text}`,
+        answerLines: [`• Notes: ${text}`]
+      };
+    }
 
     this.appendMessage(conversationId, {
       id: `user-${Date.now()}`,
@@ -201,9 +222,54 @@ export class ConversationService {
    * Follow-ups behave like a normal chat: they refine existing drafts (bumping
    * the version) or add a new draft when a different artifact is selected.
    */
+  /** The latest clarifying-questions message still waiting for answers, if any. */
+  pendingClarify(conversationId: string): { message: AiMessage; clarify: ClarifyRequest } | null {
+    const c = this.getConversation(conversationId);
+    if (!c) return null;
+    for (let i = c.messages.length - 1; i >= 0; i--) {
+      const clarify = clarifyOf(c.messages[i]);
+      if (clarify) return clarify.status === 'pending' ? { message: c.messages[i], clarify } : null;
+    }
+    return null;
+  }
+
+  /**
+   * Human in the loop: answer (or skip) the clarifying questions, then draft the document from the
+   * original request plus the answers. `answers` null = skip and draft with sensible defaults.
+   */
+  answerClarify(conversationId: string, messageId: string, answers: Record<string, string[]> | null, options: SendMessageOptions): void {
+    const c = this.getConversation(conversationId);
+    const message = c?.messages.find(m => m.id === messageId);
+    const clarify = clarifyOf(message);
+    if (!c || !message || !clarify || clarify.status !== 'pending' || this.isPending(conversationId)) return;
+
+    const answered: ClarifyRequest = answers
+      ? { ...clarify, status: 'answered', answers: Object.fromEntries(Object.entries(answers).filter(([, v]) => v.length)) }
+      : { ...clarify, status: 'skipped' };
+    this.setClarify(conversationId, messageId, answered);
+
+    const lines = answers ? clarifySummary(answered) : [];
+    const label = getArtifactLabel(clarify.artifactId).toLowerCase();
+    const userText = lines.length ? `Here are my answers for the ${label}:\n${lines.join('\n')}` : `Skip the questions and draft the ${label} now.`;
+    this.sendMessage(conversationId, userText, {
+      ...options,
+      artifactId: clarify.artifactId,
+      skipClarify: true,
+      draftPrompt: lines.length ? `${clarify.prompt}\n\n${lines.map(l => l.replace(/^• /, '')).join('; ')}` : clarify.prompt,
+      answerLines: lines
+    });
+  }
+
+  private setClarify(conversationId: string, messageId: string, clarify: ClarifyRequest): void {
+    this.update(conversationId, c => ({
+      ...c,
+      messages: c.messages.map(m => (m.id === messageId ? { ...m, metadata: { ...(m.metadata ?? {}), clarify } } : m))
+    }));
+  }
+
   private buildReply(conversation: Conversation, prompt: string, options: SendMessageOptions): AiMessage {
     const previousArtifacts = conversation.messages.flatMap(m => m.artifacts || []);
-    const isFirstReply = !conversation.messages.some(m => m.role !== 'user');
+    const isFirstReply = !conversation.messages.some(m => m.role !== 'user' && !clarifyOf(m));
     const now = new Date().toISOString();
     const base = {
       id: `assistant-${Date.now()}`,
@@ -213,7 +279,22 @@ export class ConversationService {
       timestamp: now
     };
 
-    const reply = this.draftReply(conversation, prompt, options, previousArtifacts, isFirstReply, base);
+    // Human in the loop: the first time a document type is requested in this chat, ask before drafting.
+    const draftedType = previousArtifacts.some(a => a.type === toArtifactType(options.artifactId));
+    if (!isChatMode(options.artifactId) && !options.skipClarify && !draftedType) {
+      const label = getArtifactLabel(options.artifactId).toLowerCase();
+      const clarify: ClarifyRequest = { artifactId: options.artifactId, prompt, status: 'pending', questions: clarifyQuestionsFor(options.artifactId) };
+      return {
+        ...base,
+        content: `Before I draft the **${label}**, a few quick questions so it fits what you need. Pick an answer for each (or add your own), then select **Generate**. You can also skip and I’ll use sensible defaults.`,
+        metadata: { clarify }
+      };
+    }
+
+    const reply = this.draftReply(conversation, options.draftPrompt ?? prompt, options, previousArtifacts, isFirstReply, base);
+    if (options.answerLines?.length && !isChatMode(options.artifactId)) {
+      reply.content += `\n\n**Shaped by your answers:**\n${options.answerLines.join('\n')}`;
+    }
     if (options.workflowNote && !isChatMode(options.artifactId)) reply.content += `\n\n${options.workflowNote}`;
     return reply;
   }
