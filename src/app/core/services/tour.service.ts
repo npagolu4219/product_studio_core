@@ -99,8 +99,8 @@ export const TOURS: Record<TourId, TourStep[]> = {
     },
     {
       target: 'pb-refine', placement: 'top', icon: 'wand-sparkles',
-      title: 'Refine and Auto refine',
-      body: 'Refine rewrites your prompt in the style you choose. Switch on Auto refine to improve it automatically whenever you pause typing.'
+      title: 'Refine',
+      body: 'Refine rewrites your prompt so it is clearer and more complete. Undo brings yours back.'
     },
     {
       target: 'pb-send', placement: 'top', icon: 'arrow-up',

@@ -329,7 +329,6 @@
   box-shadow: 0 16px 40px rgba(43, 38, 91, .18);
   animation: psc-pop .14s ease-out;
 }
-.psc-popover--refine { left: auto; right: 12px; width: min(320px, calc(100% - 24px)); }
 .psc-popover--knowledge {
   left: auto; right: 12px; width: min(440px, calc(100% - 24px)); max-height: 480px;
   display: flex; flex-direction: column; overflow: hidden; padding: 6px 6px 0;
@@ -644,9 +643,7 @@
   .psc-prompt-composer { padding: 12px 12px 10px; border-radius: 14px; }
   .psc-prompt-composer textarea { min-height: 84px; font-size: 16px; } // 16px avoids iOS zoom on focus
   .psc-prompt-controls { align-items: flex-end; }
-  .psc-picker { flex: 1 1 100%; max-width: none; padding-left: 4px; order: -1; } // artifact on its own row; project + knowledge chips share the next
-  .psc-picker-text { flex: 1; }
-  .psc-popover, .psc-popover--knowledge, .psc-popover--project, .psc-popover--refine { left: 8px; right: 8px; width: auto; }
+  .psc-popover, .psc-popover--knowledge, .psc-popover--project { left: 8px; right: 8px; width: auto; }
   .psc-prompt-input textarea { padding-right: 0; }
   .psc-refine-btn { width: 32px; height: 32px; padding: 0; justify-content: center; }
   .psc-refine-btn-label { display: none; }

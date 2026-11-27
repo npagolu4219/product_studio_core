@@ -18,7 +18,7 @@ import { KNOWLEDGE_KIND_META, ProductMemoryService } from '../../services/produc
 import { ArtifactCanvasService } from '../../services/artifact-canvas.service';
 import { ChatOrganizerService } from '../../services/chat-organizer.service';
 import { CONTEXT_KIND_ICON, CONTEXT_SOURCES, ContextAttachment, ContextSourceKind, ContextSourceMeta, ContextSourcesService } from '../../services/context-sources.service';
-import { PromptRefinerService, REFINE_OPTIONS, RefineMode } from '../../services/prompt-refiner.service';
+import { PromptRefinerService } from '../../services/prompt-refiner.service';
 import { CURRENT_USER } from '../../constants/current-user';
 import { ArtifactCanvasComponent } from '../../components/artifact-canvas/artifact-canvas.component';
 import { ArtifactToolbarComponent } from '../../components/artifact-toolbar/artifact-toolbar.component';
@@ -34,7 +34,7 @@ import {
 } from '../../constants/artifact-options';
 import { GOLDEN_WORKFLOWS, GoldenWorkflow, getWorkflow, workflowStepIndex, workflowSummary } from '../../constants/golden-workflows';
 
-type PromptMenu = 'project' | 'artifact' | 'context' | 'refine' | 'move' | 'team';
+type PromptMenu = 'project' | 'artifact' | 'context' | 'move' | 'team';
 /** One row in the Golden workflow menu: chat only, a workflow, or a single document. */
 interface ModeEntry { kind: 'chat' | 'workflow' | 'doc'; id: string; label: string; desc?: string; icon: string; }
 /** Tabs in a project's header. The left panel holds only the chat history. */
@@ -149,12 +149,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   get pickerIcon(): string {
     return this.activeWorkflow?.icon ?? getArtifactIconName(this.selectedArtifact);
-  }
-
-  get pickerTitle(): string {
-    const w = this.activeWorkflow;
-    if (w) return `${w.label}: ${workflowSummary(w)}. Next: ${getArtifactShortLabel(this.selectedArtifact)}`;
-    return isChatMode(this.selectedArtifact) ? 'Chat only. Pick a golden workflow to draft documents' : `Drafting a ${this.selectedArtifactLabel}`;
   }
 
   isEntrySelected(e: ModeEntry): boolean {
@@ -321,11 +315,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     return (m.metadata?.['membership'] as { joined?: boolean } | undefined)?.joined === false ? 'user-minus' : 'user-plus';
   }
 
-  /** Header: open Team Collaboration from the people in this chat. */
-  openTeamFromHeader(event: Event): void {
-    this.toggleMenu('team', event);
-  }
-
   get collaborators(): string[] {
     return this.activeConversation ? this.activeConversation.collaborators ?? [] : this.newChatCollaborators;
   }
@@ -357,11 +346,9 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   artifactMenuIndex = 0;
 
   // ── Prompt refine ──
-  readonly refineOptions = REFINE_OPTIONS;
-  refineMenuIndex = 0;
   isRefining = false;
   /** Text before the last refine, kept so the user can undo it. Cleared once they edit the prompt. */
-  refineUndo: { previous: string; refined: string; label: string } | null = null;
+  refineUndo: { previous: string; refined: string } | null = null;
   private readonly refiner = inject(PromptRefinerService);
 
   // ── Knowledge (from Product Memory) ──
@@ -714,30 +701,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     return !!this.activeConversation && !!this.canvas.artifact();
   }
 
-  /** Second line of the project greeting: reflects the project's status, lifecycle phase and history. */
-  get projectGreetingLine(): string {
-    const p = this.workspaceProject;
-    if (!p) return '';
-    const name = `<strong>${this.escapeHtml(p.name)}</strong>`;
-    if (p.status === 'paused') return `${name} is paused. Ready to pick it back up? Tell me where to start.`;
-    if (p.status === 'completed') return `${name} is complete. Want a retrospective, release notes or plans for what’s next?`;
-    const phase = this.lifecyclePhase;
-    const next = this.nextPhase;
-    if (!this.chatCounts[p.id]) {
-      return phase
-        ? `Let’s kick off ${name}. It’s in the <strong>${phase.label}</strong> phase. What should we create first?`
-        : `Let’s kick off ${name}. Tell me the idea and I’ll draft the first document.`;
-    }
-    if (phase) {
-      return `${name} is in the <strong>${phase.label}</strong> phase${next ? `, with ${next.label} up next` : ''}. What should we work on today?`;
-    }
-    return `Welcome back to ${name}. What should we work on today?`;
-  }
-
-  private escapeHtml(text: string): string {
-    return text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-  }
-
   get greeting(): string {
     const h = new Date().getHours();
     return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
@@ -788,7 +751,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   ngOnDestroy(): void {
     window.clearTimeout(this.tourTimer);
-    window.clearTimeout(this.autoRefineTimer);
     window.clearTimeout(this.feedbackTimer);
     this.canvas.close();
   }
@@ -815,14 +777,10 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       this.knowledgeQuery = '';
       this.knowledgeFilter = 'all';
     }
-    if (this.openMenu === 'context' || this.openMenu === 'project' || this.openMenu === 'team' || this.openMenu === 'refine') this.placePopover(menu === 'context' && this.panelContextMenu ? '.psc-pp-context-anchor' : '.psc-prompt-composer');
+    if (this.openMenu === 'context' || this.openMenu === 'project' || this.openMenu === 'team') this.placePopover(menu === 'context' && this.panelContextMenu ? '.psc-pp-context-anchor' : '.psc-prompt-composer');
     if (this.openMenu === 'artifact') {
       this.artifactMenuIndex = Math.max(0, this.menuEntries.findIndex(e => this.isEntrySelected(e)));
       setTimeout(() => this.focusArtifactOption());
-    }
-    if (this.openMenu === 'refine') {
-      this.refineMenuIndex = 0;
-      setTimeout(() => this.focusMenuItem('refine-option', this.refineMenuIndex));
     }
   }
 
@@ -875,21 +833,20 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   /** Rewrites the prompt text using the selected artifact + knowledge sources as context. */
-  refinePrompt(mode: RefineMode): void {
+  refinePrompt(): void {
     const text = this.promptText.trim();
     if (!text || this.isRefining) return;
-    const option = this.refineOptions.find(o => o.id === mode)!;
     const contextNames = this.contextLabels;
     const previous = this.promptText;
     this.openMenu = null;
     this.isRefining = true;
     this.refiner
-      .refine(text, mode, { artifactId: this.selectedArtifact, contextNames })
+      .refine(text, 'improve', { artifactId: this.selectedArtifact, contextNames })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: refined => {
           this.promptText = refined;
-          this.refineUndo = { previous, refined, label: option.label };
+          this.refineUndo = { previous, refined };
           this.isRefining = false;
           this.focusPrompt(true);
         },
@@ -902,7 +859,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   undoRefine(): void {
     if (!this.refineUndo) return;
-    this.autoRefineSkip = this.refineUndo.previous; // don't auto-refine straight back
     this.promptText = this.refineUndo.previous;
     this.refineUndo = null;
     this.focusPrompt(true);
@@ -913,41 +869,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.promptText = value;
     if (this.refineUndo && value !== this.refineUndo.refined) this.refineUndo = null;
     this.autoResizePrompt();
-    this.scheduleAutoRefine();
-  }
-
-  // ── Auto refine while typing: once you pause, the prompt is improved in place (Undo restores yours) ──
-  private autoRefineTimer = 0;
-  autoRefining = false;
-  /** Text we must not auto-refine again: the last result, or what Undo restored. */
-  private autoRefineSkip = '';
-
-  private scheduleAutoRefine(delayMs = 1000): void {
-    window.clearTimeout(this.autoRefineTimer);
-    const text = this.promptText.trim();
-    if (!this.autoRefine || text.length < 12 || this.isRefining || this.isTyping || text === this.autoRefineSkip.trim()) return;
-    this.autoRefineTimer = window.setTimeout(() => this.runAutoRefine(), delayMs);
-  }
-
-  private runAutoRefine(): void {
-    const previous = this.promptText;
-    const text = previous.trim();
-    if (!this.autoRefine || !text || this.isRefining || text === this.autoRefineSkip.trim()) return;
-    this.autoRefining = true;
-    this.refiner.refine(text, 'improve', { artifactId: this.selectedArtifact, contextNames: this.contextLabels })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: refined => {
-          this.autoRefining = false;
-          // Kept typing meanwhile (or sent it): leave their text alone; the next pause refines it.
-          if (this.promptText !== previous) return;
-          this.autoRefineSkip = refined;
-          this.promptText = refined;
-          this.refineUndo = { previous, refined, label: 'Auto refine' };
-          this.focusPrompt(true);
-        },
-        error: () => { this.autoRefining = false; }
-      });
   }
 
   /** Grows the prompt textarea with its content (capped in CSS via max-height), shrinks back when cleared. */
@@ -958,23 +879,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       el.style.height = 'auto';
       el.style.height = `${el.scrollHeight + 2}px`;
     });
-  }
-
-  onRefineMenuKeydown(event: KeyboardEvent): void {
-    const last = this.refineOptions.length - 1;
-    const keys: Record<string, () => void> = {
-      ArrowDown: () => (this.refineMenuIndex = this.refineMenuIndex >= last ? 0 : this.refineMenuIndex + 1),
-      ArrowUp: () => (this.refineMenuIndex = this.refineMenuIndex <= 0 ? last : this.refineMenuIndex - 1),
-      Home: () => (this.refineMenuIndex = 0),
-      End: () => (this.refineMenuIndex = last),
-      Enter: () => this.refinePrompt(this.refineOptions[this.refineMenuIndex].id),
-      ' ': () => this.refinePrompt(this.refineOptions[this.refineMenuIndex].id)
-    };
-    const action = keys[event.key];
-    if (!action) return;
-    event.preventDefault();
-    action();
-    if (this.openMenu === 'refine') this.focusMenuItem('refine-option', this.refineMenuIndex);
   }
 
   private focusMenuItem(prefix: string, index: number): void {
@@ -1072,7 +976,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     return this.landingSource.length > 10;
   }
 
-  readonly todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
 
   /** Last activity: the newest of the project's own update and its chats. */
   lastActive(p: Project): string {
@@ -1094,11 +997,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     const list = this.landingSource.filter(p =>
       (!q || p.name.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q) || p.tags.some(t => t.toLowerCase().includes(q))));
     return list.sort((a, b) => this.lastActive(b).localeCompare(this.lastActive(a)));
-  }
-
-  projectPhase(p: Project): string | null {
-    const lc = this.lifecycles.get(p.id);
-    return lc ? pdlcPhase(lc.current).label : null;
   }
 
   clearLandingFilters(): void {
@@ -1438,16 +1336,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     recognition.start();
   }
 
-  /** Auto refine: improve every prompt before it's sent (remembered per browser). */
-  autoRefine = (() => { try { return localStorage.getItem('psc.prompt.auto-refine') === '1'; } catch { return false; } })();
-
-  toggleAutoRefine(): void {
-    this.autoRefine = !this.autoRefine;
-    try { localStorage.setItem('psc.prompt.auto-refine', this.autoRefine ? '1' : '0'); } catch { /* ignore */ }
-    this.voiceMessage = this.autoRefine ? 'Auto refine is on. Your prompt is improved when you pause typing.' : 'Auto refine is off.';
-    if (this.autoRefine) this.scheduleAutoRefine(300);
-    else window.clearTimeout(this.autoRefineTimer);
-  }
 
   // ── Human in the loop: clarifying questions before a draft ──
   readonly clarifyOf = clarifyOf;
@@ -1549,29 +1437,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       return;
     }
     this.sendAfterProject = false;
-
-    // Auto refine: improve the prompt first (unless it was just refined), then send it.
-    window.clearTimeout(this.autoRefineTimer);
-    if (this.autoRefine && this.refineUndo?.refined !== this.promptText && this.promptText.trim() !== this.autoRefineSkip.trim()) {
-      this.isRefining = true;
-      this.refiner.refine(prompt, 'improve', { artifactId: this.selectedArtifact, contextNames: this.contextLabels })
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe({
-          next: refined => {
-            this.isRefining = false;
-            this.promptText = refined;
-            this.refineUndo = { previous: prompt, refined, label: 'Auto refine' };
-            this.sendPrompt();
-          },
-          error: () => {
-            this.isRefining = false;
-            this.promptText = prompt;
-            this.refineUndo = { previous: prompt, refined: prompt, label: 'Auto refine' };
-            this.sendPrompt();
-          }
-        });
-      return;
-    }
 
     const contextNames = this.contextLabels;
     const lc = this.workspaceLifecycle;

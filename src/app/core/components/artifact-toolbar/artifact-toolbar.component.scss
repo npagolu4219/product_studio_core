@@ -26,12 +26,9 @@
   &:hover, &[aria-expanded='true'] { color: var(--psc-text-strong); background: var(--psc-surface-3); }
 }
 
-// Header: icon, title (rename in place) and one line of details
-.tb-doc { display: flex; align-items: center; gap: 9px; min-width: 0; flex: 0 1 auto; max-width: 62%; }
-.tb-doc-icon { flex: 0 0 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; color: #fff; background: var(--psc-gradient-brand); }
-.tb-doc-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.tb-doc-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.tb-doc-title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--psc-text-strong); font: 800 13.5px/1.3 'Mulish', sans-serif; }
+// Header: title (rename in place) and version
+.tb-doc { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 0 1 auto; max-width: 62%; }
+.tb-doc-title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--psc-text-strong); font: 800 14px/1.3 'Mulish', sans-serif; }
 .tb-rename {
   @extend %focus;
   flex-shrink: 0; display: grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 6px;
@@ -42,16 +39,11 @@
 .tb-doc:hover .tb-rename { opacity: 1; }
 @media (hover: none) { .tb-rename { opacity: 1; } }
 .tb-title-input { width: min(320px, 100%); height: 24px; padding: 0 6px; font: 800 13px 'Mulish', sans-serif; color: var(--psc-text-strong); background: var(--psc-surface); border: 1.5px solid var(--psc-primary); border-radius: 6px; outline: none; }
-.tb-doc-meta {
-  margin: 0; display: flex; align-items: center; gap: 0; min-width: 0; overflow: hidden; white-space: nowrap;
-  color: var(--psc-text-subtle); font-size: 11px; font-weight: 600;
-  > span { flex-shrink: 0; }
-  > span + span::before { content: '·'; margin: 0 6px; color: var(--psc-text-faint, var(--psc-text-subtle)); }
-  > .tb-meta-project { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tb-doc-ver {
+  flex-shrink: 0; padding: 1px 7px; border-radius: 999px;
+  color: var(--psc-primary-text); background: rgb(var(--psc-primary-rgb) / .08);
+  font: 800 11px/1.5 'Mulish', sans-serif; font-variant-numeric: tabular-nums;
 }
-.tb-doc-ver { color: var(--psc-primary-text); font-weight: 800; }
-.tb-pub { display: inline-flex; align-items: center; gap: 4px; color: #059669; font-weight: 800; }
-.tb-pub-dot { width: 6px; height: 6px; border-radius: 50%; background: #10B981; }
 
 // Status pill
 .tb-status {
@@ -112,14 +104,9 @@
   .tb-btn .tb-label { display: none; }
   .tb-btn { width: 34px; padding: 0; justify-content: center; }
   .tb-count { display: none; }
-  .tb-meta-updated { display: none; }
 }
 @container (max-width: 560px) {
   .tb { gap: 3px; padding: 0 6px; }
-  .tb-meta-read { display: none; }
   .tb-tabs { margin-left: 0; }
-}
-@container (max-width: 420px) {
-  .tb-meta-project { display: none; }
 }
 
