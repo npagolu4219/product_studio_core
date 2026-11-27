@@ -260,11 +260,6 @@ export class ShellComponent implements OnInit {
     this.navOpen = false;
   }
 
-  newChat(): void {
-    this.closeDrawers(); // same-URL navigations don't emit NavigationEnd
-    this.router.navigate(['/psc', 'home']);
-  }
-
   openConversation(c: Conversation): void {
     this.closeDrawers();
     this.router.navigate(['/psc', 'home', c.artifactId, c.id]);

@@ -1,34 +1,17 @@
-import { TourService } from '../../services/tour.service';
-import { Component, ElementRef, HostListener, computed, inject, output, signal } from '@angular/core';
+import { Component, ElementRef, computed, inject, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { ArtifactCanvasService, ArtifactStatus, CanvasMode, ExportFormat, STATUS_OPTIONS } from '../../services/artifact-canvas.service';
-import { Artifact } from '../../models/psc.models';
-import { getArtifactIconName, getArtifactLabel, getArtifactShortLabel } from '../../constants/artifact-options';
+import { ArtifactCanvasService, CanvasMode } from '../../services/artifact-canvas.service';
+import { PscMockDataService } from '../../services/psc-mock-data.service';
+import { parseDoc } from '../../utils/artifact-doc';
+import { getArtifactIconName, getArtifactLabel } from '../../constants/artifact-options';
 
-interface Tab { id: CanvasMode; icon: string; label: string; shortcut?: string; }
-interface MoreItem { id: string; icon: string; label: string; hint?: string; divider?: boolean; narrowOnly?: boolean; }
 
-/** Primary ways to work with the document. Share / Publish / Export live on the right. */
-const TABS: Tab[] = [
-  { id: 'view', icon: 'eye', label: 'View' },
-  { id: 'edit', icon: 'pencil', label: 'Edit', shortcut: 'E' },
-  { id: 'compare', icon: 'git-compare', label: 'Compare' },
-  { id: 'history', icon: 'history', label: 'History' }
-];
-
-const MORE: MoreItem[] = [
-  { id: 'share', icon: 'share-2', label: 'Share…', narrowOnly: true },
-  { id: 'refine', icon: 'sparkles', label: 'Ask AI to refine', hint: 'Opens the chat with a refine prompt' },
-  { id: 'preview', icon: 'monitor', label: 'Preview as reader', divider: true },
-  { id: 'copy', icon: 'clipboard-copy', label: 'Copy as Markdown' },
-  { id: 'markdown', icon: 'file-down', label: 'Download Markdown' },
-  { id: 'pdf', icon: 'printer', label: 'Print / Save as PDF' },
-  { id: 'export', icon: 'download', label: 'More export options…', hint: 'Word, Jira, Azure DevOps' },
-  { id: 'chat', icon: 'panel-left', label: 'Toggle conversation', divider: true },
-  { id: 'tour', icon: 'compass', label: 'Take the preview tour' }
-];
+/**
+ * The preview header: document title (rename in place) + one line of details, History and Publish.
+ * Modes that show a "Back to document" button:
+ */
+const AWAY_MODES: CanvasMode[] = ['edit', 'compare', 'history', 'publish'];
 
 @Component({
   selector: 'app-artifact-toolbar',
@@ -39,73 +22,51 @@ const MORE: MoreItem[] = [
 })
 export class ArtifactToolbarComponent {
   readonly canvas = inject(ArtifactCanvasService);
-  private readonly tour = inject(TourService);
-  private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
+  private readonly mockData = inject(PscMockDataService);
   private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
   readonly closed = output<void>();
 
-  readonly tabs = TABS;
-  readonly more = MORE.filter(m => m.id !== 'tour' || this.tour.enabled);
-  readonly statusOptions = STATUS_OPTIONS;
-  readonly menu = signal<'doc' | 'status' | 'more' | null>(null);
+  readonly renaming = signal(false);
 
   readonly iconName = computed(() => getArtifactIconName(this.canvas.artifact()?.type));
   readonly typeLabel = computed(() => getArtifactLabel(this.canvas.artifact()?.type));
-  readonly getIcon = getArtifactIconName;
-  readonly getShort = getArtifactShortLabel;
+  readonly projectName = computed(() => this.mockData.findProject(this.canvas.artifact()?.projectId)?.name ?? null);
+  /** Word count and reading time of the version on screen. */
+  readonly words = computed(() => parseDoc(this.canvas.viewedContent(), this.canvas.artifact()?.title).words);
+  readonly readingMinutes = computed(() => Math.max(1, Math.round(this.words() / 200)));
 
-  toggleMenu(m: 'doc' | 'status' | 'more', e: Event): void {
-    e.stopPropagation();
-    this.menu.set(this.menu() === m ? null : m);
-    if (this.menu()) setTimeout(() => this.host.nativeElement.querySelector<HTMLElement>('.tb-menu [role="menuitem"], .tb-menu [role="menuitemradio"]')?.focus());
+  startRename(): void {
+    if (this.canvas.viewingVersion()) return;
+    this.renaming.set(true);
+    setTimeout(() => {
+      const el = this.host.nativeElement.querySelector<HTMLInputElement>('.tb-title-input');
+      el?.focus();
+      el?.select();
+    });
+  }
+
+  finishRename(value: string, save: boolean): void {
+    if (!this.renaming()) return;
+    this.renaming.set(false);
+    if (save) this.canvas.rename(value);
+  }
+
+  /** True when the canvas shows something other than the document itself. */
+  isAway(): boolean {
+    return AWAY_MODES.includes(this.canvas.mode());
+  }
+
+  /** History is a toggle: open it, or go back to the document. */
+  toggleHistory(): void {
+    this.setMode(this.canvas.mode() === 'history' ? 'view' : 'history');
   }
 
   setMode(mode: CanvasMode): void {
-    this.menu.set(null);
     this.canvas.setMode(mode);
   }
 
-  switchTo(a: Artifact): void {
-    this.menu.set(null);
-    if (a.id === this.canvas.artifact()?.id) return;
-    this.canvas.guard(() => this.router.navigate([], { relativeTo: this.route, queryParams: { artifact: a.id }, queryParamsHandling: 'merge' }));
-  }
-
-  setStatus(s: ArtifactStatus): void {
-    this.menu.set(null);
-    this.canvas.setStatus(s);
-  }
-
-  runMore(id: string): void {
-    this.menu.set(null);
-    if (id === 'refine') this.canvas.requestRefine();
-    else if (id === 'preview' || id === 'export' || id === 'share') this.canvas.setMode(id);
-    else if (id === 'chat') this.canvas.toggleChatCollapsed();
-    else if (id === 'tour') this.tour.start('preview');
-    else this.canvas.exportAs(id as ExportFormat);
-  }
-
   close(): void {
-    this.menu.set(null);
     this.canvas.guard(() => this.closed.emit());
   }
 
-  /** Arrow-key navigation inside an open menu. */
-  onMenuKeydown(e: KeyboardEvent): void {
-    const items = [...this.host.nativeElement.querySelectorAll<HTMLElement>('.tb-menu [role^="menuitem"]')];
-    const i = items.indexOf(document.activeElement as HTMLElement);
-    if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length]?.focus(); }
-    if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length]?.focus(); }
-  }
-
-  @HostListener('document:click')
-  closeMenus(): void {
-    this.menu.set(null);
-  }
-
-  @HostListener('document:keydown.escape')
-  onEscape(): void {
-    if (this.menu()) this.menu.set(null);
-  }
 }

@@ -22,7 +22,6 @@ import { PromptRefinerService, REFINE_OPTIONS, RefineMode } from '../../services
 import { CURRENT_USER } from '../../constants/current-user';
 import { ArtifactCanvasComponent } from '../../components/artifact-canvas/artifact-canvas.component';
 import { ArtifactToolbarComponent } from '../../components/artifact-toolbar/artifact-toolbar.component';
-import { ActivityWatchComponent } from '../../components/activity-watch/activity-watch.component';
 import { initials, projectGradient } from '../../constants/project-visuals';
 import {
   COMPOSER_OPTIONS,
@@ -70,11 +69,10 @@ interface RouteState {
     LucideAngularModule,
     RouterLink,
     ArtifactCanvasComponent,
-    ArtifactToolbarComponent,
-    ActivityWatchComponent
+    ArtifactToolbarComponent
   ],
   templateUrl: './home.component.html',
-  styleUrls: ['./home.component.scss', './home-project-workspace.scss', './home-prompt-bar.scss', './home-landing.scss', './home-clarify.scss']
+  styleUrls: ['./home.component.scss', './home-project-workspace.scss', './home-prompt-bar.scss', './home-landing.scss', '../../styles-shared/project-cards.scss', './home-clarify.scss']
 })
 export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   @ViewChild('messageList') private messageList?: ElementRef<HTMLElement>;
@@ -257,8 +255,13 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     if (this.projectTeams.some(p => p.id === t.id)) return;
     const on = this.chatTeamIds.includes(t.id);
     const next = on ? this.chatTeamIds.filter(id => id !== t.id) : [...this.chatTeamIds, t.id];
-    if (this.activeConversation) this.conversations.setTeams(this.activeConversation.id, next);
-    else this.newChatTeamIds = next;
+    if (this.activeConversation) {
+      this.conversations.setTeams(this.activeConversation.id, next);
+      this.conversations.addMembershipEvent(this.activeConversation.id, t.name, !on, `${t.memberIds.length} ${t.memberIds.length === 1 ? 'person' : 'people'}`);
+      this.shouldScroll = true;
+    } else {
+      this.newChatTeamIds = next;
+    }
     this.voiceMessage = on ? `${t.name} was removed from this chat.` : `${t.name} (${t.memberIds.length} ${t.memberIds.length === 1 ? 'person' : 'people'}) can now see and contribute to this chat.`;
   }
 
@@ -278,6 +281,51 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     return this.teamMembers.filter(m => ids.has(m.id) || this.isCollaborator(m.name));
   }
 
+  /** Teams, then people not already in through a team: what the AI says the chat is shared with. */
+  get sharedWith(): string[] {
+    const viaTeams = new Set(this.activeTeams.flatMap(t => t.memberIds));
+    const individuals = this.teamMembers.filter(m => this.isCollaborator(m.name) && !viaTeams.has(m.id)).map(m => m.name);
+    return [...this.activeTeams.map(t => t.name), ...individuals];
+  }
+
+  /** Search in the Team Collaboration popover (shown once there are more than 6 people). */
+  teamQuery = '';
+
+  get showTeamSearch(): boolean {
+    return this.teamMembers.length > 6;
+  }
+
+  private matchesTeamQuery(...fields: (string | undefined)[]): boolean {
+    const q = this.teamQuery.trim().toLowerCase();
+    return !q || fields.some(f => f?.toLowerCase().includes(q));
+  }
+
+  get shownProjectTeams(): Team[] {
+    return this.projectTeams.filter(t => this.matchesTeamQuery(t.name, t.description));
+  }
+
+  get shownOtherTeams(): Team[] {
+    return this.otherTeams.filter(t => this.matchesTeamQuery(t.name, t.description));
+  }
+
+  /** People: those already in the chat first, then everyone else (A–Z), filtered by the search. */
+  get shownMembers(): TeamMember[] {
+    const inChat = (m: TeamMember) => !!this.viaTeam(m) || this.isCollaborator(m.name);
+    return this.teamMembers
+      .filter(m => this.matchesTeamQuery(m.name, m.role, ...(m.skills ?? [])))
+      .sort((a, b) => Number(inChat(b)) - Number(inChat(a)) || a.name.localeCompare(b.name));
+  }
+
+  /** Timeline note icon: someone joined (user-plus) or left (user-minus). */
+  eventIcon(m: AiMessage): string {
+    return (m.metadata?.['membership'] as { joined?: boolean } | undefined)?.joined === false ? 'user-minus' : 'user-plus';
+  }
+
+  /** Header: open Team Collaboration from the people in this chat. */
+  openTeamFromHeader(event: Event): void {
+    this.toggleMenu('team', event);
+  }
+
   get collaborators(): string[] {
     return this.activeConversation ? this.activeConversation.collaborators ?? [] : this.newChatCollaborators;
   }
@@ -288,8 +336,13 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   toggleCollaborator(name: string): void {
     const next = this.isCollaborator(name) ? this.collaborators.filter(n => n !== name) : [...this.collaborators, name];
-    if (this.activeConversation) this.conversations.setCollaborators(this.activeConversation.id, next);
-    else this.newChatCollaborators = next;
+    if (this.activeConversation) {
+      this.conversations.setCollaborators(this.activeConversation.id, next);
+      this.conversations.addMembershipEvent(this.activeConversation.id, name, next.includes(name));
+      this.shouldScroll = true;
+    } else {
+      this.newChatCollaborators = next;
+    }
     this.voiceMessage = next.includes(name) ? `${name} can now see and contribute to this chat.` : `${name} was removed from this chat.`;
   }
   readonly isChatMode = isChatMode;
@@ -337,20 +390,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     effect(() => {
       if (this.tour.active()) return;
       untracked(() => this.queueTour());
-    });
-
-    // Canvas "Ask AI to refine" → pre-fill the chat prompt, targeting the same artifact type so the reply is its next version.
-    effect(() => {
-      const req = this.canvas.refineRequest();
-      if (!req) return;
-      untracked(() => {
-        const option = getArtifactOption(req.artifactType);
-        if (option) this.selectedArtifact = option.id;
-        this.promptText = req.text;
-        this.refineUndo = null;
-        this.openMenu = null;
-        this.focusPrompt(true);
-      });
     });
   }
 
@@ -635,26 +674,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.openChat(c);
   }
 
-  /** Quick starts on an empty project chat: the current phase's deliverables (then the next phase's). */
-  get projectStarters(): { artifactId: string; label: string; prompt: string }[] {
-    const p = this.workspaceProject;
-    if (!p) return [];
-    const phase = this.lifecyclePhase;
-    if (phase) {
-      const fill = (d: PdlcDeliverable) => ({ artifactId: d.artifactId!, label: d.label, prompt: (d.prompt ?? '').replace(/\{project\}/g, p.name) });
-      const now = phase.deliverables.filter(d => d.artifactId && d.prompt).map(fill);
-      const next = (this.nextPhase?.deliverables ?? []).filter(d => d.artifactId && d.prompt).map(fill);
-      const seen = new Set<string>();
-      return [...now, ...next].filter(s => !seen.has(s.label) && seen.add(s.label)).slice(0, 4);
-    }
-    return [
-      { artifactId: 'prd', label: 'PRD for the next release', prompt: `Write a PRD for the next release of ${p.name}.` },
-      { artifactId: 'epic', label: 'Break down into epics', prompt: `Break ${p.name} down into epics with goals and success metrics.` },
-      { artifactId: 'story', label: 'User stories', prompt: `Write user stories with acceptance criteria for ${p.name}'s top priority feature.` },
-      { artifactId: 'competitive', label: 'Competitor analysis', prompt: `Run a competitor analysis for ${p.name}.` }
-    ];
-  }
-
   /** The Home landing shows projects only; the prompt bar appears inside a project (or an older chat). */
   get showComposer(): boolean {
     return this.projectMode || this.conversationStarted;
@@ -695,6 +714,30 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     return !!this.activeConversation && !!this.canvas.artifact();
   }
 
+  /** Second line of the project greeting: reflects the project's status, lifecycle phase and history. */
+  get projectGreetingLine(): string {
+    const p = this.workspaceProject;
+    if (!p) return '';
+    const name = `<strong>${this.escapeHtml(p.name)}</strong>`;
+    if (p.status === 'paused') return `${name} is paused. Ready to pick it back up? Tell me where to start.`;
+    if (p.status === 'completed') return `${name} is complete. Want a retrospective, release notes or plans for what’s next?`;
+    const phase = this.lifecyclePhase;
+    const next = this.nextPhase;
+    if (!this.chatCounts[p.id]) {
+      return phase
+        ? `Let’s kick off ${name}. It’s in the <strong>${phase.label}</strong> phase. What should we create first?`
+        : `Let’s kick off ${name}. Tell me the idea and I’ll draft the first document.`;
+    }
+    if (phase) {
+      return `${name} is in the <strong>${phase.label}</strong> phase${next ? `, with ${next.label} up next` : ''}. What should we work on today?`;
+    }
+    return `Welcome back to ${name}. What should we work on today?`;
+  }
+
+  private escapeHtml(text: string): string {
+    return text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+  }
+
   get greeting(): string {
     const h = new Date().getHours();
     return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
@@ -707,17 +750,13 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   ngOnInit(): void {
     this.conversations.conversations$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(list => {
       const counts: Record<string, number> = {};
-      const docs: Record<string, number> = {};
       const active: Record<string, string> = {};
       for (const c of list) {
         if (!c.projectId) continue;
         counts[c.projectId] = (counts[c.projectId] ?? 0) + 1;
-        // Documents: one per chat + type (versions don't count twice).
-        docs[c.projectId] = (docs[c.projectId] ?? 0) + new Set(c.messages.flatMap(m => (m.artifacts || []).map(a => a.type))).size;
         if (!active[c.projectId] || c.updatedAt > active[c.projectId]) active[c.projectId] = c.updatedAt;
       }
       this.chatCounts = counts;
-      this.docCounts = docs;
       this.lastChatAt = active;
       this.allChats = list;
     });
@@ -767,6 +806,10 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   toggleMenu(menu: PromptMenu, event?: Event): void {
     event?.stopPropagation();
     this.openMenu = this.openMenu === menu ? null : menu;
+    if (this.openMenu === 'team') {
+      this.teamQuery = '';
+      if (this.showTeamSearch) setTimeout(() => this.homeRoot?.nativeElement.querySelector<HTMLInputElement>('#team-search')?.focus());
+    }
     if (this.openMenu === 'context') {
       this.contextView = 'root';
       this.knowledgeQuery = '';
@@ -973,12 +1016,10 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
   @HostListener('document:click')
   onDocumentClick(): void {
     this.openMenu = null;
-    this.sortMenuOpen = false;
   }
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.sortMenuOpen) { this.sortMenuOpen = false; return; }
     // Inside a context source, Esc steps back to the source list first.
     if (this.openMenu === 'context' && this.contextView !== 'root') {
       this.contextBack();
@@ -1021,33 +1062,14 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     return this.mockData.projects.length;
   }
 
-  // ── Home landing: summary and a searchable project grid ──
-  docCounts: Record<string, number> = {};
+  // ── Home landing: a searchable project grid, most recently active first ──
   /** Latest chat activity per project (ISO). */
   private lastChatAt: Record<string, string> = {};
   landingQuery = '';
-  landingSort: 'recent' | 'name' | 'chats' = 'recent';
-  readonly landingSorts = [
-    { id: 'recent' as const, label: 'Recently active' },
-    { id: 'name' as const, label: 'Name (A–Z)' },
-    { id: 'chats' as const, label: 'Most chats' }
-  ];
-  readonly statusMeta: Record<Project['status'], { label: string; tone: string }> = {
-    active: { label: 'Active', tone: 'green' },
-    paused: { label: 'Paused', tone: 'amber' },
-    draft: { label: 'Draft', tone: 'gray' },
-    completed: { label: 'Completed', tone: 'blue' }
-  };
 
   /** Search appears once there are more than 10 projects. */
   get showProjectSearch(): boolean {
     return this.landingSource.length > 10;
-  }
-
-  sortMenuOpen = false;
-
-  get sortLabel(): string {
-    return this.landingSorts.find(o => o.id === this.landingSort)?.label ?? '';
   }
 
   readonly todayLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
@@ -1058,49 +1080,20 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     return chat && chat > p.updatedAt ? chat : p.updatedAt;
   }
 
-  /** Preview switch: show the landing as a brand-new user with no projects sees it. */
-  previewEmpty = false;
-
-  /** Projects the landing shows (none while previewing the empty state). */
+  /** Projects the landing shows. */
   private get landingSource(): Project[] {
-    return this.previewEmpty ? [] : this.mockData.projects;
+    return this.mockData.projects;
   }
 
   get hasProjects(): boolean {
     return this.landingSource.length > 0;
   }
 
-  togglePreviewEmpty(): void {
-    this.previewEmpty = !this.previewEmpty;
-    this.landingQuery = '';
-    this.sortMenuOpen = false;
-  }
-
-  get landingStats(): { projects: number; chats: number; docs: number } {
-    const ids = new Set(this.landingSource.map(p => p.id));
-    let chats = 0, docs = 0;
-    for (const id of ids) { chats += this.chatCounts[id] ?? 0; docs += this.docCounts[id] ?? 0; }
-    return { projects: ids.size, chats, docs };
-  }
-
   get landingProjects(): Project[] {
     const q = this.landingQuery.trim().toLowerCase();
     const list = this.landingSource.filter(p =>
       (!q || p.name.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q) || p.tags.some(t => t.toLowerCase().includes(q))));
-    const by = this.landingSort;
-    return list.sort((a, b) =>
-      by === 'name' ? a.name.localeCompare(b.name)
-        : by === 'chats' ? (this.chatCounts[b.id] ?? 0) - (this.chatCounts[a.id] ?? 0) || this.lastActive(b).localeCompare(this.lastActive(a))
-          : this.lastActive(b).localeCompare(this.lastActive(a)));
-  }
-
-  /** Latest chat in a project, for the card's Resume action. */
-  latestChat(p: Project): Conversation | undefined {
-    return this.allChats.filter(c => c.projectId === p.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
-  }
-
-  projectTeamCount(p: Project): number {
-    return this.teamsSvc.teamsForProject(p.id).length;
+    return list.sort((a, b) => this.lastActive(b).localeCompare(this.lastActive(a)));
   }
 
   projectPhase(p: Project): string | null {
@@ -1110,21 +1103,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   clearLandingFilters(): void {
     this.landingQuery = '';
-  }
-
-  /** "just now", "12 min ago", "3 h ago", "Yesterday", "4 days ago", "12 Nov". */
-  relativeTime(iso: string): string {
-    const t = new Date(iso.length <= 10 ? iso + 'T12:00:00' : iso).getTime();
-    const mins = Math.round((Date.now() - t) / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins} min ago`;
-    const hours = Math.round(mins / 60);
-    if (hours < 24 && iso.length > 10) return `${hours} h ago`;
-    const days = Math.floor(mins / 1440);
-    if (days <= 0) return 'Today';
-    if (days === 1) return 'Yesterday';
-    if (days < 7) return `${days} days ago`;
-    return new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   }
 
   /** "/" jumps to the project search on the Home landing. */
@@ -1546,7 +1524,8 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       artifactId: c.artifactId,
       contextNames: this.contextLabels,
       lifecycle,
-      workflowNote: this.workflowNote()
+      workflowNote: this.workflowNote(),
+      sharedWith: this.sharedWith
     });
     delete this.clarifyPicks[message.id];
     delete this.clarifyOther[message.id];
@@ -1598,7 +1577,7 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     const lc = this.workspaceLifecycle;
     // Only when the chat keeps its lifecycle context (the PM can remove it).
     const lifecycle = lc && this.attachments.some(a => a.kind === 'pdlc') ? this.lifecycles.summary(lc) : undefined;
-    const options = { artifactId: this.selectedArtifact, contextNames, lifecycle, workflowNote: this.workflowNote() };
+    const options = { artifactId: this.selectedArtifact, contextNames, lifecycle, workflowNote: this.workflowNote(), sharedWith: this.sharedWith };
 
     this.clearPrompt();
     this.refineUndo = null;
@@ -1639,15 +1618,6 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
       .replace(/>/g, '&gt;')
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\n/g, '<br>');
-  }
-
-  /** "New chat" from inside a project chat stays in that project. */
-  /** New chat — inside a project it stays in that project (also from an empty project chat) and shows the Chat tab. */
-  startNewConversation(): void {
-    const project = this.activeConversation ? this.activeConversation.projectId : this.workspaceProject?.id;
-    this.projectTab = 'chat';
-    this.router.navigate(['/psc', 'home'], { queryParams: project ? { project } : {} });
-    this.focusPrompt(true);
   }
 
   trackById(_: number, item: { id: string }): string {

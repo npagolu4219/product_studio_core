@@ -3,14 +3,14 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { ArtifactCanvasService, ExportFormat } from '../../services/artifact-canvas.service';
+import { ArtifactCanvasService } from '../../services/artifact-canvas.service';
 import { PscMockDataService } from '../../services/psc-mock-data.service';
 import { getArtifactIconName, getArtifactLabel } from '../../constants/artifact-options';
 import { ArtifactVersion } from '../../models/psc.models';
 import { DiffChunk, DocSection, diffLines, foldDiff, parseDoc, toMarkdown } from '../../utils/artifact-doc';
 import { initials } from '../../constants/project-visuals';
 
-interface PublishCheck { id: string; ok: boolean; label: string; detail?: string; fix?: 'review' | 'edit' | 'knowledge'; }
+interface PublishCheck { id: string; ok: boolean; label: string; detail?: string; fix?: 'edit'; }
 
 @Component({
   selector: 'app-artifact-canvas',
@@ -27,7 +27,6 @@ export class ArtifactCanvasComponent {
   @ViewChild('scroller') private scroller?: ElementRef<HTMLElement>;
 
   readonly initials = initials;
-  readonly editingTitle = signal(false);
   readonly activeSection = signal<string | null>(null);
   readonly expandedFolds = signal<Set<number>>(new Set());
   readonly copiedSection = signal<string | null>(null);
@@ -52,13 +51,11 @@ export class ArtifactCanvasComponent {
     });
   }
 
-  readonly iconName = computed(() => getArtifactIconName(this.canvas.artifact()?.type));
   readonly typeLabel = computed(() => getArtifactLabel(this.canvas.artifact()?.type));
   readonly project = computed(() => this.mockData.findProject(this.canvas.artifact()?.projectId));
 
   /** Structured document for the View / Preview tabs. */
   readonly doc = computed(() => parseDoc(this.canvas.viewedContent(), this.canvas.artifact()?.title));
-  readonly readingMinutes = computed(() => Math.max(1, Math.round(this.doc().words / 200)));
   readonly viewingOld = computed(() => this.canvas.viewingVersion() !== null);
 
   readonly editStats = computed(() => {
@@ -103,21 +100,11 @@ export class ArtifactCanvasComponent {
     return [
       { id: 'content', ok: doc.sections.length >= 2, label: doc.sections.length >= 2 ? `${doc.sections.length} sections, ${doc.words} words` : 'Add at least two sections', fix: doc.sections.length >= 2 ? undefined : 'edit' },
       { id: 'placeholders', ok: placeholders === 0, label: placeholders ? `${placeholders} placeholder${placeholders === 1 ? '' : 's'} (TBD / TODO) left` : 'No TBD / TODO placeholders', fix: placeholders ? 'edit' : undefined },
-      { id: 'grounded', ok: grounded, label: grounded ? 'Grounded in context' : 'Not grounded in any context', detail: grounded ? undefined : 'Optional — use Add context in the prompt bar (Jira, Confluence, files, knowledge base) and ask the AI to refine', fix: grounded ? undefined : 'knowledge' },
-      { id: 'review', ok: a.status === 'review' || a.status === 'approved' || a.status === 'published', label: a.status === 'draft' ? 'Not reviewed yet' : `Status: ${this.canvas.statusLabel(a.status)}`, detail: a.status === 'draft' ? 'Optional — mark it In review to ask for feedback first' : undefined, fix: a.status === 'draft' ? 'review' : undefined }
+      { id: 'grounded', ok: grounded, label: grounded ? 'Grounded in context' : 'Not grounded in any context', detail: grounded ? undefined : 'Optional — use Add Context in the prompt bar (Jira, Confluence, files, knowledge base), then ask for an update in the chat' }
     ];
   });
   /** Only real content problems block publishing; review and grounding are recommendations. */
   readonly publishBlocked = computed(() => this.publishChecks().some(c => !c.ok && c.id === 'content'));
-
-  readonly exportFormats: { id: ExportFormat; icon: string; label: string; desc: string }[] = [
-    { id: 'markdown', icon: 'file-down', label: 'Markdown', desc: 'Download a .md file' },
-    { id: 'copy', icon: 'clipboard-copy', label: 'Copy Markdown', desc: 'Paste into Confluence, Notion, GitHub' },
-    { id: 'pdf', icon: 'printer', label: 'PDF', desc: 'Print or Save as PDF' },
-    { id: 'word', icon: 'file-type', label: 'Word', desc: 'Download a .doc file' },
-    { id: 'jira', icon: 'trello', label: 'Push to Jira', desc: 'One issue per requirement / story' },
-    { id: 'ado', icon: 'git-merge', label: 'Push to Azure DevOps', desc: 'One work item per requirement' }
-  ];
 
   readonly team = computed(() => this.project()?.team ?? []);
 
@@ -125,23 +112,6 @@ export class ArtifactCanvasComponent {
     const type = this.canvas.toast()?.type;
     return type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info';
   });
-
-  // ── Title ──
-  startRename(): void {
-    if (this.viewingOld()) return;
-    this.editingTitle.set(true);
-    setTimeout(() => {
-      const el = this.scroller?.nativeElement.querySelector<HTMLInputElement>('.cv-title-input');
-      el?.focus();
-      el?.select();
-    });
-  }
-
-  finishRename(value: string, save: boolean): void {
-    if (!this.editingTitle()) return;
-    this.editingTitle.set(false);
-    if (save) this.canvas.rename(value);
-  }
 
   // ── Sections ──
   private spyPausedUntil = 0;
@@ -211,9 +181,7 @@ export class ArtifactCanvasComponent {
 
   // ── Publish fixes ──
   runFix(fix: PublishCheck['fix']): void {
-    if (fix === 'review') this.canvas.setStatus('review');
     if (fix === 'edit') this.canvas.setMode('edit');
-    if (fix === 'knowledge') this.canvas.requestRefine();
   }
 
   /** "A newer AI version exists" → open it. */
@@ -245,9 +213,10 @@ export class ArtifactCanvasComponent {
     }
     if (mod && e.key === 'Enter' && this.canvas.sectionEdit()) { e.preventDefault(); this.canvas.saveSectionEdit(); return; }
     if (e.key === 'Escape') {
-      if (this.editingTitle()) return;
       if (this.canvas.sectionEdit()) { e.preventDefault(); this.canvas.guard(() => this.canvas.cancelSectionEdit()); }
       else if (this.canvas.mode() === 'edit') { e.preventDefault(); this.canvas.cancelEdit(); }
+      // History, compare, share, publish, export, reader preview: Esc goes back to the document.
+      else if (this.canvas.mode() !== 'view' && !document.querySelector('.tb-title-input')) { e.preventDefault(); this.canvas.setMode('view'); }
       return;
     }
     if (!typing && !mod && !e.altKey && e.key.toLowerCase() === 'e' && this.canvas.mode() === 'view' && !this.viewingOld()) {

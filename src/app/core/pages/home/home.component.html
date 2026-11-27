@@ -18,11 +18,6 @@
         <h1 id="prompt-title">{{ greeting }}, <span class="psc-greeting-name">{{ userName }}</span>{{ ' ' }}<span class="psc-wave" aria-hidden="true">👋</span></h1>
         <p *ngIf="hasProjects">Open a project to continue its chats, or start a new one. Every chat and document lives in a project.</p>
         <p *ngIf="!hasProjects">Welcome to Product Studio. Let’s set up your first project — it takes less than a minute.</p>
-        <ul class="psc-landing-stats" aria-label="Your workspace" *ngIf="hasProjects">
-          <li><lucide-icon name="folder-open" [size]="14"></lucide-icon><strong>{{ landingStats.projects }}</strong> {{ landingStats.projects === 1 ? 'project' : 'projects' }}</li>
-          <li><lucide-icon name="message-square" [size]="14"></lucide-icon><strong>{{ landingStats.chats }}</strong> {{ landingStats.chats === 1 ? 'chat' : 'chats' }}</li>
-          <li><lucide-icon name="file-text" [size]="14"></lucide-icon><strong>{{ landingStats.docs }}</strong> {{ landingStats.docs === 1 ? 'document' : 'documents' }}</li>
-        </ul>
         <button type="button" class="psc-tour-link" *ngIf="tour.enabled" (click)="tour.start('home')">
           <lucide-icon name="compass" [size]="14"></lucide-icon>Take the tour
         </button>
@@ -35,10 +30,16 @@
         </button>
         <div class="psc-pw-titles">
           <h1 id="prompt-title" class="psc-pw-project">{{ wp.name }}</h1>
-          <span class="psc-pw-chat" [title]="activeConversation?.title || 'New chat'">{{ activeConversation?.title || 'New chat' }}</span>
+          <!-- The chat's title shows once it exists; a new chat shows only the project name -->
+          <span class="psc-pw-chat" *ngIf="activeConversation as ac" [title]="ac.title">{{ ac.title }}</span>
         </div>
-        <button type="button" class="psc-pw-new" *ngIf="activeConversation || otherTabOpen" (click)="startNewConversation()" aria-label="New chat in this project" title="New chat in project">
-          <lucide-icon name="square-pen" [size]="15"></lucide-icon><span>New chat</span>
+        <!-- Who is in this chat; opens Team Collaboration -->
+        <button type="button" class="psc-pw-people" *ngIf="participants.length" (click)="openTeamFromHeader($event)"
+          [attr.aria-label]="participants.length + ' people in this chat. Manage team collaboration'" [title]="sharedWith.join(', ')">
+          <span class="psc-team-stack">
+            <span class="psc-team-av" *ngFor="let m of participants.slice(0, 4)">{{ m.avatar }}</span>
+          </span>
+          <span class="psc-pw-people-count" *ngIf="participants.length > 4">+{{ participants.length - 4 }}</span>
         </button>
       </header>
       <nav class="psc-pw-tabs" *ngIf="projectMode" role="tablist" aria-label="Project" data-tour="pw-tabs">
@@ -105,15 +106,11 @@
       <!-- Empty project chat -->
       <div class="psc-pw-empty" [class.psc-tab-hidden]="otherTabOpen" [attr.id]="projectMode ? 'pw-panel-chat' : null" [attr.role]="projectMode ? 'tabpanel' : null" *ngIf="projectMode && !conversationStarted && workspaceProject as wp">
         <span class="psc-pw-empty-av" [style.background]="projectGradient(wp.id, 0)">{{ initials(wp.name) }}</span>
-        <h2>What should we work on in {{ wp.name }}?</h2>
+        <!-- Project greeting: where the project stands -->
+        <p class="psc-pw-greet" [innerHTML]="projectGreetingLine"></p>
         <p *ngIf="contextCount">This chat uses {{ contextCount }} context item{{ contextCount === 1 ? '' : 's' }}. <button type="button" class="psc-inline-link" (click)="setProjectTab('context')">Review in Context</button></p>
         <button type="button" class="psc-tour-link" *ngIf="tour.enabled" (click)="tour.start('project')"><lucide-icon name="compass" [size]="14"></lucide-icon>Take the tour</button>
         <p *ngIf="!contextCount">Just start typing, or <button type="button" class="psc-inline-link" (click)="setProjectTab('context')">add context</button> so answers use your Jira, docs and files.</p>
-        <div class="psc-pw-starters">
-          <button type="button" *ngFor="let st of projectStarters" (click)="useStarter(st)">
-            <lucide-icon [name]="getArtifactIconName(st.artifactId)" [size]="14"></lucide-icon>{{ st.label }}
-          </button>
-        </div>
       </div>
 
       <div class="psc-conversation" [class.psc-tab-hidden]="otherTabOpen" [attr.id]="projectMode ? 'pw-panel-chat' : null" [attr.role]="projectMode ? 'tabpanel' : null" *ngIf="conversationStarted">
@@ -144,13 +141,17 @@
               </button>
             </div>
           </div>
-          <button type="button" class="psc-new-conversation" (click)="startNewConversation()" aria-label="Start a new chat">
-            <lucide-icon name="plus" [size]="13"></lucide-icon><span class="psc-new-conversation-label">{{ conversationProject ? 'New chat in project' : 'New chat' }}</span>
-          </button>
         </div>
 
         <div class="psc-message-list" #messageList aria-live="polite">
-          <article class="psc-message" *ngFor="let message of messages; trackBy: trackById" [class.user-message]="message.role === 'user'">
+          <ng-container *ngFor="let message of messages; trackBy: trackById">
+          <!-- Timeline note (someone joined or left the chat) -->
+          <div class="psc-chat-event" *ngIf="message.role === 'event'" role="note">
+            <lucide-icon [name]="eventIcon(message)" [size]="13"></lucide-icon>
+            <span>{{ message.content }}</span>
+            <time [attr.datetime]="message.timestamp">{{ message.timestamp | date:'h:mm a' }}</time>
+          </div>
+          <article class="psc-message" *ngIf="message.role !== 'event'" [class.user-message]="message.role === 'user'">
             <div class="psc-message-avatar" *ngIf="message.role !== 'user'">✦</div>
             <div class="psc-message-body">
               <div class="psc-message-author" *ngIf="message.role !== 'user'">{{ message.agentName }}</div>
@@ -210,6 +211,7 @@
               </div>
             </div>
           </article>
+          </ng-container>
           <div class="psc-typing" *ngIf="isTyping"><span></span><span></span><span></span><small>{{ docked ? 'Thinking…' : 'Preparing your draft…' }}</small></div>
         </div>
       </div>
@@ -300,19 +302,14 @@
           </div>
 
           <div class="psc-prompt-actions">
-            <!-- Auto refine: every prompt is improved before it's sent -->
-            <button type="button" class="psc-auto-refine" role="switch" [attr.aria-checked]="autoRefine" [class.on]="autoRefine" (click)="toggleAutoRefine()"
-              [title]="autoRefine ? 'Auto refine is on: your prompt is improved when you pause typing' : 'Auto refine is off'">
-              <span class="psc-auto-refine-track" aria-hidden="true"><span></span></span>
-              <span class="psc-chip-label">{{ autoRefining ? 'Refining…' : 'Auto refine' }}</span>
-            </button>
             <!-- Refine: rewrite the prompt (dropdown of refine styles) -->
-            <button type="button" class="psc-chip-btn psc-refine-chip" data-tour="pb-refine" (click)="toggleMenu('refine', $event)" [disabled]="!canRefine"
-              aria-haspopup="menu" [attr.aria-expanded]="openMenu === 'refine'" aria-controls="refine-menu"
-              [attr.aria-label]="isRefining ? 'Refining prompt' : 'Refine prompt'"
-              [title]="promptText.trim() ? 'Refine prompt' : 'Type a prompt to refine it'">
-              <lucide-icon [name]="isRefining ? 'loader' : 'wand-sparkles'" [size]="15" [class.psc-spin]="isRefining"></lucide-icon>
-              <span class="psc-chip-label">{{ isRefining ? 'Refining…' : 'Refine' }}</span>
+            <button type="button" class="psc-chip-btn psc-refine-chip" data-tour="pb-refine" (click)="toggleMenu('refine', $event)" [disabled]="isRefining"
+              aria-haspopup="menu" [attr.aria-expanded]="openMenu === 'refine'" aria-controls="refine-menu" [class.auto-on]="autoRefine"
+              [attr.aria-label]="isRefining || autoRefining ? 'Refining prompt' : 'Refine prompt, auto refine ' + (autoRefine ? 'on' : 'off')"
+              [title]="autoRefine ? 'Refine · Auto refine is on' : 'Refine prompt · Auto refine is off'">
+              <lucide-icon [name]="isRefining || autoRefining ? 'loader' : 'wand-sparkles'" [size]="15" [class.psc-spin]="isRefining || autoRefining"></lucide-icon>
+              <span class="psc-chip-label">{{ isRefining || autoRefining ? 'Refining…' : 'Refine' }}</span>
+              <span class="psc-refine-auto-dot" *ngIf="autoRefine && !autoRefining" aria-hidden="true" title="Auto refine on">Auto</span>
               <lucide-icon class="psc-picker-chevron" name="chevron-down" [size]="13"></lucide-icon>
             </button>
             <button type="button" class="psc-start-button" data-tour="pb-send" [disabled]="!promptText.trim() || isTyping || isRefining" (click)="sendPrompt()" aria-label="Send prompt" title="Send (Enter)">
@@ -326,9 +323,16 @@
         <div class="psc-popover psc-popover--refine" id="refine-menu" [class.psc-popover--up]="popoverUp" *ngIf="openMenu === 'refine'"
           role="menu" aria-label="Refine prompt" (keydown)="onRefineMenuKeydown($event)">
           <div class="psc-popover-title">Refine prompt <span>for {{ selectedArtifactLabel }}</span></div>
+          <!-- Auto refine switch: the prompt is improved automatically when you pause typing -->
+          <button type="button" class="psc-popover-option psc-auto-refine-row" role="menuitemcheckbox" [attr.aria-checked]="autoRefine" (click)="toggleAutoRefine()">
+            <span class="psc-popover-option-icon"><lucide-icon name="sparkles" [size]="15"></lucide-icon></span>
+            <span class="psc-popover-option-label">Auto refine<small>{{ autoRefine ? 'On: improves your prompt when you pause typing' : 'Off: refine manually below' }}</small></span>
+            <span class="psc-auto-refine" [class.on]="autoRefine" aria-hidden="true"><span class="psc-auto-refine-track"><span></span></span></span>
+          </button>
+          <div class="psc-popover-divider" role="presentation">Refine now</div>
           <button type="button" class="psc-popover-option" *ngFor="let option of refineOptions; let i = index"
             [id]="'refine-option-' + i" role="menuitem" [tabindex]="i === refineMenuIndex ? 0 : -1"
-            [class.active]="i === refineMenuIndex" (mouseenter)="refineMenuIndex = i" (click)="refinePrompt(option.id)">
+            [class.active]="i === refineMenuIndex" (mouseenter)="refineMenuIndex = i" (click)="refinePrompt(option.id)" [disabled]="!canRefine" [title]="canRefine ? '' : 'Type a prompt to refine it'">
             <span class="psc-popover-option-icon"><lucide-icon [name]="option.icon" [size]="15"></lucide-icon></span>
             <span class="psc-popover-option-label">{{ option.label }}<small>{{ option.description }}</small></span>
           </button>
@@ -339,19 +343,24 @@
         <div class="psc-popover psc-popover--team" id="team-menu" [class.psc-popover--up]="popoverUp" [style.max-height.px]="popoverMaxHeight"
           *ngIf="openMenu === 'team'" role="dialog" aria-label="Team collaboration">
           <div class="psc-popover-title">Team collaboration <span>{{ participants.length }} {{ participants.length === 1 ? 'person' : 'people' }} in this chat</span></div>
+          <div class="psc-team-search" *ngIf="showTeamSearch">
+            <lucide-icon name="search" [size]="13"></lucide-icon>
+            <input id="team-search" type="search" [(ngModel)]="teamQuery" placeholder="Search teams and people" autocomplete="off"
+              aria-label="Search teams and people" (keydown.escape)="$event.stopPropagation(); teamQuery ? teamQuery = '' : closeMenus()">
+          </div>
 
-          <ng-container *ngIf="projectTeams.length">
+          <ng-container *ngIf="shownProjectTeams.length">
             <div class="psc-popover-divider" role="presentation">On {{ workspaceProject?.name }}</div>
-            <div class="psc-popover-option psc-team-locked" *ngFor="let t of projectTeams; trackBy: trackById" title="Assigned to this project. Change it on the Teams page.">
+            <div class="psc-popover-option psc-team-locked" *ngFor="let t of shownProjectTeams; trackBy: trackById" title="Assigned to this project. Change it on the Teams page.">
               <span class="psc-team-av psc-team-av--lg psc-team-av--team">{{ initials(t.name) }}</span>
               <span class="psc-popover-option-label">{{ t.name }}<small>{{ t.memberIds.length }} {{ t.memberIds.length === 1 ? 'person' : 'people' }} · always in this project's chats</small></span>
               <lucide-icon class="psc-popover-check" name="check" [size]="15"></lucide-icon>
             </div>
           </ng-container>
 
-          <ng-container *ngIf="otherTeams.length">
+          <ng-container *ngIf="shownOtherTeams.length">
             <div class="psc-popover-divider" role="presentation">Add a team to this chat</div>
-            <button type="button" class="psc-popover-option" role="menuitemcheckbox" *ngFor="let t of otherTeams; trackBy: trackById"
+            <button type="button" class="psc-popover-option" role="menuitemcheckbox" *ngFor="let t of shownOtherTeams; trackBy: trackById"
               [attr.aria-checked]="isTeamOn(t)" [class.selected]="isTeamOn(t)" (click)="toggleTeam(t)">
               <span class="psc-team-av psc-team-av--lg psc-team-av--team">{{ initials(t.name) }}</span>
               <span class="psc-popover-option-label">{{ t.name }}<small>{{ t.memberIds.length }} {{ t.memberIds.length === 1 ? 'person' : 'people' }}{{ t.description ? ' · ' + t.description : '' }}</small></span>
@@ -359,15 +368,16 @@
             </button>
           </ng-container>
 
-          <div class="psc-popover-divider" role="presentation">People</div>
-          <button type="button" class="psc-popover-option" role="menuitemcheckbox" *ngFor="let m of teamMembers; trackBy: trackById"
+          <div class="psc-popover-divider" role="presentation" *ngIf="shownMembers.length">People</div>
+          <button type="button" class="psc-popover-option" role="menuitemcheckbox" *ngFor="let m of shownMembers; trackBy: trackById"
             [attr.aria-checked]="!!viaTeam(m) || isCollaborator(m.name)" [class.selected]="!!viaTeam(m) || isCollaborator(m.name)"
-            [disabled]="!!viaTeam(m)" (click)="toggleCollaborator(m.name)">
+            [disabled]="!!viaTeam(m)" [title]="viaTeam(m) ? 'In this chat through ' + viaTeam(m)!.name + '. Remove the team to remove them.' : ''" (click)="toggleCollaborator(m.name)">
             <span class="psc-team-av psc-team-av--lg">{{ m.avatar }}</span>
             <span class="psc-popover-option-label">{{ m.name }}<small>{{ m.role }} · {{ viaTeam(m) ? 'via ' + viaTeam(m)!.name : isCollaborator(m.name) ? 'Invited' : m.availability + '% available' }}</small></span>
             <lucide-icon *ngIf="viaTeam(m) || isCollaborator(m.name)" class="psc-popover-check" name="check" [size]="15"></lucide-icon>
           </button>
           <p class="psc-team-empty" *ngIf="!teamMembers.length">No people yet.</p>
+          <p class="psc-team-empty" *ngIf="teamMembers.length && teamQuery && !shownMembers.length && !shownOtherTeams.length && !shownProjectTeams.length">No teams or people match “{{ teamQuery }}”.</p>
           <a class="psc-team-manage" routerLink="/psc/teams"><lucide-icon name="users" [size]="13"></lucide-icon>Manage teams and people</a>
         </div>
 
@@ -396,33 +406,14 @@
         <!-- Separator between the greeting and the projects -->
         <div class="psc-l-sep" role="separator"><span class="psc-l-sep-dot"></span></div>
 
-        <!-- Toolbar: title, search (10+ projects), sort -->
+        <!-- Toolbar: title and search (10+ projects) -->
         <div class="psc-l-toolbar">
           <h2 class="psc-l-title">Your projects<span class="psc-l-count">{{ landingProjects.length }}</span></h2>
-          <!-- Preview: see the landing as a new user with no projects -->
-          <button type="button" class="psc-l-preview" role="switch" [attr.aria-checked]="previewEmpty" [class.on]="previewEmpty" (click)="togglePreviewEmpty()"
-            title="Preview the page as a new user with no projects">
-            <span class="psc-auto-refine-track" aria-hidden="true"><span></span></span>
-            <span>Empty state</span>
-          </button>
           <div class="psc-l-search" *ngIf="showProjectSearch">
             <lucide-icon name="search" [size]="15"></lucide-icon>
             <label class="psc-sr-only" for="landing-search">Search projects</label>
             <input id="landing-search" type="search" [(ngModel)]="landingQuery" placeholder="Search projects" autocomplete="off" (keydown.escape)="landingQuery = ''">
             <kbd *ngIf="!landingQuery" aria-hidden="true">/</kbd>
-          </div>
-          <div class="psc-l-sortwrap" *ngIf="hasProjects" data-tour="landing-sort" (click)="$event.stopPropagation()">
-            <button type="button" class="psc-l-sort-btn" (click)="sortMenuOpen = !sortMenuOpen" aria-haspopup="menu" [attr.aria-expanded]="sortMenuOpen"
-              [attr.aria-label]="'Sort projects: ' + sortLabel" [title]="'Sort: ' + sortLabel">
-              <lucide-icon name="arrow-up-down" [size]="16"></lucide-icon>
-            </button>
-            <div class="psc-l-sort-menu" *ngIf="sortMenuOpen" role="menu" aria-label="Sort projects">
-              <div class="psc-l-sort-title">Sort by</div>
-              <button type="button" role="menuitemradio" class="psc-l-sort-item" *ngFor="let o of landingSorts"
-                [attr.aria-checked]="landingSort === o.id" [class.on]="landingSort === o.id" (click)="landingSort = o.id; sortMenuOpen = false">
-                {{ o.label }}<lucide-icon *ngIf="landingSort === o.id" name="check" [size]="14"></lucide-icon>
-              </button>
-            </div>
           </div>
         </div>
 
@@ -464,31 +455,20 @@
           <article class="psc-l-card" role="listitem" [attr.data-tour]="i === 0 ? 'landing-project' : null" *ngFor="let p of landingProjects; let i = index; trackBy: trackById"
             [style.animation-delay]="(i * 0.04) + 's'">
             <button type="button" class="psc-l-card-main" (click)="openProject(p)"
-              [attr.aria-label]="'Open ' + p.name + ', ' + (chatCounts[p.id] || 0) + ' chats'">
+              [attr.aria-label]="'Open ' + p.name">
               <span class="psc-l-card-top">
                 <span class="psc-l-av" [style.background]="projectGradient(p.id, i)">{{ initials(p.name) }}</span>
-                <span class="psc-l-status" [attr.data-tone]="statusMeta[p.status].tone">{{ statusMeta[p.status].label }}</span>
+                <span class="psc-l-meta" *ngIf="projectPhase(p) || p.team.length">
+                  <span class="psc-l-phase" *ngIf="projectPhase(p) as ph"><lucide-icon name="route" [size]="12"></lucide-icon>{{ ph }}</span>
+                  <span class="psc-l-team" *ngIf="p.team.length" [attr.aria-label]="p.team.length + ' members'">
+                    <span class="psc-l-team-av" *ngFor="let m of p.team.slice(0, 4)" [title]="m">{{ initials(m) }}</span>
+                    <span class="psc-l-team-more" *ngIf="p.team.length > 4">+{{ p.team.length - 4 }}</span>
+                  </span>
+                </span>
               </span>
               <span class="psc-l-name">{{ p.name }}</span>
               <span class="psc-l-desc">{{ p.description || 'No description yet.' }}</span>
-              <span class="psc-l-meta">
-                <span><lucide-icon name="message-square" [size]="12"></lucide-icon>{{ chatCounts[p.id] || 0 }} {{ chatCounts[p.id] === 1 ? 'chat' : 'chats' }}</span>
-                <span><lucide-icon name="file-text" [size]="12"></lucide-icon>{{ docCounts[p.id] || 0 }} {{ docCounts[p.id] === 1 ? 'doc' : 'docs' }}</span>
-                <span *ngIf="projectTeamCount(p) as tc"><lucide-icon name="users" [size]="12"></lucide-icon>{{ tc }} {{ tc === 1 ? 'team' : 'teams' }}</span>
-                <span *ngIf="projectPhase(p) as ph"><lucide-icon name="route" [size]="12"></lucide-icon>{{ ph }}</span>
-              </span>
             </button>
-            <footer class="psc-l-card-foot">
-              <span class="psc-l-team" [attr.aria-label]="p.team.length + ' members'">
-                <span class="psc-l-team-av" *ngFor="let m of p.team.slice(0, 4)" [title]="m">{{ initials(m) }}</span>
-                <span class="psc-l-team-more" *ngIf="p.team.length > 4">+{{ p.team.length - 4 }}</span>
-              </span>
-              <span class="psc-l-updated" [title]="'Last activity ' + (lastActive(p) | date:'medium')">{{ relativeTime(lastActive(p)) }}</span>
-              <button type="button" class="psc-l-resume" *ngIf="latestChat(p) as lc" (click)="openChat(lc)" [title]="'Resume: ' + lc.title"
-                [attr.aria-label]="'Resume latest chat in ' + p.name">
-                <lucide-icon name="history" [size]="13"></lucide-icon>Resume
-              </button>
-            </footer>
           </article>
         </div>
 
@@ -516,7 +496,6 @@
   <section class="psc-canvas-column" *ngIf="canvasOpen" aria-label="Artifact canvas">
     <app-artifact-toolbar (closed)="closeArtifact()"></app-artifact-toolbar>
     <app-artifact-canvas></app-artifact-canvas>
-    <app-activity-watch></app-activity-watch>
   </section>
 </main>
 

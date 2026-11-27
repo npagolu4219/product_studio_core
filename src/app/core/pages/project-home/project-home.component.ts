@@ -54,13 +54,12 @@ interface NewProjectForm {
   standalone: true,
   imports: [CommonModule, FormsModule, LucideAngularModule],
   templateUrl: './project-home.component.html',
-  styleUrl: './project-home.component.scss'
+  styleUrls: ['./project-home.component.scss', '../../styles-shared/project-cards.scss']
 })
 export class ProjectHomeComponent implements OnInit, OnDestroy {
   projects: Project[] = [];
   allTeamMembers: TeamMember[] = [];
   search = '';
-  filter = '';
 
   // Modal state
   showModal = false;
@@ -269,15 +268,23 @@ export class ProjectHomeComponent implements OnInit, OnDestroy {
     this.lifecycles.set(projectId, lifecycle);
   }
 
-  /** Chats per project, shown on each card's Chat button. */
+  /** Chats per project. */
   chatCounts: Record<string, number> = {};
+  /** Latest chat activity per project (ISO), for ordering the cards. */
+  private lastChatAt: Record<string, string> = {};
   private readonly conversations = inject(ConversationService);
 
   constructor(private mockData: PscMockDataService, private router: Router, private route: ActivatedRoute) {
     this.conversations.conversations$.pipe(takeUntilDestroyed()).subscribe(list => {
       const counts: Record<string, number> = {};
-      for (const c of list) if (c.projectId) counts[c.projectId] = (counts[c.projectId] ?? 0) + 1;
+      const active: Record<string, string> = {};
+      for (const c of list) {
+        if (!c.projectId) continue;
+        counts[c.projectId] = (counts[c.projectId] ?? 0) + 1;
+        if (!active[c.projectId] || c.updatedAt > active[c.projectId]) active[c.projectId] = c.updatedAt;
+      }
       this.chatCounts = counts;
+      this.lastChatAt = active;
     });
   }
 
@@ -291,11 +298,33 @@ export class ProjectHomeComponent implements OnInit, OnDestroy {
     this.mockData.getTeamMembers().subscribe(t => this.allTeamMembers = t);
   }
 
+  /** Same as the Home landing: matching projects, most recently active first. */
   get filtered(): Project[] {
-    return this.projects.filter(p =>
-      (!this.filter || p.status === this.filter) &&
-      (!this.search || p.name.toLowerCase().includes(this.search.toLowerCase()))
-    );
+    const q = this.search.trim().toLowerCase();
+    return this.projects
+      .filter(p => !q || p.name.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q) || p.tags.some(t => t.toLowerCase().includes(q)))
+      .sort((a, b) => this.lastActive(b).localeCompare(this.lastActive(a)));
+  }
+
+  /** Search appears once there are more than 10 projects (as on Home). */
+  get showSearch(): boolean {
+    return this.projects.length > 10;
+  }
+
+  /** Last activity: the newest of the project's own update and its chats. */
+  private lastActive(p: Project): string {
+    const chat = this.lastChatAt[p.id];
+    return chat && chat > p.updatedAt ? chat : p.updatedAt;
+  }
+
+  /** Current lifecycle phase label, if the project has a lifecycle. */
+  phaseOf(p: Project): string | null {
+    const lc = this.lifecycles.get(p.id);
+    return lc ? this.phaseLabel(lc.current) : null;
+  }
+
+  trackById(_: number, p: Project): string {
+    return p.id;
   }
 
   get filteredTeamMembers(): TeamMember[] {

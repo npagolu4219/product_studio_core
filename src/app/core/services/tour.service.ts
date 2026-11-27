@@ -43,12 +43,7 @@ export const TOURS: Record<TourId, TourStep[]> = {
     {
       target: 'landing-project', placement: 'right', icon: 'folder-open',
       title: 'Pick up where you left off',
-      body: 'Open a project to continue its chats, or use Resume to jump straight into the latest one. Cards show status, chats, documents and the team.'
-    },
-    {
-      target: 'landing-sort', placement: 'left', icon: 'arrow-up-down',
-      title: 'Sort your projects',
-      body: 'Order by recent activity, name or number of chats. Search appears here once you have more than 10 projects.'
+      body: 'Open a project to continue its chats or start a new one. Cards show the project’s status and team.'
     },
     {
       target: 'nav-teams', placement: 'right', icon: 'users',
@@ -121,23 +116,18 @@ export const TOURS: Record<TourId, TourStep[]> = {
     },
     {
       target: 'pv-doc', placement: 'bottom', icon: 'file-text',
-      title: 'Document and version',
-      body: 'Shows which document you’re looking at and its version. Click to switch between the documents drafted in this chat or rename it.'
-    },
-    {
-      target: 'pv-status', placement: 'bottom', icon: 'badge-check',
-      title: 'Track its status',
-      body: 'Move the document from Draft to In review, Approved and Published, so everyone knows where it stands.'
+      title: 'Document details',
+      body: 'The document’s title, version and details. Hover the title to rename it. Open another draft from its card in the chat.'
     },
     {
       target: 'pv-modes', placement: 'bottom', icon: 'eye',
-      title: 'View, Edit, Compare, History',
-      body: 'Read it, edit it directly (press E), compare any two versions side by side, or restore an earlier one. Every AI change is saved as a new version.'
+      title: 'Version history',
+      body: 'Every AI change is saved as a new version. Open History to view, compare or restore any of them. Press E to edit.'
     },
     {
       target: 'pv-section', placement: 'left', icon: 'pencil',
       title: 'Work section by section',
-      body: 'Hover a section to edit just that part, or ask the AI to improve it. The rest of the document stays as it is.'
+      body: 'Hover a section to copy it or edit just that part. The rest of the document stays as it is.'
     },
     {
       target: 'pv-outline', placement: 'left', icon: 'list',
@@ -145,24 +135,9 @@ export const TOURS: Record<TourId, TourStep[]> = {
       body: 'Contents lists every section. Click one to jump straight to it.'
     },
     {
-      target: 'pv-share', placement: 'bottom', icon: 'share-2',
-      title: 'Share and publish',
-      body: 'Share a link for review, or Publish to make it the version your team sees in the Repository.'
-    },
-    {
-      target: 'pv-more', placement: 'bottom', icon: 'download',
-      title: 'Export and more',
-      body: 'Copy or download as Markdown, save as PDF or Word, or push to Jira and Azure DevOps. You can replay this tour from here too.'
-    },
-    {
       target: 'pv-resize', placement: 'right', icon: 'panel-left',
       title: 'Resize the split',
       body: 'Drag this divider (or use ← →) to give the chat or the document more room.'
-    },
-    {
-      target: 'pv-activity', placement: 'top', icon: 'activity',
-      title: 'Activity',
-      body: 'Follow what the AI is doing and what changed in each version. Keep chatting on the left to refine the draft.'
     }
   ]
 };

@@ -1,0 +1,246 @@
+// Project cards shared by the Home landing and /psc/projects: toolbar, search, the dashed
+// "New project" card, project cards and the no-match state. Keep both pages in sync by editing here.
+.psc-l-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 20px;
+  margin-left: 8px;
+  padding: 0 6px;
+  color: var(--psc-primary-dark);
+  background: rgb(var(--psc-primary-rgb) / .1);
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  vertical-align: 2px;
+}
+
+// ── Buttons ────────────────────────────────────────────────────────────────
+.psc-l-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font: 700 13px 'Mulish', sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+
+  &:focus-visible { outline: 2px solid rgb(var(--psc-primary-rgb) / .5); outline-offset: 2px; }
+}
+.psc-l-btn--primary {
+  color: #fff;
+  background: var(--psc-gradient-brand);
+  box-shadow: 0 6px 16px rgb(var(--psc-primary-rgb) / .25);
+  &:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgb(var(--psc-primary-rgb) / .32); }
+}
+.psc-l-btn--ghost {
+  color: var(--psc-text-body);
+  background: var(--psc-surface);
+  border-color: var(--psc-line);
+  &:hover { border-color: rgb(var(--psc-primary-rgb) / .4); color: var(--psc-primary-dark); }
+}
+
+// ── Toolbar ──────────────────────────────────────────────────────
+.psc-l-toolbar { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.psc-l-title { margin: 0 auto 0 0; color: var(--psc-text-strong); font-size: 16px; font-weight: 800; }
+.psc-l-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: min(260px, 100%);
+  height: 36px;
+  padding: 0 10px;
+  gap: 8px;
+  color: var(--psc-text-subtle);
+  background: var(--psc-surface);
+  border: 1px solid var(--psc-line);
+  border-radius: 10px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+
+  &:focus-within { border-color: rgb(var(--psc-primary-rgb) / .45); box-shadow: 0 0 0 3px rgb(var(--psc-primary-rgb) / .1); }
+  input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    color: var(--psc-text-strong);
+    background: transparent;
+    font: 600 13px 'Mulish', sans-serif;
+  }
+  input::placeholder { color: var(--psc-text-subtle); }
+  kbd {
+    padding: 1px 6px;
+    color: var(--psc-text-subtle);
+    background: var(--psc-bg);
+    border: 1px solid var(--psc-line);
+    border-radius: 5px;
+    font: 700 11px ui-monospace, Menlo, monospace;
+  }
+}
+
+// First card: New project (dashed)
+.psc-l-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 190px;
+  padding: 20px;
+  color: var(--psc-text-secondary);
+  background: rgb(var(--psc-primary-rgb) / .03);
+  border: 2px dashed rgb(var(--psc-primary-rgb) / .35);
+  border-radius: 14px;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  animation: psc-l-in .3s ease both;
+  transition: border-color .15s ease, background .15s ease, transform .15s ease;
+
+  strong { color: var(--psc-text-strong); font-size: 14.5px; font-weight: 800; }
+  span:last-child { font-size: 12.5px; }
+  &:hover { border-color: var(--psc-primary); background: rgb(var(--psc-primary-rgb) / .07); transform: translateY(-2px); }
+  &:hover .psc-l-add-icon { transform: scale(1.08); }
+  &:focus-visible { outline: 2px solid rgb(var(--psc-primary-rgb) / .5); outline-offset: 2px; }
+}
+.psc-l-add-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 4px;
+  color: #fff;
+  background: var(--psc-gradient-brand);
+  border-radius: 14px;
+  box-shadow: 0 8px 18px rgb(var(--psc-primary-rgb) / .28);
+  transition: transform .15s ease;
+}
+
+// ── Project cards ──────────────────────────────────────────────────────────
+.psc-l-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.psc-l-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--psc-surface-raised);
+  border: 1px solid var(--psc-line);
+  border-radius: 14px;
+  overflow: hidden;
+  animation: psc-l-in .3s ease both;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+
+  &:hover { border-color: rgb(var(--psc-primary-rgb) / .35); box-shadow: 0 12px 28px rgba(57, 48, 112, .12); transform: translateY(-2px); }
+}
+.psc-l-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  padding: 14px 14px 10px;
+  color: inherit;
+  background: none;
+  border: 0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  &:focus-visible { outline: 2px solid rgb(var(--psc-primary-rgb) / .5); outline-offset: -3px; border-radius: 14px; }
+}
+.psc-l-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.psc-l-av { flex: none; }
+.psc-l-av {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 800;
+}
+.psc-l-name { color: var(--psc-text-strong); font-size: 14.5px; font-weight: 800; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.psc-l-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.9em;
+  color: var(--psc-text-secondary);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+// Phase + member avatars sit in the card's top row, opposite the project initials.
+.psc-l-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 8px;
+  min-width: 0;
+  color: var(--psc-text-secondary);
+  font-size: 11.5px;
+  font-weight: 700;
+
+  > .psc-l-phase {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--psc-tint-gray);
+    white-space: nowrap;
+  }
+}
+.psc-l-team { display: inline-flex; align-items: center; }
+.psc-l-team-av, .psc-l-team-more {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--psc-surface-raised);
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 800;
+}
+.psc-l-team-av { color: var(--psc-primary-dark); background: rgb(var(--psc-primary-rgb) / .14); }
+.psc-l-team-more { color: var(--psc-text-subtle); background: var(--psc-bg); }
+.psc-l-team > * + * { margin-left: -7px; }
+
+// ── Empty state ────────────────────────────────────────────────────────────
+.psc-l-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 36px 16px;
+  color: var(--psc-text-subtle);
+  background: var(--psc-surface-raised);
+  border: 1px dashed var(--psc-line-strong, var(--psc-line));
+  border-radius: 14px;
+  text-align: center;
+  font-size: 13px;
+
+  strong { color: var(--psc-text-strong); font-size: 14.5px; }
+  .psc-l-btn { margin-top: 6px; }
+}
+
+@keyframes psc-l-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .psc-l-card { animation: none; transition: none; &:hover { transform: none; } }
+}
+
+// ── Equal-size cards: every row is as tall as the tallest card; the New project card follows the grid ──
+.psc-l-grid { grid-auto-rows: 1fr; }
+.psc-l-grid > .psc-l-add { min-height: 0; }
+
+// ── Small screens ──────────────────────────────────────────────────────────
+@media (max-width: 720px) {
+  .psc-l-toolbar { flex-wrap: wrap; }
+  .psc-l-title { flex: 1; }
+  .psc-l-search { order: 3; flex: 1 0 100%; width: auto; }
+}

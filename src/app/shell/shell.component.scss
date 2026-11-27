@@ -302,19 +302,6 @@
   text-transform: uppercase;
   color: var(--psc-text-muted);
 }
-.psc-chats-new {
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--psc-border);
-  border-radius: 8px;
-  color: var(--psc-primary-text);
-  background: var(--psc-surface);
-  cursor: pointer;
-  transition: var(--psc-transition);
-  &:hover { background: rgb(var(--psc-primary-rgb) / 0.08); border-color: rgb(var(--psc-primary-rgb) / .35); }
-}
 
 .psc-chats-list {
   flex: 1;
