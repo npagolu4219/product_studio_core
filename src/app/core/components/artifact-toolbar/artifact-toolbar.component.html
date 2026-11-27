@@ -5,7 +5,7 @@
     <lucide-icon [name]="canvas.layout().chatCollapsed ? 'panel-left-open' : 'panel-left-close'" [size]="16"></lucide-icon>
   </button>
 
-  <!-- The preview's only header: document title (rename in place) and its version -->
+  <!-- The preview's only header: document title (rename in place) -->
   <div class="tb-doc" data-tour="pv-doc">
     <input *ngIf="renaming(); else titleTpl" class="tb-title-input" [value]="artifact.title" aria-label="Document title" maxlength="120"
       (keydown.enter)="finishRename($any($event.target).value, true)" (keydown.escape)="$event.stopPropagation(); finishRename('', false)"
@@ -16,7 +16,6 @@
         <lucide-icon name="pencil" [size]="12"></lucide-icon>
       </button>
     </ng-template>
-    <span class="tb-doc-ver" [title]="canvas.viewingVersion() ? 'Viewing an earlier version' : 'Current version'">v{{ canvas.viewingVersion() ?? artifact.version }}</span>
   </div>
 
   <!-- Back to the document from edit / compare / history / share / publish / export -->
@@ -26,11 +25,12 @@
 
   <span class="tb-spacer"></span>
 
-  <!-- History (versions) -->
+  <!-- History, with the version on screen -->
   <button type="button" class="tb-btn" data-tour="pv-modes" [class.active]="canvas.mode() === 'history'" [attr.aria-pressed]="canvas.mode() === 'history'"
-    (click)="toggleHistory()" title="Version history">
+    (click)="toggleHistory()" [title]="(canvas.viewingVersion() ? 'Viewing an earlier version' : 'Current version') + ' · Version history'"
+    [attr.aria-label]="'Version history, version ' + (canvas.viewingVersion() ?? artifact.version)">
     <lucide-icon name="history" [size]="14"></lucide-icon><span class="tb-label">History</span>
-    <span class="tb-count" *ngIf="canvas.versions().length > 1">{{ canvas.versions().length }}</span>
+    <span class="tb-doc-ver" [class.old]="canvas.viewingVersion()">v{{ canvas.viewingVersion() ?? artifact.version }}</span>
   </button>
   <button type="button" class="tb-btn tb-btn--primary" [class.done]="artifact.status === 'published'" (click)="setMode('publish')"
     [title]="artifact.status === 'published' ? 'Published — manage' : 'Publish to your team'">
@@ -38,10 +38,6 @@
     <span class="tb-label">{{ artifact.status === 'published' ? 'Published' : 'Publish' }}</span>
   </button>
 
-
-  <button type="button" class="tb-icon" (click)="close()" title="Close (Esc)" aria-label="Close artifact">
-    <lucide-icon name="x" [size]="16"></lucide-icon>
-  </button>
 
   <div class="tb-progress" *ngIf="canvas.generating()" role="progressbar" aria-label="AI is updating this chat" [attr.aria-valuenow]="canvas.generationProgress()">
     <div class="tb-progress-bar" [style.width]="canvas.generationProgress() + '%'"></div>

@@ -1,11 +1,11 @@
-import { Component, ElementRef, inject, output, signal } from '@angular/core';
+import { Component, ElementRef, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { ArtifactCanvasService, CanvasMode } from '../../services/artifact-canvas.service';
 
 
 /**
- * The preview header: document title (rename in place) and version, History and Publish.
+ * The preview header: document title (rename in place), History (with the version) and Publish.
  * Modes that show a "Back to document" button:
  */
 const AWAY_MODES: CanvasMode[] = ['edit', 'compare', 'history', 'publish'];
@@ -20,7 +20,6 @@ const AWAY_MODES: CanvasMode[] = ['edit', 'compare', 'history', 'publish'];
 export class ArtifactToolbarComponent {
   readonly canvas = inject(ArtifactCanvasService);
   private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
-  readonly closed = output<void>();
 
   readonly renaming = signal(false);
 
@@ -52,10 +51,6 @@ export class ArtifactToolbarComponent {
 
   setMode(mode: CanvasMode): void {
     this.canvas.setMode(mode);
-  }
-
-  close(): void {
-    this.canvas.guard(() => this.closed.emit());
   }
 
 }

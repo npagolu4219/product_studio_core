@@ -43,6 +43,7 @@
   flex-shrink: 0; padding: 1px 7px; border-radius: 999px;
   color: var(--psc-primary-text); background: rgb(var(--psc-primary-rgb) / .08);
   font: 800 11px/1.5 'Mulish', sans-serif; font-variant-numeric: tabular-nums;
+  &.old { color: #B45309; background: rgba(245, 158, 11, .14); } // viewing an earlier version
 }
 
 // Status pill
@@ -70,7 +71,6 @@
   &:hover { color: var(--psc-text-strong); }
   &.active { color: var(--psc-primary-text); background: var(--psc-surface); box-shadow: 0 1px 3px rgba(0, 0, 0, .1); }
 }
-.tb-count { min-width: 16px; height: 16px; padding: 0 4px; display: inline-grid; place-items: center; border-radius: 8px; color: var(--psc-primary-text); background: rgb(var(--psc-primary-rgb) / .12); font-size: 10px; font-weight: 800; }
 
 // Right-side buttons
 .tb-btn {
@@ -103,7 +103,7 @@
 @container (max-width: 700px) {
   .tb-btn .tb-label { display: none; }
   .tb-btn { width: 34px; padding: 0; justify-content: center; }
-  .tb-count { display: none; }
+  .tb-btn:has(.tb-doc-ver) { width: auto; padding: 0 8px; gap: 5px; } // History keeps its version
 }
 @container (max-width: 560px) {
   .tb { gap: 3px; padding: 0 6px; }

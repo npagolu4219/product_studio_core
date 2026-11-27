@@ -56,11 +56,6 @@ export const TOURS: Record<TourId, TourStep[]> = {
       body: 'The Repository collects every draft and published document across your projects, with versions and status.'
     },
     {
-      target: 'nav-chats', placement: 'right', icon: 'messages-square',
-      title: 'Your chats',
-      body: 'Recent chats live in the sidebar, grouped by project. Drag a chat onto another project to move it.'
-    },
-    {
       icon: 'rocket',
       title: 'You’re all set',
       body: 'Create or open a project to start. You can replay this tour any time from “Take the tour” on Home.'

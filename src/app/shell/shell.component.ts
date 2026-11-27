@@ -6,35 +6,16 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { LucideAngularModule } from 'lucide-angular';
-import { PscIllustrationComponent } from '../core/components/psc-illustration/psc-illustration.component';
 import { PscThemeCustomizerComponent } from '../core/components/psc-theme-customizer/psc-theme-customizer.component';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { PscMockDataService } from '../core/services/psc-mock-data.service';
 import { ConversationService } from '../core/services/conversation.service';
-import { Conversation, Notification, Project } from '../core/models/psc.models';
-import { initials, projectGradient } from '../core/constants/project-visuals';
-import { ARTIFACT_OPTIONS, getArtifactIconName, getArtifactLabel, getArtifactShortLabel } from '../core/constants/artifact-options';
+import { Conversation, Notification } from '../core/models/psc.models';
+import { ARTIFACT_OPTIONS, getArtifactLabel } from '../core/constants/artifact-options';
 import { CURRENT_USER } from '../core/constants/current-user';
 import { THEME_OPTIONS, ThemeMode, ThemeService } from '../core/services/theme.service';
 import { PmBuddyAlertsService } from '../core/features/pm-buddy/services/pm-buddy-alerts.service';
 import { ChatOrganizerService } from '../core/services/chat-organizer.service';
-
-/** A project in the chat list with its chats (newest first). */
-interface ProjectFolder {
-  project: Project;
-  index: number;
-  chats: Conversation[];
-}
-
-const CHAT_SECTIONS_KEY = 'psc.nav.chat-sections';
-const OPEN_FOLDERS_KEY = 'psc.nav.open-projects';
-/** Chats shown per project folder before "View all". */
-const FOLDER_PREVIEW = 4;
-
-interface HistoryGroup {
-  label: string;
-  items: Conversation[];
-}
 
 interface NavItem {
   route: string;
@@ -63,7 +44,7 @@ const TABLET_QUERY = '(min-width: 768px) and (max-width: 1099.98px)';
 @Component({
   selector: 'app-psc-shell',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, DatePipe, FormsModule, LucideAngularModule, PscIllustrationComponent, PscThemeCustomizerComponent, PscTourComponent],
+  imports: [CommonModule, RouterOutlet, DatePipe, FormsModule, LucideAngularModule, PscThemeCustomizerComponent, PscTourComponent],
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.scss'
 })
@@ -129,18 +110,7 @@ export class ShellComponent implements OnInit {
   unreadCount = 0;
   runningJobsCount = 0;
 
-  historyGroups: HistoryGroup[] = [];
-  hasHistory = false;
-  /** Chats split in two: project chats (grouped by project) and Recent (chats with no project). */
-  projectFolders: ProjectFolder[] = [];
-  recentGroups: HistoryGroup[] = [];
-  recentCount = 0;
-  /** Collapsed state of the two sections, and which project folders are open (persisted). */
-  chatSections = this.readJson<{ projects: boolean; recent: boolean }>(CHAT_SECTIONS_KEY, { projects: false, recent: false });
-  openFolders = new Set<string>(this.readJson<string[]>(OPEN_FOLDERS_KEY, []));
-  readonly folderPreview = FOLDER_PREVIEW;
-  readonly initials = initials;
-  readonly projectGradient = projectGradient;
+  /** Chats, for search (⌘K). */
   private allConversations: Conversation[] = [];
 
   // ── Command palette (⌘K / Ctrl+K) ──
@@ -149,9 +119,6 @@ export class ShellComponent implements OnInit {
   cmdResults: CommandResult[] = [];
   cmdActiveIndex = 0;
 
-  readonly getArtifactIconName = getArtifactIconName;
-  readonly getArtifactLabel = getArtifactLabel;
-  readonly getArtifactShortLabel = getArtifactShortLabel;
 
   constructor(
     private router: Router,
@@ -186,9 +153,6 @@ export class ShellComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(list => {
         this.allConversations = list;
-        this.hasHistory = list.length > 0;
-        this.historyGroups = this.groupByDate(list);
-        this.splitChats(list);
       });
 
     this.router.events
@@ -229,11 +193,6 @@ export class ShellComponent implements OnInit {
     this.moreOpen = !this.moreOpen;
   }
 
-  /** Collapsed rail: the chats icon expands the nav so the chat list is visible. */
-  showChats(): void {
-    if (this.railCollapsed) this.toggleNav();
-  }
-
   /**
    * A reply just landed in the chat you're looking at: fold the expanded nav away (animated) so the
    * conversation and its preview get the room. Not saved as your preference; expand it again any time.
@@ -260,199 +219,45 @@ export class ShellComponent implements OnInit {
     this.navOpen = false;
   }
 
-  openConversation(c: Conversation): void {
-    this.closeDrawers();
-    this.router.navigate(['/psc', 'home', c.artifactId, c.id]);
-  }
-
-  deleteConversation(c: Conversation, event: Event): void {
-    event.stopPropagation();
-    this.conversations.deleteConversation(c.id);
-    if (this.activeConversationId === c.id) {
-      this.router.navigate(['/psc', 'home', c.artifactId], { queryParams: c.projectId ? { project: c.projectId } : {} });
-    }
-  }
-
-  // ── Chat list: Projects / Recent ──
-
-  private splitChats(list: Conversation[]): void {
-    const folders = new Map<string, ProjectFolder>();
-    const recent: Conversation[] = [];
-    for (const c of list) {
-      const project = c.projectId ? this.mockData.findProject(c.projectId) : undefined;
-      if (!project) { recent.push(c); continue; }
-      const f = folders.get(project.id) ?? { project, index: 0, chats: [] };
-      f.chats.push(c);
-      folders.set(project.id, f);
-    }
-    const byNewest = (a: Conversation, b: Conversation) => b.updatedAt.localeCompare(a.updatedAt);
-    const all = this.mockData.projects;
-    this.projectFolders = [...folders.values()]
-      .map(f => ({ ...f, chats: f.chats.sort(byNewest), index: Math.max(0, all.findIndex(p => p.id === f.project.id)) }))
-      .sort((a, b) => byNewest(a.chats[0], b.chats[0]));
-    this.recentGroups = this.groupByDate(recent.sort(byNewest));
-    this.recentCount = recent.length;
-    this.revealActiveChat();
-  }
-
-  /** Keep the folder that holds the open chat expanded, so you can always see where you are. */
-  private revealActiveChat(): void {
-    const id = this.activeConversationId;
-    const folder = id ? this.projectFolders.find(f => f.chats.some(c => c.id === id)) : undefined;
-    if (folder && !this.openFolders.has(folder.project.id)) {
-      this.openFolders.add(folder.project.id);
-      this.writeJson(OPEN_FOLDERS_KEY, [...this.openFolders]);
-    }
-    if (folder && this.chatSections.projects) this.toggleChatSection('projects');
-    if (id && !folder && this.chatSections.recent && this.recentCount) this.toggleChatSection('recent');
-  }
-
-  toggleChatSection(section: 'projects' | 'recent'): void {
-    this.chatSections = { ...this.chatSections, [section]: !this.chatSections[section] };
-    this.writeJson(CHAT_SECTIONS_KEY, this.chatSections);
-  }
-
-  isFolderOpen(id: string): boolean {
-    return this.openFolders.has(id);
-  }
-
-  toggleFolder(id: string): void {
-    this.openFolders.has(id) ? this.openFolders.delete(id) : this.openFolders.add(id);
-    this.writeJson(OPEN_FOLDERS_KEY, [...this.openFolders]);
-  }
-
-  /** Chats visible in a folder: the newest few, plus the active one if it's further down. */
-  folderChats(f: ProjectFolder): Conversation[] {
-    const head = f.chats.slice(0, FOLDER_PREVIEW);
-    const active = f.chats.find(c => c.id === this.activeConversationId);
-    return active && !head.includes(active) ? [...head, active] : head;
-  }
-
-  folderHasActive(f: ProjectFolder): boolean {
-    return f.chats.some(c => c.id === this.activeConversationId);
-  }
-
-  /** New chat scoped to a project. */
-  newProjectChat(projectId: string, event?: Event): void {
-    event?.stopPropagation();
-    this.closeDrawers();
-    this.router.navigate(['/psc', 'home'], { queryParams: { project: projectId } });
-  }
-
-  /** All chats of a project (Home with the project selected lists them under "Continue in"). */
-  openProjectChats(projectId: string): void {
-    this.closeDrawers();
-    this.router.navigate(['/psc', 'home'], { queryParams: { project: projectId } });
-  }
-
-  // ── Move chats into projects (⋯ menu, drag & drop) ──
+  /** "Moved to project · Undo" toast (chats can still be filed into projects from Home). */
   readonly organizer = inject(ChatOrganizerService);
-  chatMenu: { conv: Conversation; x: number; y: number; targets: { id: string; name: string; index: number }[] } | null = null;
-  chatMenuQuery = '';
-  dragChatId: string | null = null;
-  dropProjectId: string | null = null;
-  dragTargets: { id: string; name: string; index: number }[] = [];
-  recentHintVisible = this.readJson<boolean>('psc.nav.recent-hint', true);
 
-  openChatMenu(c: Conversation, event: MouseEvent): void {
-    event.stopPropagation();
-    if (this.chatMenu?.conv.id === c.id) { this.closeChatMenu(); return; }
-    const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const width = 260, height = 360;
-    const x = Math.min(r.right + 6, window.innerWidth - width - 8);
-    const y = Math.max(8, Math.min(r.top - 8, window.innerHeight - height - 8));
-    this.chatMenuQuery = '';
-    this.chatMenu = { conv: c, x: Math.max(8, x), y, targets: this.organizer.targets(c) };
-    setTimeout(() => document.querySelector<HTMLElement>('.psc-chat-menu input, .psc-chat-menu .psc-chat-menu-item')?.focus());
-  }
-
-  closeChatMenu(): void {
-    this.chatMenu = null;
-  }
-
-  get chatMenuTargets() {
-    const q = this.chatMenuQuery.trim().toLowerCase();
-    return (this.chatMenu?.targets ?? []).filter(t => !q || t.name.toLowerCase().includes(q));
-  }
-
-  moveChat(c: Conversation, projectId: string | null): void {
-    this.closeChatMenu();
-    this.organizer.move(c.id, projectId);
-    if (projectId) {
-      this.openFolders.add(projectId);
-      this.writeJson(OPEN_FOLDERS_KEY, [...this.openFolders]);
-      if (this.chatSections.projects) this.toggleChatSection('projects');
-    }
-  }
-
-  onChatDragStart(c: Conversation, e: DragEvent): void {
-    this.dragChatId = c.id;
-    this.dragTargets = this.organizer.targets(c).filter(t => !this.projectFolders.some(f => f.project.id === t.id));
-    e.dataTransfer?.setData('text/plain', c.id);
-    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
-  }
-
-  onFolderDragOver(projectId: string, e: DragEvent): void {
-    if (!this.dragChatId) return;
-    const c = this.allConversations.find(x => x.id === this.dragChatId);
-    if (c?.projectId === projectId) return; // already there
-    e.preventDefault();
-    this.dropProjectId = projectId;
-  }
-
-  onFolderDrop(projectId: string, e: DragEvent): void {
-    e.preventDefault();
-    const id = this.dragChatId;
-    this.dragChatId = null;
-    this.dropProjectId = null;
-    const c = id ? this.allConversations.find(x => x.id === id) : undefined;
-    if (c) this.moveChat(c, projectId);
-  }
-
-  dismissRecentHint(): void {
-    this.recentHintVisible = false;
-    this.writeJson('psc.nav.recent-hint', false);
-  }
-
-  @HostListener('document:click')
-  onDocClickCloseChatMenu(): void {
-    if (this.chatMenu) this.chatMenu = null;
-  }
-
-  @HostListener('document:keydown.escape')
-  onEscCloseChatMenu(): void {
-    if (this.chatMenu) this.chatMenu = null;
-  }
-
-  @HostListener('window:resize')
-  onResizeCloseChatMenu(): void {
-    if (this.chatMenu) this.chatMenu = null;
-  }
-
-  private readJson<T>(key: string, fallback: T): T {
-    try {
-      const v = localStorage.getItem(key);
-      return v ? (JSON.parse(v) as T) : fallback;
-    } catch {
-      return fallback;
-    }
-  }
-
-  private writeJson(key: string, value: unknown): void {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
-  }
-
-  /** Name of the project a chat belongs to (shown in the chat list). */
+  /** Name of the project a chat belongs to (shown in search results). */
   projectName(c: Conversation): string {
     return this.mockData.findProject(c.projectId)?.name ?? '';
   }
 
-  trackById(_: number, c: { id: string }): string {
-    return c.id;
+  // ── Settings (profile menu in the nav): theme, colours, search ──
+  settingsOpen = false;
+  settingsPos: { x: number; bottom: number } | null = null;
+
+  toggleSettings(event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.settingsOpen) { this.closeSettings(); return; }
+    const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const width = 280;
+    // Beside the collapsed rail; above the profile row when the nav is expanded (or a drawer).
+    this.settingsPos = this.railCollapsed
+      ? { x: r.right + 8, bottom: Math.max(8, window.innerHeight - r.bottom) }
+      : { x: Math.min(r.left, window.innerWidth - width - 8), bottom: window.innerHeight - r.top + 6 };
+    this.settingsOpen = true;
+    setTimeout(() => document.querySelector<HTMLElement>('.psc-settings-menu .psc-theme-option.active')?.focus());
   }
 
-  trackFolder(_: number, f: ProjectFolder): string {
-    return f.project.id;
+  closeSettings(returnFocus = false): void {
+    if (!this.settingsOpen) return;
+    this.settingsOpen = false;
+    if (returnFocus) document.querySelector<HTMLElement>('.psc-rail-user')?.focus();
+  }
+
+  @HostListener('document:click')
+  onDocClickCloseSettings(): void {
+    this.closeSettings();
+  }
+
+  @HostListener('window:resize')
+  onResizeCloseSettings(): void {
+    this.closeSettings();
   }
 
   toggleNotifications(): void {
@@ -600,27 +405,6 @@ export class ShellComponent implements OnInit {
     this.homeMode = this.activeRoute === 'home';
     if (this.moreActive) this.moreOpen = true;
     this.activeConversationId = this.homeMode && pscIndex >= 0 ? seg[pscIndex + 3] || null : null;
-    this.revealActiveChat();
-  }
-
-  private groupByDate(list: Conversation[]): HistoryGroup[] {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const day = 24 * 60 * 60 * 1000;
-    const buckets: HistoryGroup[] = [
-      { label: 'Today', items: [] },
-      { label: 'Yesterday', items: [] },
-      { label: 'Previous 7 days', items: [] },
-      { label: 'Older', items: [] }
-    ];
-    for (const c of list) {
-      const t = new Date(c.updatedAt).getTime();
-      if (t >= startOfToday.getTime()) buckets[0].items.push(c);
-      else if (t >= startOfToday.getTime() - day) buckets[1].items.push(c);
-      else if (t >= startOfToday.getTime() - 7 * day) buckets[2].items.push(c);
-      else buckets[3].items.push(c);
-    }
-    return buckets.filter(b => b.items.length);
   }
 
   private readFlag(key: string, fallback: boolean): boolean {
