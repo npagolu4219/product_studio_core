@@ -1,17 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Home landing (/psc/home, no project open)
-//   greeting + workspace summary → toolbar (search · sort · New project) → project cards
+//   greeting → search (10+ projects) → project cards
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── Heading ────────────────────────────────────────────────────────────────
 .psc-landing-head { margin-bottom: 26px; }
-.psc-landing-date {
-  color: var(--psc-text-subtle);
-  font-size: 11.5px;
-  font-weight: 800;
-  letter-spacing: .7px;
-  text-transform: uppercase;
-}
+.psc-l-toolbar--end { justify-content: flex-end; margin-top: 0; }
 
 .psc-landing { display: flex; flex-direction: column; gap: 14px; }
 
@@ -168,3 +162,11 @@
   &:focus-visible { outline: 2px solid rgb(var(--psc-primary-rgb) / .5); outline-offset: 2px; }
 }
 
+
+// Landing cards: project name only, vertically centred. The New project card is just the + icon.
+.psc-landing {
+  .psc-l-card-main { justify-content: center; padding: 18px 16px; }
+  .psc-l-name { font-size: 15px; }
+  .psc-l-add--icon { padding: 12px; gap: 0; }
+  .psc-l-add--icon .psc-l-add-icon { width: 36px; height: 36px; margin-bottom: 0; border-radius: 11px; }
+}
