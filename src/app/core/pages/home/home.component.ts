@@ -999,6 +999,12 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     return list.sort((a, b) => this.lastActive(b).localeCompare(this.lastActive(a)));
   }
 
+  /** Lifecycle phase shown on a landing card (same as the Projects page). */
+  projectPhase(p: Project): string | null {
+    const lc = this.lifecycles.get(p.id);
+    return lc ? pdlcPhase(lc.current).label : null;
+  }
+
   clearLandingFilters(): void {
     this.landingQuery = '';
   }
@@ -1262,7 +1268,9 @@ export class HomeComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.router.navigate(['/psc', 'projects'], { queryParams: { new: 1 } });
   }
 
+  /** The draft's chip in the chat toggles the preview: open it, or close it if it's already open. */
   openArtifact(artifact: Artifact): void {
+    if (this.isArtifactOpen(artifact)) { this.canvas.guard(() => this.closeArtifact()); return; }
     this.router.navigate([], { relativeTo: this.route, queryParams: { artifact: artifact.id } });
   }
 

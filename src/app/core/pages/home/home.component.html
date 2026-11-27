@@ -391,15 +391,27 @@
         </section>
 
         <div class="psc-l-grid" role="list" *ngIf="hasProjects && (landingProjects.length || !landingQuery); else noMatch">
-          <button type="button" class="psc-l-add psc-l-add--icon" role="listitem" data-tour="landing-new-project" (click)="newProject()" *ngIf="!landingQuery"
-            aria-label="New project" title="New project">
+          <button type="button" class="psc-l-add" role="listitem" data-tour="landing-new-project" (click)="newProject()" *ngIf="!landingQuery">
             <span class="psc-l-add-icon"><lucide-icon name="plus" [size]="22"></lucide-icon></span>
+            <strong>New project</strong>
+            <span>Start with a title and description</span>
           </button>
           <article class="psc-l-card" role="listitem" [attr.data-tour]="i === 0 ? 'landing-project' : null" *ngFor="let p of landingProjects; let i = index; trackBy: trackById"
             [style.animation-delay]="(i * 0.04) + 's'">
             <button type="button" class="psc-l-card-main" (click)="openProject(p)"
               [attr.aria-label]="'Open ' + p.name">
+              <span class="psc-l-card-top">
+                <span class="psc-l-av" [style.background]="projectGradient(p.id, i)">{{ initials(p.name) }}</span>
+                <span class="psc-l-meta" *ngIf="projectPhase(p) || p.team.length">
+                  <span class="psc-l-phase" *ngIf="projectPhase(p) as ph"><lucide-icon name="route" [size]="12"></lucide-icon>{{ ph }}</span>
+                  <span class="psc-l-team" *ngIf="p.team.length" [attr.aria-label]="p.team.length + ' members'">
+                    <span class="psc-l-team-av" *ngFor="let m of p.team.slice(0, 4)" [title]="m">{{ initials(m) }}</span>
+                    <span class="psc-l-team-more" *ngIf="p.team.length > 4">+{{ p.team.length - 4 }}</span>
+                  </span>
+                </span>
+              </span>
               <span class="psc-l-name">{{ p.name }}</span>
+              <span class="psc-l-desc">{{ p.description || 'No description yet.' }}</span>
             </button>
           </article>
         </div>
@@ -426,7 +438,7 @@
 
   <!-- Artifact canvas -->
   <section class="psc-canvas-column" *ngIf="canvasOpen" aria-label="Artifact canvas">
-    <app-artifact-toolbar (closed)="closeArtifact()"></app-artifact-toolbar>
+    <app-artifact-toolbar></app-artifact-toolbar>
     <app-artifact-canvas></app-artifact-canvas>
   </section>
 </main>
