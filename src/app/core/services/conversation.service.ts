@@ -20,6 +20,8 @@ export interface SendMessageOptions {
   draftPrompt?: string;
   /** Answer lines to echo in the reply ("Using your answers: …"). */
   answerLines?: string[];
+  /** Who the chat is shared with ("Checkout squad", "Abdul Sabir"); the first draft says who can see it. */
+  sharedWith?: string[];
 }
 
 const STORAGE_KEY = 'psc.conversations.v1';
@@ -180,6 +182,28 @@ export class ConversationService {
     this.update(id, c => ({ ...c, collaborators: names.length ? [...names] : undefined }));
   }
 
+  /**
+   * Note in the chat timeline when someone joins or leaves ("Mobile squad (3 people) joined this chat").
+   * Undoing a change right away (add then remove the same team or person) removes the note instead of adding another.
+   */
+  addMembershipEvent(id: string, subject: string, joined: boolean, detail?: string): void {
+    this.update(id, c => {
+      const last = c.messages[c.messages.length - 1];
+      const ev = last?.role === 'event' ? (last.metadata?.['membership'] as { subject: string; joined: boolean } | undefined) : undefined;
+      if (ev && ev.subject === subject && ev.joined !== joined) {
+        return { ...c, messages: c.messages.slice(0, -1) };
+      }
+      const message: AiMessage = {
+        id: `event-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
+        role: 'event',
+        content: joined ? `${subject}${detail ? ` (${detail})` : ''} joined this chat` : `${subject} left this chat`,
+        timestamp: new Date().toISOString(),
+        metadata: { membership: { subject, joined } }
+      };
+      return { ...c, messages: [...c.messages, message] };
+    });
+  }
+
   /** Context grounding a chat changed mid-conversation (Add context / remove) — keep it with the chat. */
   updateContext(id: string, contextIds: string[], attachments: ContextAttachment[]): void {
     this.update(id, c => ({ ...c, contextIds: [...contextIds], attachments: attachments.length ? [...attachments] : undefined }));
@@ -269,7 +293,7 @@ export class ConversationService {
 
   private buildReply(conversation: Conversation, prompt: string, options: SendMessageOptions): AiMessage {
     const previousArtifacts = conversation.messages.flatMap(m => m.artifacts || []);
-    const isFirstReply = !conversation.messages.some(m => m.role !== 'user' && !clarifyOf(m));
+    const isFirstReply = !conversation.messages.some(m => m.role !== 'user' && m.role !== 'event' && !clarifyOf(m));
     const now = new Date().toISOString();
     const base = {
       id: `assistant-${Date.now()}`,
@@ -311,9 +335,13 @@ export class ConversationService {
         ? `\n\n**Grounded in context** (${n} item${n === 1 ? '' : 's'}):\n${options.contextNames.slice(0, 6).map(c => `• ${c}`).join('\n')}${n > 6 ? `\n• …and ${n - 6} more` : ''}`
         : '\n\nNo context was added, so this draft is based on your prompt alone — use **Add context** to ground it in Jira items, Confluence pages, modules, the knowledge base or a file.';
       const lifecycleText = options.lifecycle ? `\n\n**Lifecycle:** ${options.lifecycle}. I’ve aligned this draft to that phase and its success metrics.` : '';
+      const shared = options.sharedWith ?? [];
+      const sharedText = shared.length
+        ? `\n\n**Shared with** ${this.listNames(shared)}. They can see this chat and its drafts.`
+        : '';
       return {
         ...base,
-        content: `I’ve started your **${getArtifactLabel(options.artifactId).toLowerCase()}** workflow.${contextText}${lifecycleText}\n\nOpen the draft below to view, edit, compare versions, share, publish or export it — or keep refining it here. Pick a different artifact in the prompt bar to generate it from this conversation.`,
+        content: `I’ve started your **${getArtifactLabel(options.artifactId).toLowerCase()}** workflow.${contextText}${lifecycleText}${sharedText}\n\nOpen the draft to review, edit, check its version history or publish it — or keep refining it here. Pick a different artifact in the prompt bar to generate it from this conversation.`,
         artifacts: [this.createArtifact(options.artifactId, 1, prompt, conversation.projectId, options.contextNames)]
       };
     }
@@ -401,6 +429,14 @@ export class ConversationService {
 
   private truncate(text: string, max: number): string {
     return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+  }
+
+  /** "A", "A and B", "A, B and 2 others". */
+  private listNames(names: string[]): string {
+    const bold = names.map(n => `**${n}**`);
+    if (bold.length <= 2) return bold.join(' and ');
+    if (bold.length === 3) return `${bold[0]}, ${bold[1]} and ${bold[2]}`;
+    return `${bold[0]}, ${bold[1]} and ${bold.length - 2} others`;
   }
 
   private createId(): string {

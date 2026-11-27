@@ -5,57 +5,43 @@
     <lucide-icon [name]="canvas.layout().chatCollapsed ? 'panel-left-open' : 'panel-left-close'" [size]="16"></lucide-icon>
   </button>
 
-  <!-- Document switcher -->
-  <div class="tb-anchor" data-tour="pv-doc">
-    <button type="button" class="tb-doc" (click)="toggleMenu('doc', $event)" aria-haspopup="menu" [attr.aria-expanded]="menu() === 'doc'"
-      [title]="artifact.title + ' — switch document'">
-      <span class="tb-doc-icon"><lucide-icon [name]="iconName()" [size]="13"></lucide-icon></span>
-      <span class="tb-doc-title">{{ artifact.title }}</span>
-      <span class="tb-doc-ver">v{{ artifact.version }}</span>
-      <lucide-icon class="tb-chev" name="chevron-down" [size]="13"></lucide-icon>
-    </button>
-    <div class="tb-menu tb-menu--doc" *ngIf="menu() === 'doc'" role="menu" aria-label="Documents in this chat" (click)="$event.stopPropagation()" (keydown)="onMenuKeydown($event)">
-      <div class="tb-menu-title">In this chat</div>
-      <button type="button" role="menuitemradio" class="tb-menu-item" *ngFor="let a of canvas.conversationArtifacts()"
-        [attr.aria-checked]="a.type === artifact.type" [class.selected]="a.type === artifact.type" (click)="switchTo(a)">
-        <span class="tb-menu-icon"><lucide-icon [name]="getIcon(a.type)" [size]="14"></lucide-icon></span>
-        <span class="tb-menu-label">{{ a.title }}<small>{{ getShort(a.type) }} · v{{ a.version }} · {{ canvas.statusLabel(a.status) }}</small></span>
-        <lucide-icon *ngIf="a.type === artifact.type" class="tb-menu-check" name="check" [size]="14"></lucide-icon>
-      </button>
-      <div class="tb-menu-hint">Pick another artifact in the prompt bar to add one.</div>
+  <!-- The preview's only header: document title (rename in place) and one line of details -->
+  <div class="tb-doc" data-tour="pv-doc">
+    <span class="tb-doc-icon" [title]="typeLabel()" aria-hidden="true"><lucide-icon [name]="iconName()" [size]="15"></lucide-icon></span>
+    <div class="tb-doc-text">
+      <div class="tb-doc-row">
+        <input *ngIf="renaming(); else titleTpl" class="tb-title-input" [value]="artifact.title" aria-label="Document title" maxlength="120"
+          (keydown.enter)="finishRename($any($event.target).value, true)" (keydown.escape)="$event.stopPropagation(); finishRename('', false)"
+          (blur)="finishRename($any($event.target).value, true)" />
+        <ng-template #titleTpl>
+          <h1 class="tb-doc-title" [title]="artifact.title">{{ artifact.title }}</h1>
+          <button type="button" class="tb-rename" *ngIf="!canvas.viewingVersion()" (click)="startRename()" aria-label="Rename document" title="Rename">
+            <lucide-icon name="pencil" [size]="12"></lucide-icon>
+          </button>
+        </ng-template>
+      </div>
+      <p class="tb-doc-meta">
+        <span class="tb-doc-ver">v{{ canvas.viewingVersion() ?? artifact.version }}</span>
+        <span class="tb-pub" *ngIf="artifact.status === 'published'"><span class="tb-pub-dot"></span>Published</span>
+        <span class="tb-meta-project" *ngIf="projectName() as pn">{{ pn }}</span>
+        <span class="tb-meta-read">{{ readingMinutes() }} min read · {{ words() }} words</span>
+        <span class="tb-meta-updated">Updated {{ artifact.updatedAt | date:'MMM d, h:mm a' }}</span>
+      </p>
     </div>
   </div>
 
-  <!-- Status -->
-  <div class="tb-anchor tb-status-wrap" data-tour="pv-status">
-    <button type="button" class="tb-status" [attr.data-status]="artifact.status" (click)="toggleMenu('status', $event)"
-      aria-haspopup="menu" [attr.aria-expanded]="menu() === 'status'" [attr.aria-label]="'Status: ' + canvas.statusLabel(artifact.status) + '. Change status'">
-      <span class="tb-status-dot"></span>{{ canvas.statusLabel(artifact.status) }}
-      <lucide-icon name="chevron-down" [size]="12"></lucide-icon>
-    </button>
-    <div class="tb-menu tb-menu--status" *ngIf="menu() === 'status'" role="menu" aria-label="Status" (click)="$event.stopPropagation()" (keydown)="onMenuKeydown($event)">
-      <button type="button" role="menuitemradio" class="tb-menu-item" *ngFor="let s of statusOptions" [attr.data-status]="s.id"
-        [attr.aria-checked]="artifact.status === s.id" [class.selected]="artifact.status === s.id" (click)="setStatus(s.id)">
-        <span class="tb-status-dot"></span>
-        <span class="tb-menu-label">{{ s.label }}<small>{{ s.hint }}</small></span>
-        <lucide-icon *ngIf="artifact.status === s.id" class="tb-menu-check" name="check" [size]="14"></lucide-icon>
-      </button>
-    </div>
-  </div>
-
-  <!-- Primary tabs -->
-  <div class="tb-tabs" role="tablist" aria-label="Canvas view" data-tour="pv-modes">
-    <button type="button" class="tb-tab" *ngFor="let t of tabs" role="tab" [attr.aria-selected]="canvas.mode() === t.id"
-      [class.active]="canvas.mode() === t.id" (click)="setMode(t.id)" [title]="t.label + (t.shortcut ? ' (' + t.shortcut + ')' : '')">
-      <lucide-icon [name]="t.icon" [size]="14"></lucide-icon><span class="tb-label">{{ t.label }}</span>
-      <span class="tb-count" *ngIf="t.id === 'history' && canvas.versions().length > 1">{{ canvas.versions().length }}</span>
-    </button>
-  </div>
+  <!-- Back to the document from edit / compare / history / share / publish / export -->
+  <button type="button" class="tb-btn tb-back" *ngIf="isAway()" (click)="setMode('view')" title="Back to the document (Esc)">
+    <lucide-icon name="arrow-left" [size]="14"></lucide-icon><span class="tb-label">Document</span>
+  </button>
 
   <span class="tb-spacer"></span>
 
-  <button type="button" class="tb-btn" data-tour="pv-share" [class.active]="canvas.mode() === 'share'" (click)="setMode('share')" title="Share">
-    <lucide-icon name="share-2" [size]="14"></lucide-icon><span class="tb-label">Share</span>
+  <!-- History (versions) -->
+  <button type="button" class="tb-btn" data-tour="pv-modes" [class.active]="canvas.mode() === 'history'" [attr.aria-pressed]="canvas.mode() === 'history'"
+    (click)="toggleHistory()" title="Version history">
+    <lucide-icon name="history" [size]="14"></lucide-icon><span class="tb-label">History</span>
+    <span class="tb-count" *ngIf="canvas.versions().length > 1">{{ canvas.versions().length }}</span>
   </button>
   <button type="button" class="tb-btn tb-btn--primary" [class.done]="artifact.status === 'published'" (click)="setMode('publish')"
     [title]="artifact.status === 'published' ? 'Published — manage' : 'Publish to your team'">
@@ -63,20 +49,6 @@
     <span class="tb-label">{{ artifact.status === 'published' ? 'Published' : 'Publish' }}</span>
   </button>
 
-  <div class="tb-anchor" data-tour="pv-more">
-    <button type="button" class="tb-icon" (click)="toggleMenu('more', $event)" aria-haspopup="menu" [attr.aria-expanded]="menu() === 'more'" aria-label="More actions" title="More actions">
-      <lucide-icon name="ellipsis" [size]="16"></lucide-icon>
-    </button>
-    <div class="tb-menu tb-menu--more" *ngIf="menu() === 'more'" role="menu" aria-label="More actions" (click)="$event.stopPropagation()" (keydown)="onMenuKeydown($event)">
-      <ng-container *ngFor="let m of more">
-        <div class="tb-menu-sep" *ngIf="m.divider"></div>
-        <button type="button" role="menuitem" class="tb-menu-item" [class.tb-narrow-only]="m.narrowOnly" (click)="runMore(m.id)" [disabled]="m.id === 'refine' && canvas.generating()">
-          <span class="tb-menu-icon"><lucide-icon [name]="m.icon" [size]="14"></lucide-icon></span>
-          <span class="tb-menu-label">{{ m.id === 'chat' ? (canvas.layout().chatCollapsed ? 'Show conversation' : 'Hide conversation') : m.label }}<small *ngIf="m.hint">{{ m.hint }}</small></span>
-        </button>
-      </ng-container>
-    </div>
-  </div>
 
   <button type="button" class="tb-icon" (click)="close()" title="Close (Esc)" aria-label="Close artifact">
     <lucide-icon name="x" [size]="16"></lucide-icon>

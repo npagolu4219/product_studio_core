@@ -3,12 +3,11 @@ import { Router } from '@angular/router';
 import { Artifact, ArtifactVersion } from '../models/psc.models';
 import { ConversationService } from './conversation.service';
 import { PscMockDataService } from './psc-mock-data.service';
-import { DocSection, replaceSectionBody, toHtml, toMarkdown } from '../utils/artifact-doc';
+import { DocSection, replaceSectionBody } from '../utils/artifact-doc';
 import { getArtifactLabel } from '../constants/artifact-options';
 
-export type CanvasMode = 'view' | 'edit' | 'compare' | 'history' | 'preview' | 'share' | 'publish' | 'export';
+export type CanvasMode = 'view' | 'edit' | 'compare' | 'history' | 'publish';
 export type PublishStatus = 'idle' | 'publishing' | 'published';
-export type ExportFormat = 'markdown' | 'copy' | 'pdf' | 'word' | 'jira' | 'ado';
 export type ArtifactStatus = Artifact['status'];
 
 export interface CanvasToast {
@@ -30,21 +29,6 @@ export interface LeaveGuard {
   proceed: () => void;
 }
 
-/** Result of a (simulated) push to Jira / Azure DevOps. */
-export interface PushResult {
-  tool: 'Jira' | 'Azure DevOps';
-  keys: string[];
-  at: string;
-}
-
-/** Ask the chat to refine the open artifact (or one section); Home listens and pre-fills the prompt. */
-export interface RefineRequest {
-  seq: number;
-  artifactId: string;
-  artifactType: Artifact['type'];
-  text: string;
-}
-
 interface OpenArtifactRef {
   conversationId: string;
   artifactId: string;
@@ -58,7 +42,6 @@ const CHAT_PANEL_DEFAULT = 400;
 interface CanvasLayout {
   chatWidth: number;
   chatCollapsed: boolean;
-  watchExpanded: boolean;
 }
 
 export const STATUS_OPTIONS: { id: ArtifactStatus; label: string; hint: string }[] = [
@@ -79,7 +62,6 @@ export class ArtifactCanvasService {
   private readonly router = inject(Router);
   private readonly ref = signal<OpenArtifactRef | null>(null);
   private toastSeq = 0;
-  private refineSeq = 0;
 
   readonly mode = signal<CanvasMode>('view');
   readonly editContent = signal('');
@@ -90,9 +72,6 @@ export class ArtifactCanvasService {
   readonly compareTo = signal<number | null>(null);
   readonly leaveGuard = signal<LeaveGuard | null>(null);
   readonly publishStatus = signal<PublishStatus>('idle');
-  readonly exportFormat = signal<ExportFormat | null>(null);
-  readonly pushResult = signal<PushResult | null>(null);
-  readonly refineRequest = signal<RefineRequest | null>(null);
   readonly toast = signal<CanvasToast | null>(null);
   readonly layout = signal<CanvasLayout>(this.loadLayout());
 
@@ -308,42 +287,6 @@ export class ArtifactCanvasService {
     this.showToast('success', `Restored v${version.version} as v${a.version + 1}`, 'Undo', () => this.undoLastVersion(a.version));
   }
 
-  // ── Share ──
-  get shareUrl(): string {
-    const a = this.artifact();
-    const url = new URL(window.location.href);
-    if (a) url.searchParams.set('artifact', a.id);
-    return url.toString();
-  }
-
-  copyLink(): void {
-    this.copyToClipboard(this.shareUrl);
-    this.showToast('success', 'Link copied — it opens this artifact on the canvas');
-  }
-
-  emailLink(): void {
-    const a = this.artifact();
-    if (!a) return;
-    const subject = encodeURIComponent(`${a.title} (v${a.version})`);
-    const body = encodeURIComponent(`Hi,\n\nHere’s the latest ${getArtifactLabel(a.type).toLowerCase()} — v${a.version}, ${this.statusLabel(a.status).toLowerCase()}:\n${this.shareUrl}\n`);
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
-  }
-
-  copyForSlack(): void {
-    const a = this.artifact();
-    if (!a) return;
-    this.copyToClipboard(`📄 *${a.title}* — ${getArtifactLabel(a.type)} · v${a.version} · ${this.statusLabel(a.status)}\n${this.shareUrl}`);
-    this.showToast('success', 'Slack message copied — paste it into any channel');
-  }
-
-  /** Notifies the artifact's project team (simulated). */
-  notifyTeam(): string[] {
-    const a = this.artifact();
-    const team = this.mockData.findProject(a?.projectId)?.team ?? [];
-    this.showToast('success', team.length ? `Notified ${team.length} teammate${team.length === 1 ? '' : 's'}` : 'This artifact has no project team yet — share the link instead');
-    return team;
-  }
-
   // ── Publish ──
   publish(): void {
     const ref = this.ref();
@@ -368,71 +311,9 @@ export class ArtifactCanvasService {
     this.showToast('info', 'Unpublished — moved back to Approved');
   }
 
-  // ── Export ──
-  exportAs(format: ExportFormat): void {
-    const a = this.artifact();
-    if (!a || this.exportFormat()) return;
-    if (format === 'copy') {
-      this.copyToClipboard(toMarkdown(a.title, a.content));
-      this.showToast('success', 'Copied as Markdown — paste into Confluence, Notion or GitHub');
-      return;
-    }
-    if (format === 'pdf') { this.print(); return; }
-    this.exportFormat.set(format);
-    window.setTimeout(() => {
-      this.exportFormat.set(null);
-      try {
-        if (format === 'markdown') {
-          this.download(toMarkdown(a.title, a.content), 'text/markdown', 'md');
-          this.showToast('success', 'Markdown file downloaded');
-        } else if (format === 'word') {
-          this.download(toHtml(a.title, a.content, this.metaLine(a)), 'application/msword', 'doc');
-          this.showToast('success', 'Word document downloaded');
-        } else {
-          this.push(a, format === 'jira' ? 'Jira' : 'Azure DevOps');
-        }
-      } catch {
-        this.showToast('error', 'Export failed — please try again');
-      }
-    }, format === 'jira' || format === 'ado' ? 1400 : 500);
-  }
-
-  /** Print / Save as PDF via a hidden iframe (no pop-up blockers). */
-  print(): void {
-    const a = this.artifact();
-    if (!a) return;
-    const frame = document.createElement('iframe');
-    frame.setAttribute('aria-hidden', 'true');
-    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
-    document.body.appendChild(frame);
-    const doc = frame.contentDocument;
-    if (!doc) { frame.remove(); return; }
-    doc.open();
-    doc.write(toHtml(a.title, a.content, this.metaLine(a)));
-    doc.close();
-    window.setTimeout(() => {
-      try { frame.contentWindow?.focus(); frame.contentWindow?.print(); } catch { /* ignore */ }
-      window.setTimeout(() => frame.remove(), 1000);
-    }, 150);
-    this.showToast('info', 'Print dialog opened — choose “Save as PDF” to export');
-  }
-
-  // ── Ask AI ──
-  requestRefine(section?: DocSection): void {
-    const a = this.artifact();
-    if (!a) return;
-    const what = section ? `the “${section.heading}” section of this ${getArtifactLabel(a.type).toLowerCase()}` : `this ${getArtifactLabel(a.type).toLowerCase()}`;
-    this.refineRequest.set({ seq: ++this.refineSeq, artifactId: a.id, artifactType: a.type, text: `Refine ${what}: ` });
-    if (this.layout().chatCollapsed) this.toggleChatCollapsed();
-  }
-
   // ── Layout ──
   toggleChatCollapsed(): void {
     this.patchLayout({ chatCollapsed: !this.layout().chatCollapsed });
-  }
-
-  toggleWatch(): void {
-    this.patchLayout({ watchExpanded: !this.layout().watchExpanded });
   }
 
   setChatWidth(width: number, persist = false): void {
@@ -496,44 +377,12 @@ export class ArtifactCanvasService {
         ...a,
         content,
         version,
-        status: a.status === 'published' ? 'review' : a.status,
+        status: a.status === 'published' ? 'draft' : a.status,
         updatedAt: savedAt,
         history: [{ version, content, savedAt, label: label(version) }, ...(a.history?.length ? a.history : base)]
       };
     });
     this.publishStatus.set('idle');
-  }
-
-  /** Simulated push: one work item per tagged line (FR-01, Story 1.1, US-02…), keyed by the project. */
-  private push(a: Artifact, tool: PushResult['tool']): void {
-    const ref = this.ref();
-    const items = (a.content.match(/^\s*((?:[A-Z]{1,6}-\d+(?:\.\d+)?)|(?:Story \d+(?:\.\d+)?))\s{2,}/gm) ?? []).length || 1;
-    const project = this.mockData.findProject(a.projectId);
-    const prefix = tool === 'Jira'
-      ? (project?.jiraKey ?? (project?.name ?? 'PSC').split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 4))
-      : '#';
-    const start = 100 + Math.floor(Math.random() * 800);
-    const keys = Array.from({ length: Math.min(items, 30) }, (_, i) => (tool === 'Jira' ? `${prefix}-${start + i}` : `#${start * 10 + i}`));
-    this.pushResult.set({ tool, keys, at: new Date().toISOString() });
-    if (ref && tool === 'Jira') this.conversations.updateArtifact(ref.conversationId, ref.artifactId, x => ({ ...x, jiraIssueKey: keys[0] }));
-    this.showToast('success', `Created ${keys.length} ${tool === 'Jira' ? 'issue' : 'work item'}${keys.length === 1 ? '' : 's'} in ${tool}`);
-  }
-
-  private metaLine(a: Artifact): string {
-    const project = this.mockData.findProject(a.projectId)?.name;
-    return [getArtifactLabel(a.type), `v${a.version}`, this.statusLabel(a.status), project, new Date(a.updatedAt).toLocaleDateString()].filter(Boolean).join(' · ');
-  }
-
-  private download(text: string, type: string, ext: string): void {
-    const a = this.artifact();
-    if (!a) return;
-    const blob = new Blob([text], { type });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${a.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}-v${a.version}.${ext}`;
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   private findType(conversationId: string, artifactId: string): Artifact['type'] | undefined {
@@ -546,12 +395,6 @@ export class ArtifactCanvasService {
     this.compareFrom.set(null);
     this.leaveGuard.set(null);
     this.publishStatus.set('idle');
-    this.exportFormat.set(null);
-    this.pushResult.set(null);
-  }
-
-  private copyToClipboard(text: string): void {
-    try { void navigator.clipboard?.writeText(text); } catch { /* ignore */ }
   }
 
   private patchLayout(partial: Partial<CanvasLayout>): void {
@@ -564,7 +407,7 @@ export class ArtifactCanvasService {
   }
 
   private loadLayout(): CanvasLayout {
-    const fallback: CanvasLayout = { chatWidth: CHAT_PANEL_DEFAULT, chatCollapsed: false, watchExpanded: false };
+    const fallback: CanvasLayout = { chatWidth: CHAT_PANEL_DEFAULT, chatCollapsed: false };
     try {
       const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null');
       return saved ? { ...fallback, ...saved } : fallback;

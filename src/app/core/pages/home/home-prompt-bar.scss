@@ -119,3 +119,42 @@
   .psc-prompt-actions { flex: 1 1 100%; justify-content: flex-end; }
   .psc-picker { min-width: 0; }
 }
+
+// Auto refine lives inside the Refine menu: a switch row at the top
+.psc-auto-refine-row {
+  .psc-auto-refine { height: auto; padding: 0; margin-left: auto; pointer-events: none; }
+}
+#refine-menu .psc-popover-option:disabled { opacity: .45; cursor: not-allowed; }
+// "Auto" tag on the Refine button while auto refine is on
+.psc-refine-auto-dot {
+  padding: 1px 6px; border-radius: 999px; color: #fff; background: var(--psc-gradient-brand);
+  font: 800 10px/1.5 'Mulish', sans-serif; letter-spacing: .2px;
+}
+@container chatcol (max-width: 460px) { .psc-home.with-canvas .psc-refine-auto-dot { display: none; } }
+
+// Project greeting under "Good morning, <name>" in a new project chat
+.psc-pw-empty .psc-pw-greet { max-width: 560px; margin-top: 6px; color: var(--psc-text-body); font-size: 16px; strong { color: var(--psc-text-primary); font-weight: 800; } }
+
+// ── Team collaboration ─────────────────────────────────────────────────────
+// Search at the top of the popover
+.psc-team-search {
+  display: flex; align-items: center; gap: 7px; margin: 2px 6px 6px; padding: 0 10px; height: 34px;
+  color: var(--psc-text-subtle); background: var(--psc-surface-2, var(--psc-bg)); border: 1px solid var(--prompt-line); border-radius: 9px;
+  &:focus-within { border-color: rgb(var(--psc-primary-rgb) / .45); box-shadow: 0 0 0 3px rgb(var(--psc-primary-rgb) / .1); }
+  input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--psc-text-strong); font: 600 12.5px 'Mulish', sans-serif; }
+}
+// Project header: who is in this chat
+.psc-pw-people {
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 8px; margin-left: auto;
+  background: var(--psc-surface); border: 1px solid var(--prompt-line); border-radius: 999px; cursor: pointer;
+  &:hover { border-color: rgb(var(--psc-primary-rgb) / .35); }
+  &:focus-visible { outline: 2px solid rgb(var(--psc-primary-rgb) / .45); outline-offset: 1px; }
+}
+.psc-pw-people-count { color: var(--psc-primary-dark); font: 800 11.5px 'Mulish', sans-serif; }
+// Timeline note: someone joined or left the chat
+.psc-chat-event {
+  display: flex; align-items: center; justify-content: center; gap: 6px; margin: 2px auto; padding: 4px 12px; width: fit-content; max-width: 100%;
+  color: var(--psc-text-subtle); background: rgb(var(--psc-primary-rgb) / .06); border-radius: 999px; font-size: 12px; font-weight: 700;
+  lucide-icon { color: var(--psc-primary-text); flex-shrink: 0; }
+  time { color: var(--psc-text-faint, var(--psc-text-subtle)); font-weight: 600; }
+}

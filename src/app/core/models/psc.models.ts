@@ -20,7 +20,8 @@ export interface Project {
 
 export interface AiMessage {
   id: string;
-  role: 'user' | 'assistant' | 'agent';
+  /** 'event' = a note in the chat timeline (e.g. someone joined), not a message from the AI. */
+  role: 'user' | 'assistant' | 'agent' | 'event';
   content: string;
   timestamp: string;
   agentName?: string;

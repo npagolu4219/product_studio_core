@@ -64,9 +64,6 @@
       <ng-container *ngIf="!railCollapsed; else collapsedChats">
         <div class="psc-chats-header">
           <span class="psc-chats-title">Chats</span>
-          <button type="button" class="psc-chats-new" (click)="newChat()" aria-label="New chat" title="New chat">
-            <lucide-icon name="square-pen" [size]="15"></lucide-icon>
-          </button>
         </div>
         <div class="psc-chats-list">
           <!-- Project chats: one folder per project -->
@@ -157,9 +154,6 @@
         </ng-template>
       </ng-container>
       <ng-template #collapsedChats>
-        <button type="button" class="psc-rail-item" (click)="newChat()" title="New chat" aria-label="New chat">
-          <lucide-icon name="square-pen" [size]="20"></lucide-icon>
-        </button>
         <button type="button" class="psc-rail-item" (click)="showChats()" title="Chats" aria-label="Show chats">
           <lucide-icon name="messages-square" [size]="20"></lucide-icon>
         </button>

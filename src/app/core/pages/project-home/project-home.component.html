@@ -1,103 +1,55 @@
 <div class="psc-projects psc-animate-in">
+  <div class="proj-inner">
 
-  <!-- ── Page Header ── -->
-  <div class="proj-page-hdr">
-    <div class="proj-page-hdr-left">
-      <div class="proj-page-icon"><lucide-icon name="folder-open" [size]="20" color="white"></lucide-icon></div>
-      <div>
-        <h1 class="proj-page-title">Projects</h1>
-        <p class="proj-page-sub">{{ projects.length }} AI-powered product engineering projects</p>
-      </div>
-    </div>
-    <button type="button" class="proj-new-btn" (click)="openModal()">
-      <lucide-icon name="plus" [size]="14"></lucide-icon>
-      New Project
-    </button>
-  </div>
+    <!-- Heading -->
+    <header class="proj-head">
+      <h1 class="proj-title">Projects</h1>
+      <p class="proj-sub">Every chat and document lives in a project. Open one to continue, or start a new one.</p>
+    </header>
 
-  <!-- ── Filters ── -->
-  <div class="proj-toolbar">
-    <div class="proj-search-wrap">
-      <lucide-icon name="search" [size]="14" class="proj-search-icon"></lucide-icon>
-      <input class="proj-search-input" [(ngModel)]="search" placeholder="Search projects...">
-    </div>
-    <div class="proj-filter-group">
-      <button type="button" class="proj-filter-btn" [class.active]="filter===''"          (click)="filter=''">All <span class="proj-filter-count">{{projects.length}}</span></button>
-      <button type="button" class="proj-filter-btn" [class.active]="filter==='active'"    (click)="filter='active'">Active</button>
-      <button type="button" class="proj-filter-btn" [class.active]="filter==='paused'"    (click)="filter='paused'">Paused</button>
-      <button type="button" class="proj-filter-btn" [class.active]="filter==='completed'" (click)="filter='completed'">Completed</button>
-      <button type="button" class="proj-filter-btn" [class.active]="filter==='draft'"     (click)="filter='draft'">Draft</button>
-    </div>
-  </div>
-
-  <!-- ── Project Grid ── -->
-  <div class="proj-grid">
-    <div class="proj-card" *ngFor="let p of filtered; let i = index" (click)="openProject(p)" tabindex="0" role="link" (keydown.enter)="openProject(p)" [attr.aria-label]="'Open ' + p.name">
-
-      <!-- Accent bar -->
-      <div class="proj-card-accent" [style.background]="getGradient(p.id, i)"></div>
-
-      <!-- Card Header -->
-      <div class="proj-card-hdr">
-        <div class="proj-card-avatar" [style.background]="getGradient(p.id, i)">
-          {{ initials(p.name) }}
-        </div>
-        <div class="proj-card-hdr-body">
-          <div class="proj-card-name">{{ p.name }}</div>
-          <div class="proj-card-owner">
-            <lucide-icon name="user" [size]="10"></lucide-icon>
-            {{ p.owner }}
-          </div>
-        </div>
-      </div>
-
-      <!-- Description -->
-      <p class="proj-desc">{{ p.description }}</p>
-
-      <!-- Lifecycle: current phase + progress through the PDLC -->
-      <div class="proj-pdlc" *ngIf="lifecycleOf(p.id) as lc" [title]="'Lifecycle: ' + phaseLabel(lc.current) + ' — gate: ' + phaseGate(lc.current)">
-        <span class="proj-pdlc-phase"><lucide-icon [name]="phaseIcon(lc.current)" [size]="11"></lucide-icon>{{ phaseLabel(lc.current) }}</span>
-        <span class="proj-pdlc-track" aria-hidden="true">
-          <i *ngFor="let id of lc.phases" [class.done]="lc.completed.includes(id)" [class.current]="id === lc.current"></i>
-        </span>
-        <span class="proj-pdlc-count">{{ lc.phases.indexOf(lc.current) + 1 }}/{{ lc.phases.length }} · {{ lc.evaluation.metrics.length }} metrics</span>
-      </div>
-
-      <!-- Footer -->
-      <div class="proj-card-footer">
-        <div class="proj-team-stack">
-          <div class="proj-av" *ngFor="let m of p.team.slice(0,4)" [title]="m">{{ initials(m) }}</div>
-          <span class="proj-more" *ngIf="p.team.length > 4">+{{ p.team.length - 4 }}</span>
-        </div>
-        <div class="proj-footer-right">
-          <div class="proj-int-chips">
-            <span class="proj-int-chip" *ngFor="let int of p.integrations.slice(0,3)" [title]="int">{{ int }}</span>
-          </div>
-          <button type="button" class="proj-open-btn" (click)="$event.stopPropagation(); openProject(p)"
-            [attr.aria-label]="(chatCounts[p.id] ? 'Open ' + chatCounts[p.id] + ' chats in ' : 'Start a chat in ') + p.name">
-            <lucide-icon name="message-square" [size]="12"></lucide-icon>
-            {{ chatCounts[p.id] ? chatCounts[p.id] + (chatCounts[p.id] === 1 ? ' chat' : ' chats') : 'Chat' }}
-            <lucide-icon name="arrow-right" [size]="12"></lucide-icon>
-          </button>
-        </div>
-      </div>
-
-      <div class="proj-updated">
-        <lucide-icon name="clock" [size]="10"></lucide-icon>
-        Updated {{ p.updatedAt | date:'MMM d, y' }}
+    <!-- Toolbar: title and search (10+ projects), same as the Home landing -->
+    <div class="psc-l-toolbar">
+      <h2 class="psc-l-title">Your projects<span class="psc-l-count">{{ projects.length }}</span></h2>
+      <div class="psc-l-search" *ngIf="showSearch">
+        <lucide-icon name="search" [size]="15"></lucide-icon>
+        <label class="psc-sr-only" for="projects-search">Search projects</label>
+        <input id="projects-search" type="search" [(ngModel)]="search" placeholder="Search projects" autocomplete="off" (keydown.escape)="search = ''">
       </div>
     </div>
 
-    <!-- Empty state -->
-    <div class="proj-empty" *ngIf="filtered.length === 0">
-      <div class="proj-empty-icon"><lucide-icon name="folder-open" [size]="32"></lucide-icon></div>
-      <h3>No projects found</h3>
-      <p>Try adjusting your filters or create a new project</p>
-      <button type="button" class="proj-new-btn" (click)="openModal()">
-        <lucide-icon name="plus" [size]="14"></lucide-icon>
-        Create New Project
+    <!-- Project cards: dashed "New project" first, then projects (most recently active first) -->
+    <div class="psc-l-grid" role="list" *ngIf="filtered.length || !search; else noMatch">
+      <button type="button" class="psc-l-add" role="listitem" (click)="openModal()" *ngIf="!search">
+        <span class="psc-l-add-icon"><lucide-icon name="plus" [size]="22"></lucide-icon></span>
+        <strong>New project</strong>
+        <span>Start with a title and description</span>
       </button>
+      <article class="psc-l-card" role="listitem" *ngFor="let p of filtered; let i = index; trackBy: trackById" [style.animation-delay]="(i * 0.04) + 's'">
+        <button type="button" class="psc-l-card-main" (click)="openProject(p)" [attr.aria-label]="'Open ' + p.name">
+          <span class="psc-l-card-top">
+            <span class="psc-l-av" [style.background]="getGradient(p.id, i)">{{ initials(p.name) }}</span>
+            <span class="psc-l-meta" *ngIf="phaseOf(p) || p.team.length">
+              <span class="psc-l-phase" *ngIf="phaseOf(p) as ph"><lucide-icon name="route" [size]="12"></lucide-icon>{{ ph }}</span>
+              <span class="psc-l-team" *ngIf="p.team.length" [attr.aria-label]="p.team.length + ' members'">
+                <span class="psc-l-team-av" *ngFor="let m of p.team.slice(0, 4)" [title]="m">{{ initials(m) }}</span>
+                <span class="psc-l-team-more" *ngIf="p.team.length > 4">+{{ p.team.length - 4 }}</span>
+              </span>
+            </span>
+          </span>
+          <span class="psc-l-name">{{ p.name }}</span>
+          <span class="psc-l-desc">{{ p.description || 'No description yet.' }}</span>
+        </button>
+      </article>
     </div>
+
+    <ng-template #noMatch>
+      <div class="psc-l-empty">
+        <lucide-icon name="search-x" [size]="22"></lucide-icon>
+        <strong>No projects match</strong>
+        <span>Try another name.</span>
+        <button type="button" class="psc-l-btn psc-l-btn--ghost" (click)="search = ''">Clear search</button>
+      </div>
+    </ng-template>
   </div>
 </div>
 
